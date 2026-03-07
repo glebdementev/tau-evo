@@ -1,0 +1,10 @@
+.env
+results/
+patches/
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.egg-info/
+.python-version
+uv.lock
