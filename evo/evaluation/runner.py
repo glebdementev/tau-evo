@@ -24,6 +24,7 @@ def run_baseline(
     seed: int = 42,
     prompt_instruction: Optional[str] = None,
     tool_schemas: Optional[dict] = None,
+    tool_code: Optional[dict[str, str]] = None,
     system_prompt: Optional[str] = None,
     save_name: Optional[str] = None,
     on_task_complete: Optional[Callable[[str, int, Optional[float]], None]] = None,
@@ -39,6 +40,8 @@ def run_baseline(
         llm_args["prompt_instruction"] = prompt_instruction
     if tool_schemas is not None:
         llm_args["tool_schemas"] = tool_schemas
+    if tool_code is not None:
+        llm_args["tool_code"] = tool_code
 
     config = RunConfig(
         domain=domain,

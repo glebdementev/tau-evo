@@ -11,18 +11,23 @@ from typing import Optional
 
 @dataclass
 class Patch:
-    """A single find-and-replace patch to the agent's prompt or tool schema."""
+    """A single find-and-replace patch to the agent's prompt, tool schema, or tool preprocessor."""
     old_text: str
     new_text: str
-    tool_name: Optional[str] = None  # None → prompt patch; str → tool schema patch
+    tool_name: Optional[str] = None  # None → prompt patch; str → tool schema or code patch
+    is_code: bool = False  # True → tool preprocessor patch (vs schema patch)
 
     @property
     def is_prompt(self) -> bool:
-        return self.tool_name is None
+        return self.tool_name is None and not self.is_code
 
     @property
     def is_tool(self) -> bool:
-        return self.tool_name is not None
+        return self.tool_name is not None and not self.is_code
+
+    @property
+    def is_tool_code(self) -> bool:
+        return self.tool_name is not None and self.is_code
 
 
 @dataclass
@@ -82,8 +87,11 @@ class LoopState:
     system_prompt: Optional[str] = None
     prompt_instruction: Optional[str] = None  # legacy, kept for old state files
     tool_schemas: Optional[dict] = None
+    tool_code: Optional[dict[str, str]] = None  # tool_name → preprocessor source
     history: list[IterationResult] = field(default_factory=list)
     meta: Optional[RunMeta] = None
+    session_ids: list[str] = field(default_factory=list)
+    dropped_task_ids: list[str] = field(default_factory=list)
 
     def save(self, path: Path) -> None:
         path.write_text(json.dumps(asdict(self), indent=2))
@@ -119,8 +127,11 @@ class LoopState:
             system_prompt=raw.get("system_prompt"),
             prompt_instruction=raw.get("prompt_instruction"),
             tool_schemas=raw.get("tool_schemas"),
+            tool_code=raw.get("tool_code"),
             history=history,
             meta=meta,
+            session_ids=raw.get("session_ids", []),
+            dropped_task_ids=raw.get("dropped_task_ids", []),
         )
 
     @property

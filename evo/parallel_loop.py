@@ -30,6 +30,7 @@ def _fix_single_failure(
     seed: int,
     base_system_prompt: str,
     base_tool_schemas: dict[str, dict],
+    base_tool_code: dict[str, str],
     tools: list,
     max_retries: int,
     on_status: Callable[[str], None],
@@ -50,6 +51,7 @@ def _fix_single_failure(
         task=task,
         reward_info=sim.reward_info,
         tool_schemas=deepcopy(base_tool_schemas),
+        tool_code=deepcopy(base_tool_code),
         task_id=task_id,
         on_message=on_teacher_message,
     )
@@ -88,6 +90,7 @@ def _fix_single_failure(
             seed=seed,
             system_prompt=session.current_prompt,
             tool_schemas=session.current_tool_schemas,
+            tool_code=session.current_tool_code or None,
             save_name=f"fix_{task_id}_a{attempt}",
             student_model=student_model,
             parallelism=parallelism,
@@ -169,15 +172,24 @@ def run_loop(
     current_tool_schemas: dict[str, dict] = {
         t.name: deepcopy(t.openai_schema) for t in tools
     }
+    current_tool_code: dict[str, str] = {}
     log.debug("System prompt: %d chars, policy: %d chars", len(current_system_prompt), len(domain_policy))
+
+    dropped_task_ids: set[str] = set()
 
     for iteration in range(1, max_iterations + 1):
         status(f"\n{'='*60}")
         status(f"ITERATION {iteration}/{max_iterations}")
         status(f"{'='*60}")
 
-        # -- 1. Evaluate all tasks ------------------------------------------
-        label = f"tasks {task_ids}" if task_ids else f"{num_tasks} tasks"
+        # -- 1. Evaluate all tasks (excluding permanently dropped) ----------
+        eval_task_ids = task_ids
+        if eval_task_ids is not None and dropped_task_ids:
+            eval_task_ids = [t for t in eval_task_ids if t not in dropped_task_ids]
+        if dropped_task_ids:
+            status(f"Skipping {len(dropped_task_ids)} permanently dropped task(s): {sorted(dropped_task_ids)}")
+
+        label = f"tasks {eval_task_ids}" if eval_task_ids else f"{num_tasks} tasks"
         status(f"Evaluating {domain} ({label})...")
 
         def _on_task(task_id, trial, reward):
@@ -190,10 +202,11 @@ def run_loop(
         results = run_baseline(
             domain=domain,
             num_tasks=num_tasks,
-            task_ids=task_ids,
+            task_ids=eval_task_ids,
             seed=seed,
             system_prompt=current_system_prompt,
             tool_schemas=current_tool_schemas,
+            tool_code=current_tool_code or None,
             save_name=f"eval_iter{iteration}",
             on_task_complete=_on_task if on_status else None,
             student_model=student_model,
@@ -207,6 +220,11 @@ def run_loop(
             model=student_model or "",
             on_session=on_session,
         )
+
+        # After first eval, lock in task IDs so we can exclude dropped ones.
+        if task_ids is None:
+            task_ids = [sim.task_id for sim in results.simulations]
+            status(f"Locked task set: {task_ids}")
 
         failures = extract_failures(results)
         eval_rewards = {
@@ -249,6 +267,7 @@ def run_loop(
                     seed=seed,
                     base_system_prompt=current_system_prompt,
                     base_tool_schemas=current_tool_schemas,
+                    base_tool_code=current_tool_code,
                     tools=tools,
                     max_retries=max_retries,
                     on_status=status,
@@ -279,17 +298,23 @@ def run_loop(
                         fixed=False,
                     ))
 
-        # -- 3. Merge winning patches (sequential apply) --------------------
+        # -- 3. Drop all failed tasks (fixed or not), merge winning patches --
         winners = [f for f in fix_results if f.fixed]
+        for f in fix_results:
+            dropped_task_ids.add(f.task_id)
+            label = "fixed, validated during fix phase" if f.fixed else "teacher could not fix"
+            status(f"[{f.task_id}] Dropped ({label}).")
         status(f"\n{len(winners)}/{len(fix_results)} failures fixed. Merging patches...")
 
         for fix in winners:
-            current_system_prompt, current_tool_schemas = apply_patches(
-                current_system_prompt, current_tool_schemas, fix.patches,
+            current_system_prompt, current_tool_schemas, current_tool_code = apply_patches(
+                current_system_prompt, current_tool_schemas, fix.patches, current_tool_code,
             )
 
         state.system_prompt = current_system_prompt
         state.tool_schemas = current_tool_schemas
+        state.tool_code = current_tool_code or None
+        state.dropped_task_ids = sorted(dropped_task_ids)
         state.history.append(IterationResult(
             iteration=iteration,
             num_evaluated=len(results.simulations),

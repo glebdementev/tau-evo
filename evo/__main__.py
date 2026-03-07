@@ -20,7 +20,9 @@ def main():
     # ── loop ──────────────────────────────────────────────────────────────
     loop_p = sub.add_parser("loop", help="Run the parallel evolution loop")
     loop_p.add_argument("--domain", default=cfg.DEFAULT_DOMAIN)
-    loop_p.add_argument("--num-tasks", type=int, default=cfg.DEFAULT_NUM_TASKS)
+    _domain_hints = ", ".join(f"{d}={n}" for d, n in cfg.DOMAIN_NUM_TASKS.items())
+    loop_p.add_argument("--num-tasks", type=int, default=cfg.DEFAULT_NUM_TASKS,
+                        help=f"Number of tasks to evaluate ({_domain_hints})")
     loop_p.add_argument("--max-iterations", type=int, default=cfg.DEFAULT_MAX_ITERATIONS)
     loop_p.add_argument("--max-retries", type=int, default=cfg.DEFAULT_MAX_RETRIES)
     loop_p.add_argument("--parallelism", type=int, default=cfg.DEFAULT_PARALLELISM, help="Max parallel workers (teachers & tau2 evals)")
@@ -38,6 +40,11 @@ def main():
     args = parser.parse_args()
 
     if args.command == "loop":
+        max_for_domain = cfg.DOMAIN_NUM_TASKS.get(args.domain, args.num_tasks)
+        if args.num_tasks > max_for_domain:
+            console.print(f"[yellow]Warning:[/yellow] {args.domain} has only {max_for_domain} tasks, clamping num_tasks.")
+            args.num_tasks = max_for_domain
+
         cfg.quiet_deps()
         from evo.parallel_loop import run_loop
 

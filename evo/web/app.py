@@ -33,23 +33,57 @@ _running = False
 _log_queue: queue.Queue[str] = queue.Queue()
 
 # Route orchestrator logs (agent/user/env messages) to the SSE log queue.
+# Only forward when a run is active to avoid stale messages between runs.
 from loguru import logger as _loguru
 
 def _loguru_sink(message):
     """Forward loguru records from tau2.orchestrator to the web SSE queue."""
+    if not _running:
+        return
     text = str(message).rstrip()
     if " - " in text:
         text = text.split(" - ", 1)[1]
     _log_queue.put(text)
 
 _loguru.add(_loguru_sink, filter="tau2.orchestrator", level="INFO")
-_loop_state: Optional[LoopState] = None
-_current_run_id: Optional[str] = None
+
+# Active run (written by the loop thread)
+_active_run_id: Optional[str] = None
+_active_state: Optional[LoopState] = None
 _live_fixes: dict[str, dict] = {}  # task_id -> {patches, diagnosis, attempt, status}
 
-# In-memory teacher sessions (students are disk-only since they complete instantly).
+# Viewed run (what the dashboard displays — may differ from active)
+_viewed_run_id: Optional[str] = None
+_viewed_state: Optional[LoopState] = None
+
+# Session IDs belonging to the currently *executing* run.
+_run_session_ids: set[str] = set()
+_run_session_ids_lock = threading.Lock()
+
+# In-memory teacher sessions — only for live-polling active sessions.
+# Cleared when a run finishes so stale entries don't pollute the session list.
 _teacher_sessions: dict = {}
 _teacher_sessions_lock = threading.Lock()
+
+
+def _viewing_active() -> bool:
+    return _active_run_id is not None and _viewed_run_id == _active_run_id
+
+
+def _get_viewed_state() -> Optional[LoopState]:
+    """Return the LoopState for the currently viewed run."""
+    if _viewing_active():
+        return _active_state
+    return _viewed_state
+
+
+def _get_viewed_session_ids() -> set[str]:
+    """Return session IDs for the currently viewed run."""
+    if _viewing_active():
+        with _run_session_ids_lock:
+            return set(_run_session_ids)
+    state = _viewed_state
+    return set(state.session_ids) if state else set()
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +94,8 @@ def _save_run(state: LoopState) -> None:
         return
     state.meta.total_fixes = state.total_fixed
     state.meta.total_failures = state.total_failures
+    with _run_session_ids_lock:
+        state.session_ids = sorted(_run_session_ids)
     path = cfg.RUNS_DIR / f"{state.meta.run_id}.json"
     state.save(path)
 
@@ -99,12 +135,18 @@ def _load_run(run_id: str) -> Optional[LoopState]:
 # ---------------------------------------------------------------------------
 # Session callbacks (teacher + student)
 # ---------------------------------------------------------------------------
+def _register_session(session_id: str) -> bool:
+    """Add session_id to current run's set. Returns True if new."""
+    with _run_session_ids_lock:
+        is_new = session_id not in _run_session_ids
+        _run_session_ids.add(session_id)
+    return is_new
+
+
 def _on_teacher_message(session, message) -> None:
     """Callback from TeacherSession — runs in the teacher's thread."""
-    is_new = False
+    is_new = _register_session(session.session_id)
     with _teacher_sessions_lock:
-        if session.session_id not in _teacher_sessions:
-            is_new = True
         _teacher_sessions[session.session_id] = session
     payload = json.dumps({
         "session_id": session.session_id,
@@ -119,6 +161,7 @@ def _on_teacher_message(session, message) -> None:
 
 def _on_student_session(session_id: str, data: slog.SessionData) -> None:
     """Callback when a student session is saved to disk."""
+    _register_session(session_id)
     payload = json.dumps({
         "session_id": session_id,
         "session_type": "student",
@@ -137,7 +180,8 @@ def _on_student_session(session_id: str, data: slog.SessionData) -> None:
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     _try_load_latest_run()
-    fixes = _loop_state.flat_fixes() if _loop_state else []
+    state = _get_viewed_state()
+    fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
     return templates.TemplateResponse("index.html", {
@@ -152,10 +196,12 @@ async def index(request: Request):
             "parallelism": cfg.DEFAULT_PARALLELISM,
             "seed": cfg.DEFAULT_SEED,
         },
+        "domain_num_tasks": cfg.DOMAIN_NUM_TASKS,
         "results": _build_results(),
         "running": _running,
         "runs": _list_runs(),
-        "active_run_id": _current_run_id,
+        "active_run_id": _active_run_id,
+        "viewed_run_id": _viewed_run_id,
         "total": total,
         "fixed": fixed,
         "not_fixed": total - fixed,
@@ -165,7 +211,7 @@ async def index(request: Request):
 
 @app.post("/run", response_class=HTMLResponse)
 async def run(request: Request):
-    global _running, _loop_state, _current_run_id
+    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state
 
     if _running:
         return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
@@ -182,39 +228,49 @@ async def run(request: Request):
     task_ids_raw = form.get("task_ids", "")
     num_tasks = int(form.get("num_tasks", cfg.DEFAULT_NUM_TASKS))
 
+    max_for_domain = cfg.DOMAIN_NUM_TASKS.get(domain, 100)
+    if num_tasks > max_for_domain:
+        num_tasks = max_for_domain
+
     task_ids = None
     if use_task_ids and task_ids_raw.strip():
         task_ids = [t.strip() for t in task_ids_raw.split(",") if t.strip()]
 
     run_id = RunMeta.make_id(domain)
-    _current_run_id = run_id
     _running = True
-    _loop_state = None
+    _active_run_id = run_id
+    _viewed_run_id = run_id
+    _viewed_state = None  # viewed == active, so _get_viewed_state() returns _active_state
     with _teacher_sessions_lock:
         _teacher_sessions.clear()
+    with _run_session_ids_lock:
+        _run_session_ids.clear()
     while not _log_queue.empty():
         try:
             _log_queue.get_nowait()
         except queue.Empty:
             break
 
+    # Save the run immediately so it appears in history while running.
+    meta = RunMeta(
+        run_id=run_id,
+        domain=domain,
+        started_at=datetime.now().isoformat(),
+        status="running",
+        num_tasks=num_tasks,
+    )
+    _active_state = LoopState(meta=meta)
+    _save_run(_active_state)
+
     def _run_in_thread():
-        global _running, _loop_state
+        global _running, _active_state, _active_run_id, _viewed_state
         try:
             from evo.parallel_loop import run_loop
 
-            meta = RunMeta(
-                run_id=run_id,
-                domain=domain,
-                started_at=datetime.now().isoformat(),
-                status="running",
-                num_tasks=num_tasks,
-            )
-
             def _on_iteration(state: LoopState):
-                global _loop_state
+                global _active_state
                 state.meta = meta
-                _loop_state = state
+                _active_state = state
                 _live_fixes.clear()
                 _save_run(state)
                 _log_queue.put("[SAVE]")
@@ -247,42 +303,49 @@ async def run(request: Request):
             )
             meta.status = "finished"
             state.meta = meta
-            _loop_state = state
+            _active_state = state
             _live_fixes.clear()
             _save_run(state)
             _log_queue.put(f"\nDone. {state.total_fixed}/{state.total_failures} total fixes.")
             _log_queue.put("[CHARTS]")
         except Exception as e:
             meta.status = "error"
-            if _loop_state:
-                _loop_state.meta = meta
-                _save_run(_loop_state)
+            if _active_state:
+                _active_state.meta = meta
+                _save_run(_active_state)
             _log_queue.put(f"\nERROR: {e}")
         finally:
+            # Snapshot: if user is still viewing this run, switch to disk copy
+            # so _active_state is no longer the source of truth.
+            if _viewed_run_id == _active_run_id and _active_state:
+                _viewed_state = _active_state
             _running = False
+            _active_run_id = None
+            _active_state = None
+            _live_fixes.clear()
+            with _teacher_sessions_lock:
+                _teacher_sessions.clear()
             _log_queue.put("[DONE]")
 
     threading.Thread(target=_run_in_thread, daemon=True).start()
 
     return HTMLResponse(
         '<div id="status" class="text-green-400">Started.</div>'
-        '<script>startSSE()</script>'
+        '<script>startSSE(true)</script>'
     )
 
 
 @app.get("/logs")
 async def logs():
-    """SSE endpoint streaming log messages."""
+    """SSE endpoint streaming log messages.
+
+    Terminates only on the [DONE] sentinel — no racy empty-queue heuristics.
+    """
     async def event_generator():
         while True:
             try:
                 msg = _log_queue.get_nowait()
             except queue.Empty:
-                if not _running and _log_queue.empty():
-                    await asyncio.sleep(0.1)
-                    if _log_queue.empty():
-                        yield {"event": "done", "data": ""}
-                        return
                 await asyncio.sleep(0.2)
                 continue
 
@@ -309,7 +372,8 @@ async def logs():
 
 @app.get("/results", response_class=HTMLResponse)
 async def results(request: Request):
-    fixes = _loop_state.flat_fixes() if _loop_state else []
+    state = _get_viewed_state()
+    fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
     return templates.TemplateResponse("_results.html", {
@@ -324,15 +388,16 @@ async def results(request: Request):
 
 @app.get("/summary", response_class=HTMLResponse)
 async def summary(request: Request):
-    fixes = _loop_state.flat_fixes() if _loop_state else []
+    state = _get_viewed_state()
+    fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
 
     # If no fixes but we have eval data, show eval-based pass rate
     eval_total = 0
     eval_passed = 0
-    if _loop_state and not fixes:
-        for h in _loop_state.history:
+    if state and not fixes:
+        for h in state.history:
             eval_total += len(h.eval_rewards)
             eval_passed += sum(1 for r in h.eval_rewards.values() if r >= 1.0)
 
@@ -351,14 +416,26 @@ async def summary(request: Request):
 
 @app.get("/api/live-fixes")
 async def api_live_fixes():
+    if not _viewing_active():
+        return JSONResponse([])
     return JSONResponse(list(_live_fixes.values()))
+
+
+@app.get("/api/state")
+async def api_state():
+    return JSONResponse({
+        "running": _running,
+        "active_run_id": _active_run_id,
+        "viewed_run_id": _viewed_run_id,
+    })
 
 
 @app.get("/api/charts")
 async def api_charts():
-    if _loop_state is None:
+    state = _get_viewed_state()
+    if state is None:
         return JSONResponse(all_charts([]))
-    return JSONResponse(all_charts_from_state(_loop_state))
+    return JSONResponse(all_charts_from_state(state))
 
 
 # ---------------------------------------------------------------------------
@@ -378,17 +455,26 @@ _DUMP = dict(exclude_none=True)
 
 @app.get("/api/sessions")
 async def api_sessions(type: Optional[str] = None):
-    """List all sessions. Optional ?type=teacher or ?type=student."""
-    with _teacher_sessions_lock:
-        active: dict[str, slog.SessionSummary] = {
-            sid: s.get_log_snapshot() for sid, s in _teacher_sessions.items()
-        }
+    """List sessions belonging to the viewed run. Optional ?type=teacher or ?type=student."""
+    allowed = _get_viewed_session_ids()
+    if not allowed:
+        return JSONResponse([])
+
+    # Only include live teacher sessions when viewing the active run.
+    active: dict[str, slog.SessionSummary] = {}
+    if _viewing_active():
+        with _teacher_sessions_lock:
+            active = {
+                sid: s.get_log_snapshot() for sid, s in _teacher_sessions.items()
+                if sid in allowed
+            }
 
     disk = slog.list_sessions(session_type=type)
 
     merged: dict[str, slog.SessionSummary] = {}
     for s in disk:
-        merged[s.session_id] = s
+        if s.session_id in allowed:
+            merged[s.session_id] = s
     if type is None or type == "teacher":
         for sid, s in active.items():
             merged[sid] = s
@@ -400,6 +486,8 @@ async def api_sessions(type: Optional[str] = None):
 @app.get("/api/sessions/{session_id}")
 async def api_session(session_id: str):
     """Full session data (messages, errors, etc)."""
+    if session_id not in _get_viewed_session_ids():
+        return JSONResponse({"error": "Session not found"}, status_code=404)
     data = _get_session_data(session_id)
     if data is None:
         return JSONResponse({"error": "Session not found"}, status_code=404)
@@ -409,6 +497,8 @@ async def api_session(session_id: str):
 @app.get("/api/sessions/{session_id}/messages")
 async def api_session_messages(session_id: str, after: int = 0):
     """Incremental message fetch for live polling."""
+    if session_id not in _get_viewed_session_ids():
+        return JSONResponse({"error": "Session not found"}, status_code=404)
     data = _get_session_data(session_id)
     if data is None:
         return JSONResponse({"error": "Session not found"}, status_code=404)
@@ -430,19 +520,26 @@ async def runs_list(request: Request):
     return templates.TemplateResponse("_history.html", {
         "request": request,
         "runs": _list_runs(),
-        "active_run_id": _current_run_id,
+        "active_run_id": _active_run_id,
+        "viewed_run_id": _viewed_run_id,
     })
 
 
 @app.get("/runs/{run_id}", response_class=HTMLResponse)
 async def load_run_endpoint(run_id: str, request: Request):
-    global _loop_state, _current_run_id
-    state = _load_run(run_id)
-    if state is None:
-        return HTMLResponse('<p class="text-red-400 text-sm">Run not found.</p>')
-    _loop_state = state
-    _current_run_id = run_id
-    fixes = state.flat_fixes()
+    global _viewed_run_id, _viewed_state
+    if run_id == _active_run_id:
+        # Switch view back to the active run
+        _viewed_run_id = run_id
+        _viewed_state = None
+        state = _active_state
+    else:
+        state = _load_run(run_id)
+        if state is None:
+            return HTMLResponse('<p class="text-red-400 text-sm">Run not found.</p>')
+        _viewed_run_id = run_id
+        _viewed_state = state
+    fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
     return templates.TemplateResponse("_results.html", {
@@ -457,13 +554,15 @@ async def load_run_endpoint(run_id: str, request: Request):
 
 @app.delete("/runs/{run_id}")
 async def delete_run(run_id: str):
-    global _loop_state, _current_run_id
+    global _viewed_run_id, _viewed_state
+    if _running and run_id == _active_run_id:
+        return HTMLResponse('<p class="text-yellow-400 text-sm">Cannot delete the active run.</p>', status_code=409)
     path = _safe_run_path(run_id)
     if path is not None and path.exists():
         path.unlink()
-    if _current_run_id == run_id:
-        _loop_state = None
-        _current_run_id = None
+    if _viewed_run_id == run_id:
+        _viewed_run_id = None
+        _viewed_state = None
     return HTMLResponse("")
 
 
@@ -471,10 +570,11 @@ async def delete_run(run_id: str):
 # Helpers
 # ---------------------------------------------------------------------------
 def _build_results() -> list[dict]:
-    if _loop_state is None:
+    state = _get_viewed_state()
+    if state is None:
         return []
     rows = []
-    for r in _loop_state.history:
+    for r in state.history:
         for fix in r.fixes:
             rows.append({
                 "iter": r.iteration,
@@ -491,23 +591,23 @@ def _build_results() -> list[dict]:
 
 
 def _try_load_latest_run() -> None:
-    global _loop_state, _current_run_id
-    if _loop_state is not None:
+    global _viewed_run_id, _viewed_state
+    if _viewed_run_id is not None:
         return
     runs = _list_runs()
     if not runs:
         path = cfg.PATCHES_DIR / "loop_state.json"
         if path.exists():
             try:
-                _loop_state = LoopState.load(path)
+                _viewed_state = LoopState.load(path)
             except Exception:
                 pass
         return
     latest = runs[0]
     state = _load_run(latest.run_id)
     if state:
-        _loop_state = state
-        _current_run_id = latest.run_id
+        _viewed_state = state
+        _viewed_run_id = latest.run_id
 
 
 # ---------------------------------------------------------------------------

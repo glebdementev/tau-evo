@@ -41,7 +41,8 @@
         </select>
 
         <label class="block text-[10px] text-gray-400 mb-0.5">Domain</label>
-        <select name="domain" class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-1 mb-1.5 text-[11px]">
+        <select name="domain" id="domain" onchange="updateTaskMax()"
+                class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-1 mb-1.5 text-[11px]">
           {% for d in domains %}
           <option value="{{ d }}" {{ 'selected' if d == defaults.domain }}>{{ d }}</option>
           {% endfor %}
@@ -76,8 +77,9 @@
           </label>
 
           <div id="task_num_section">
-            <label class="block text-[10px] text-gray-400 mb-0.5">Tasks</label>
-            <input type="number" name="num_tasks" value="{{ defaults.num_tasks }}" min="1" max="100"
+            <label class="block text-[10px] text-gray-400 mb-0.5">Tasks <span id="task-max-hint" class="text-gray-500">(max {{ domain_num_tasks[defaults.domain] }})</span></label>
+            <input type="number" name="num_tasks" id="num_tasks" value="{{ defaults.num_tasks }}" min="1"
+                   max="{{ domain_num_tasks[defaults.domain] }}"
                    class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
           </div>
 
@@ -207,6 +209,17 @@
   </div>
 
   <script>
+    const DOMAIN_NUM_TASKS = {{ domain_num_tasks | tojson }};
+
+    function updateTaskMax() {
+      const domain = document.getElementById('domain').value;
+      const max = DOMAIN_NUM_TASKS[domain] || 100;
+      const input = document.getElementById('num_tasks');
+      input.max = max;
+      if (parseInt(input.value) > max) input.value = max;
+      document.getElementById('task-max-hint').textContent = '(max ' + max + ')';
+    }
+
     const CHART_IDS = [
       'reward_progression',
       'cumulative_fix_rate',
@@ -252,9 +265,45 @@
 
     refreshCharts();
 
-    function startSSE() {
+    function onRunSelected(runId, isActive) {
+      _viewingActive = isActive;
+      refreshCharts();
+      refreshSessionList();
+      htmx.ajax('GET', '/runs', {target: '#history-list', swap: 'innerHTML'});
+    }
+
+    // Whether the user is currently viewing the active (running) run.
+    // When true, SSE events auto-refresh dashboard/sessions.
+    let _viewingActive = {{ 'true' if active_run_id and active_run_id == viewed_run_id else 'false' }};
+
+    function resetForNewRun() {
+      _viewingActive = true;
+      // Refresh history so the new run appears immediately
+      refreshHistory();
+      // Clear results panel
+      htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
+      // Clear charts
+      CHART_IDS.forEach(id => {
+        const el = document.getElementById('chart-' + id);
+        if (el) Plotly.purge(el);
+      });
+      // Clear sessions
+      _activeSession = null;
+      _sessionMsgCount = 0;
+      if (_sessionPollTimer) { clearInterval(_sessionPollTimer); _sessionPollTimer = null; }
+      document.getElementById('session-select').innerHTML = '<option value="">Select a session...</option>';
+      document.getElementById('session-count').textContent = '';
+      document.getElementById('session-conversation').innerHTML =
+        '<p class="text-[10px] text-gray-500 italic">No session selected.</p>';
+      document.getElementById('session-meta').classList.add('hidden');
+    }
+
+    function startSSE(isNewRun) {
       const log = document.getElementById('log');
-      log.textContent = '';
+      if (isNewRun) {
+        log.textContent = '';
+        resetForNewRun();
+      }
       const src = new EventSource('/logs');
 
       src.addEventListener('log', (e) => {
@@ -263,14 +312,15 @@
       });
 
       src.addEventListener('charts', () => {
-        debouncedRefreshDashboard();
+        if (_viewingActive) debouncedRefreshDashboard();
       });
 
       src.addEventListener('live', () => {
-        refreshLiveFixes();
+        if (_viewingActive) refreshLiveFixes();
       });
 
       src.addEventListener('session', (e) => {
+        if (!_viewingActive) return;
         let info;
         try { info = JSON.parse(e.data); } catch(ex) { return; }
         const sessionId = info.session_id;
@@ -302,7 +352,7 @@
 
       src.addEventListener('save', () => {
         refreshHistory();
-        debouncedRefreshDashboard();
+        if (_viewingActive) debouncedRefreshDashboard();
       });
 
       src.addEventListener('done', () => {
@@ -399,7 +449,12 @@
             sel.appendChild(opt);
           });
 
-          if (!prev && sessions.length > 0) {
+          // If previous selection is no longer in the list, reset viewer
+          if (prev && !sel.value) {
+            loadSession('');
+          }
+
+          if (!sel.value && sessions.length > 0) {
             const active = sessions.find(s => s.status === 'active');
             if (active) {
               sel.value = active.session_id;
@@ -585,6 +640,11 @@
 
     // Load session list on page load
     refreshSessionList();
+
+    // If a run is already active (page refresh mid-run), reconnect SSE
+    {% if running %}
+    startSSE(false);
+    {% endif %}
 
     // Academic-ready SVG export with white background and proper fonts
     function exportChart(chartId) {

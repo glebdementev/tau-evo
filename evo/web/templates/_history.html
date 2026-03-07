@@ -1,12 +1,17 @@
 {% if runs %}
 {% for run in runs %}
-<div class="group flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-gray-700/50 {{ 'bg-gray-700/60 ring-1 ring-blue-500/50' if run.run_id == active_run_id else '' }}"
+{% set is_active = run.run_id == active_run_id %}
+{% set is_viewed = run.run_id == viewed_run_id %}
+<div class="group flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-gray-700/50 {{ 'bg-gray-700/60 ring-1 ring-blue-500/50' if is_viewed else '' }}"
      hx-get="/runs/{{ run.run_id }}"
      hx-target="#results-panel"
      hx-swap="innerHTML"
-     hx-on::after-request="refreshCharts(); htmx.ajax('GET', '/runs', {target: '#history-list', swap: 'innerHTML'})">
+     hx-on::after-request="onRunSelected('{{ run.run_id }}', {{ 'true' if is_active else 'false' }})">
   <div class="flex-1 min-w-0">
-    <div class="text-xs font-medium truncate">{{ run.domain }}</div>
+    <div class="text-xs font-medium truncate flex items-center gap-1">
+      {{ run.domain }}
+      {% if is_active %}<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" title="Running"></span>{% endif %}
+    </div>
     <div class="text-[10px] text-gray-500 font-mono">{{ run.started_at[:16].replace('T', ' ') }}</div>
   </div>
   <div class="text-right shrink-0">

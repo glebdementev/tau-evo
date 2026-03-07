@@ -46,6 +46,7 @@ NO_THINK_ARGS: dict = {"extra_body": {"reasoning": {"effort": "none"}}}
 
 # ── Domains ──────────────────────────────────────────────────────────────
 DOMAINS = ["airline", "retail", "telecom"]
+DOMAIN_NUM_TASKS: dict[str, int] = {"airline": 50, "retail": 114, "telecom": 114}
 
 # ── Defaults ─────────────────────────────────────────────────────────────
 DEFAULT_DOMAIN = "airline"
