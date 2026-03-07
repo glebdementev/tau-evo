@@ -82,6 +82,21 @@ class SessionData(BaseModel):
     errors: list[ErrorRecord] = []
 
 
+def _calc_duration(data: SessionData) -> Optional[float]:
+    """Compute session duration in seconds from started_at to last message ts."""
+    if not data.started_at or not data.messages:
+        return None
+    try:
+        start = datetime.fromisoformat(data.started_at)
+        last_ts = data.messages[-1].ts
+        if not last_ts:
+            return None
+        end = datetime.fromisoformat(last_ts)
+        return max(0.0, (end - start).total_seconds())
+    except Exception:
+        return None
+
+
 class SessionSummary(BaseModel):
     """Lightweight summary for list endpoints (no messages)."""
     session_id: str
@@ -94,6 +109,7 @@ class SessionSummary(BaseModel):
     error_count: int = 0
     reward: Optional[float] = None
     context: str = ""
+    duration_s: Optional[float] = None
 
     @classmethod
     def from_data(cls, data: SessionData) -> SessionSummary:
@@ -108,6 +124,7 @@ class SessionSummary(BaseModel):
             error_count=len(data.errors),
             reward=data.reward,
             context=data.context,
+            duration_s=_calc_duration(data),
         )
 
 
@@ -151,17 +168,28 @@ def list_sessions(
             raw = json.loads(p.read_text())
             if session_type and raw.get("session_type") != session_type:
                 continue
+            dur = None
+            msgs = raw.get("messages", [])
+            sa = raw.get("started_at", "")
+            if sa and msgs:
+                try:
+                    last_ts = msgs[-1].get("ts", "")
+                    if last_ts:
+                        dur = max(0.0, (datetime.fromisoformat(last_ts) - datetime.fromisoformat(sa)).total_seconds())
+                except Exception:
+                    pass
             sessions.append(SessionSummary(
                 session_id=raw["session_id"],
                 session_type=raw.get("session_type", "teacher"),
                 task_id=raw.get("task_id", ""),
                 model=raw.get("model", ""),
-                started_at=raw.get("started_at", ""),
+                started_at=sa,
                 status=raw.get("status", "unknown"),
-                message_count=len(raw.get("messages", [])),
+                message_count=len(msgs),
                 error_count=len(raw.get("errors", [])),
                 reward=raw.get("reward"),
                 context=raw.get("context", ""),
+                duration_s=dur,
             ))
         except Exception:
             continue

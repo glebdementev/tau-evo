@@ -41,6 +41,9 @@ class FixResult:
     retries: int
     fixed: bool
     fix_tier: str = "none"  # "prompt" | "code" | "none"
+    teacher_msgs: int = 0
+    teacher_tool_calls: int = 0
+    teacher_duration_s: float = 0.0
 
     @property
     def delta(self) -> float:
@@ -160,6 +163,9 @@ class LoopState:
                     retries=f.get("retries", 0),
                     fixed=f["fixed"],
                     fix_tier=f.get("fix_tier", "none"),
+                    teacher_msgs=f.get("teacher_msgs", 0),
+                    teacher_tool_calls=f.get("teacher_tool_calls", 0),
+                    teacher_duration_s=f.get("teacher_duration_s", 0.0),
                 )
                 for f in h.get("fixes", [])
             ]

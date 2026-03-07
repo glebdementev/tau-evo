@@ -18,7 +18,7 @@ from evo.config import (
 from evo.evaluation.runner import run_baseline, extract_failures
 from evo.models import Patch, FixResult, IterationResult, LoopState, TestResults
 from evo.reflection.teacher import TeacherSession, apply_patches
-from evo.session_log import save_student_sessions
+from evo.session_log import save_student_sessions, _calc_duration
 
 log = logging.getLogger(__name__)
 
@@ -215,6 +215,13 @@ def _fix_single_failure(
                     new_sim=val_sim,
                 )
 
+    session_data = session._as_session_data()
+    teacher_msgs = len(session_data.messages)
+    teacher_tool_calls = sum(
+        1 for m in session_data.messages if m.tool_calls
+    )
+    teacher_duration_s = _calc_duration(session_data) or 0.0
+
     return FixResult(
         task_id=task_id,
         baseline_reward=baseline_reward,
@@ -224,6 +231,9 @@ def _fix_single_failure(
         retries=attempt,
         fixed=fixed,
         fix_tier=fix_tier,
+        teacher_msgs=teacher_msgs,
+        teacher_tool_calls=teacher_tool_calls,
+        teacher_duration_s=round(teacher_duration_s, 1),
     )
 
 

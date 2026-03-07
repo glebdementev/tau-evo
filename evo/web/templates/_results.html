@@ -91,7 +91,10 @@
           <th class="px-2 py-1.5">Delta</th>
           <th class="px-2 py-1.5">Status</th>
           <th class="px-2 py-1.5">Tier</th>
-          <th class="px-2 py-1.5">Diagnosis</th>
+          <th class="px-2 py-1.5">Try</th>
+          <th class="px-2 py-1.5">Msgs</th>
+          <th class="px-2 py-1.5">Calls</th>
+          <th class="px-2 py-1.5">Duration</th>
         </tr>
       </thead>
       <tbody class="text-gray-300">
@@ -116,7 +119,10 @@
             <span class="text-[11px] text-gray-600">&mdash;</span>
             {% endif %}
           </td>
-          <td class="px-2 py-1.5 text-[11px] text-gray-500 max-w-[240px] truncate">{{ r.diagnosis }}</td>
+          <td class="px-2 py-1.5 text-[11px] text-gray-500">{% if r.fixed_at_try %}{{ r.fixed_at_try }}{% else %}&mdash;{% endif %}</td>
+          <td class="px-2 py-1.5 text-[11px] text-gray-500">{% if r.teacher_msgs %}{{ r.teacher_msgs }}{% else %}&mdash;{% endif %}</td>
+          <td class="px-2 py-1.5 text-[11px] text-gray-500">{% if r.teacher_tool_calls %}{{ r.teacher_tool_calls }}{% else %}&mdash;{% endif %}</td>
+          <td class="px-2 py-1.5 text-[11px] text-gray-500 whitespace-nowrap">{{ r.teacher_duration or '&mdash;' }}</td>
         </tr>
         {% endfor %}
       </tbody>

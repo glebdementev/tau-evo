@@ -62,7 +62,7 @@ bodyPara([
 heading(HeadingLevel.HEADING_2, '3.1 Research Design'),
 
 bodyPara([
-  'The research follows a design-science approach (Hevner, March, Park, & Ram, 2004; Peffers, Tuunanen, Rothenberger, & Chatterjee, 2007): the primary contribution is a software artifact\u2014the prompt evolution framework\u2014and the primary evaluation is an empirical measurement of its effect on a standardized benchmark. The study is quantitative and experimental, employing a pre-test/post-test design in which the same agent is evaluated before and after the intervention (automated prompt and tool-schema evolution), with an additional ceiling condition provided by a stronger model. Hevner et al.\u2019s Design Evaluation guideline requires demonstrating that the artifact improves upon a baseline and contextualizing improvement against an upper bound; the three-condition design satisfies both requirements.'
+  'The research follows a design-science approach (Hevner, March, Park, & Ram, 2004; Peffers, Tuunanen, Rothenberger, & Chatterjee, 2007): the primary contribution is a software artifact\u2014the prompt evolution framework\u2014and the primary evaluation is an empirical measurement of its effect on a standardized benchmark. The study is quantitative and experimental, with a pre-test/post-test design in which the same agent is evaluated before and after the intervention (automated prompt and tool-schema evolution), with an additional ceiling condition provided by a stronger model. Hevner et al.\u2019s Design Evaluation guideline requires demonstrating that the artifact improves upon a baseline and contextualizing improvement against an upper bound; the three-condition design satisfies both requirements.'
 ]),
 
 bodyPara([
@@ -76,7 +76,7 @@ heading(HeadingLevel.HEADING_2, '3.2 Benchmark: \u03C4\u00B2-bench'),
 heading(HeadingLevel.HEADING_3, '3.2.1 Selection Rationale'),
 
 bodyPara([
-  'The evaluation benchmark is \u03C4\u00B2-bench (Barres, Dong, Ray, Si, & Narasimhan, 2025), an extension of \u03C4-bench (Yao, Shinn, Razavi, & Narasimhan, 2024). It was selected over four alternative benchmarks for reasons that reduce to a single requirement: the benchmark must combine multi-turn dialogue with tool calling, a simulated user that reveals information incrementally, and domain-specific policy constraints\u2014the conjunction that defines realistic customer-service automation.'
+  'The evaluation benchmark is \u03C4\u00B2-bench (Barres, Dong, Ray, Si, & Narasimhan, 2025), an extension of \u03C4-bench (Yao, Shinn, Razavi, & Narasimhan, 2024). It was selected over four alternative benchmarks for reasons that reduce to a single requirement: the benchmark must combine multi-turn dialogue with tool calling, a simulated user that reveals information incrementally, and domain-specific policy constraints\u2014what makes customer-service automation realistic in practice.'
 ]),
 
 bodyPara([
@@ -117,14 +117,14 @@ bodyPara([
 heading(HeadingLevel.HEADING_3, '3.2.4 Integration'),
 
 bodyPara([
-  '\u03C4\u00B2-bench is integrated as a git submodule pinned to commit 37bfc31 (based on tag v0.1.1), installed as an editable Python package. No modifications were made to the upstream codebase; all integration occurs through \u03C4\u00B2-bench\u2019s public API: the RunConfig data model, the run_domain() function, the agent registry, and the Tool and Environment classes. This design ensures benchmark results are directly comparable to published baselines.'
+  '\u03C4\u00B2-bench is integrated as a git submodule pinned to commit 37bfc31 (based on tag v0.1.1), installed as an editable Python package. No modifications were made to the upstream codebase; all integration occurs through \u03C4\u00B2-bench\u2019s public API: the RunConfig data model, the run_domain() function, the agent registry, and the Tool and Environment classes. Because nothing in the upstream code was changed, benchmark results are directly comparable to published baselines.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
 heading(HeadingLevel.HEADING_2, '3.3 Experimental Conditions'),
 
 bodyPara([
-  'The experiment evaluates three conditions across the three \u03C4\u00B2-bench domains. Each uses identical evaluation infrastructure, differing only in the agent\u2019s model and prompt configuration. Following best practices for establishing strong baselines in machine learning research (Wornow et al., 2024), the design brackets the intervention between a floor (unoptimized student) and a ceiling (frontier model).'
+  'The experiment evaluates three conditions across the three \u03C4\u00B2-bench domains. Each uses identical evaluation infrastructure, and they differ only in the agent\u2019s model and prompt configuration. As recommended by Wornow et al. (2024), the design brackets the intervention between a floor (unoptimized student) and a ceiling (frontier model).'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.3.1 Condition B: Baseline'),
@@ -136,7 +136,7 @@ bodyPara([
 heading(HeadingLevel.HEADING_3, '3.3.2 Condition K: Evolved'),
 
 bodyPara([
-  'The student model runs with an evolved prompt and tool configuration produced by the evolution framework (Sections 3.5\u20133.6). The evolved state comprises three components: (1) a modified system prompt containing the original plus additions produced by the teacher\u2019s patch_prompt calls\u2014typically concrete behavioral rules such as identity verification requirements or tool-call sequencing instructions; (2) modified tool schemas with clarified parameter descriptions, added constraints, or edge-case notes; and (3) tool preprocessors\u2014sandboxed Python functions that transform tool inputs before execution, acting as guardrails against common LLM formatting errors.'
+  'The student model runs with an evolved prompt and tool configuration produced by the evolution framework (Sections 3.5\u20133.6). The evolved state comprises three components: (1) a modified system prompt containing the original plus additions produced by the teacher\u2019s patch_prompt calls\u2014typically concrete behavioral rules such as identity verification requirements or tool-call sequencing instructions; (2) modified tool schemas with clarified parameter descriptions, added constraints, or edge-case notes; and (3) tool preprocessors\u2014sandboxed Python functions that transform tool inputs before execution, that guard against common LLM formatting errors.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.3.3 Condition F: Frontier Ceiling'),
@@ -148,13 +148,13 @@ bodyPara([
 heading(HeadingLevel.HEADING_3, '3.3.4 Three-Way Comparison Logic'),
 
 bodyPara([
-  'The three conditions form a floor\u2013intervention\u2013ceiling comparison analogous to teacher\u2013student distillation studies, where a teacher\u2019s performance defines the ceiling, a student\u2019s pre-distillation performance defines the floor, and the post-distillation student occupies the intervention position (Hinton, Vinyals, & Dean, 2015). The key departure is that knowledge transfer operates at the prompt level rather than the weight level. The baseline alone is uninterpretable: a pass rate of 60 percent means nothing without context. The frontier provides that context. If it achieves 90 percent, the gap is 30 percentage points, and the evolved condition\u2019s position within that gap indicates how much of the teacher\u2019s advantage was transferred through prompt engineering alone, with no weight changes.'
+  'The three conditions form a floor\u2013intervention\u2013ceiling comparison analogous to teacher\u2013student distillation studies, where a teacher\u2019s performance defines the ceiling, a student\u2019s pre-distillation performance defines the floor, and the post-distillation student occupies the intervention position (Hinton, Vinyals, & Dean, 2015). The difference is that knowledge transfer operates at the prompt level, not the weight level. The baseline alone is uninterpretable: a pass rate of 60 percent means nothing without context. The frontier provides that context. If it achieves 90 percent, the gap is 30 percentage points, and the evolved condition\u2019s position within that gap indicates how much of the teacher\u2019s advantage was transferred through prompt engineering alone, with no weight changes.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.3.5 Per-Domain Independence'),
 
 bodyPara([
-  'Each domain is evolved independently. There is no cross-domain transfer of patches. A rule learned from airline cancellation failures (\u201calways check refund eligibility before cancelling\u201d) is irrelevant in the telecom domain. The evolution loop runs separately per domain, producing domain-specific evolved prompts and enabling per-domain analysis of which failure types respond to the intervention.'
+  'Each domain is evolved independently. There is no cross-domain transfer of patches. A rule learned from airline cancellation failures (\u201calways check refund eligibility before cancelling\u201d) is irrelevant in the telecom domain. The evolution loop runs separately per domain, producing domain-specific evolved prompts. This also allows per-domain analysis of which failure types respond to the intervention.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
@@ -178,7 +178,7 @@ caption('Model assignments and access methods.'),
 heading(HeadingLevel.HEADING_3, '3.4.1 Student Model: Qwen3 30B-A3B'),
 
 bodyPara([
-  'The student model is Qwen3 30B-A3B (Qwen Team, 2025), a Mixture-of-Experts Transformer with 30.5 billion total parameters but only 3.3 billion active per token. It employs 128 experts with top-8 routing across 48 layers and supports 32,768 native context tokens extensible to 131,072 with YaRN scaling. Despite activating barely 10 percent of its parameters per forward pass, the model outperforms Qwen2.5-14B on all reported benchmarks and leads the Berkeley Function Calling Leaderboard (BFCL v3). Three criteria guided the selection. The model must be strong enough to produce non-trivial \u03C4\u00B2-bench scores. It must be weak enough relative to the frontier that meaningful headroom for improvement exists. And it must be cost-effective for the many evaluation runs required by the iterative evolution process. Qwen3 30B-A3B satisfies all three: its MoE architecture makes it fast and inexpensive via API, it is capable of tool-calling and multi-turn dialogue, and it is demonstrably imperfect on \u03C4\u00B2-bench tasks.'
+  'The student model is Qwen3 30B-A3B (Qwen Team, 2025), a Mixture-of-Experts Transformer with 30.5 billion total parameters but only 3.3 billion active per token. It employs 128 experts with top-8 routing across 48 layers and supports 32,768 native context tokens extensible to 131,072 with YaRN scaling. Despite activating barely 10 percent of its parameters per forward pass, the model outperforms Qwen2.5-14B on all reported benchmarks and leads the Berkeley Function Calling Leaderboard (BFCL v3). The selection reflects a trade-off: the model needs non-trivial \u03C4\u00B2-bench scores, but must be weak enough relative to the frontier that meaningful headroom exists, and cheap enough for the many evaluation runs the iterative process requires. Qwen3 30B-A3B fits: its MoE architecture makes it fast and inexpensive via API, it handles tool-calling and multi-turn dialogue, and it is demonstrably imperfect on \u03C4\u00B2-bench tasks.'
 ]),
 
 bodyPara([
@@ -188,17 +188,17 @@ bodyPara([
 heading(HeadingLevel.HEADING_3, '3.4.2 Teacher Model: Kimi K2.5'),
 
 bodyPara([
-  'The teacher model is Kimi K2.5 (Kimi Team, 2026), a visual-agentic extension of the Kimi K2 base model (Kimi Team, 2025). The base model is a MoE Transformer with approximately one trillion total parameters and 32 billion active per token, employing 384 experts\u201450 percent more than DeepSeek-V3\u2014with Multi-head Latent Attention. Its 256K-token context window accommodates full conversation traces (often 5\u201315 turns with tool calls and results), the system prompt, all tool schemas, and task requirements in a single prompt. Five criteria guided the selection: significantly stronger performance than the student on target domains; strong tool-calling comprehension; a long context window; architectural independence from the student (Moonshot AI, not Alibaba); and cost-effectiveness for hundreds of reflection calls.'
+  'The teacher model is Kimi K2.5 (Kimi Team, 2026), a visual-agentic extension of the Kimi K2 base model (Kimi Team, 2025). The base model is a MoE Transformer with approximately one trillion total parameters and 32 billion active per token, employing 384 experts\u201450 percent more than DeepSeek-V3\u2014with Multi-head Latent Attention. Its 256K-token context window accommodates full conversation traces (often 5\u201315 turns with tool calls and results), the system prompt, all tool schemas, and task requirements in a single prompt. The teacher was chosen for significantly stronger performance than the student on target domains, strong tool-calling comprehension, a long context window, architectural independence from the student (Moonshot AI, not Alibaba), and cost-effectiveness for hundreds of reflection calls.'
 ]),
 
 bodyPara([
-  'The use of a separate, stronger model to diagnose and correct the student\u2019s failures is grounded in the knowledge distillation literature (Hinton et al., 2015) and more recent teacher\u2013student paradigms, including adversarial distillation (Jiang, Chan, Chen, & Wang, 2023) and the LLM-as-judge approach. Zheng et al. (2023) established that GPT-4 agrees with human preferences over 80 percent of the time; subsequent work has tightened this estimate. Zhuge et al. (2024) showed that an agent-based judge achieves approximately 90 percent agreement with human experts in agentic evaluation settings, while Gilardi, Alizadeh, and Kubli (2023) found that ChatGPT outperforms crowd-workers by 25 percentage points on annotation tasks with intercoder agreement of 91\u201397 percent. These results validate the use of a frontier model as a diagnostic supervisor. The key departure from classical distillation is that the teacher\u2019s knowledge is transferred through prompt and tool-schema patches rather than through training data or weight updates\u2014a lighter mechanism consistent with the Superficial Alignment Hypothesis (Zhou et al., 2023), which posits that alignment primarily teaches style and format rather than injecting deep knowledge.'
+  'Using a separate, stronger model to diagnose and correct the student\u2019s failures draws on knowledge distillation (Hinton et al., 2015) and more recent teacher\u2013student paradigms, including adversarial distillation (Jiang, Chan, Chen, & Wang, 2023) and the LLM-as-judge approach. Zheng et al. (2023) established that GPT-4 agrees with human preferences over 80 percent of the time; subsequent work has tightened this estimate. Zhuge et al. (2024) showed that an agent-based judge achieves approximately 90 percent agreement with human experts in agentic evaluation settings, while Gilardi, Alizadeh, and Kubli (2023) found that ChatGPT outperforms crowd-workers by 25 percentage points on annotation tasks with intercoder agreement of 91\u201397 percent. These results support using a frontier model as a diagnostic supervisor. Here, though, knowledge transfer happens through prompt and tool-schema patches only\u2014no training data, no weight updates. This is a lighter mechanism, consistent with the Superficial Alignment Hypothesis (Zhou et al., 2023): if alignment mostly teaches style and format, prompt text should suffice.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.4.3 User Simulator'),
 
 bodyPara([
-  'The user simulator uses the same model as the student (Qwen3 30B-A3B). \u03C4\u00B2-bench\u2019s user simulator follows scripted scenarios; it does not require frontier-level capabilities. Using the same inexpensive model keeps costs low without compromising evaluation validity.'
+  'The user simulator uses the same model as the student (Qwen3 30B-A3B). \u03C4\u00B2-bench\u2019s user simulator follows scripted scenarios; it does not require frontier-level capabilities. Using the same inexpensive model keeps costs low without affecting evaluation validity.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
@@ -210,11 +210,11 @@ bodyPara([
 ]),
 
 bodyPara([
-  'The approach is positioned within the automated prompt optimization literature as a teacher-driven variant of reflective prompt evolution. The closest precedent is GEPA (Agrawal et al., 2025), a Genetic-Pareto prompt optimizer accepted as an oral at ICLR 2026, which uses natural language reflection from a stronger model to diagnose failures from execution traces and propose targeted mutations for a weaker task model, outperforming reinforcement learning baselines by up to 20 percent while using 35\u00D7 fewer rollouts. The present framework shares GEPA\u2019s core mechanism\u2014a strong reflection model inspecting the weaker model\u2019s failures and proposing prompt edits\u2014but departs from it in three respects. First, the patches target not only prompt text but also tool schemas and sandboxed input preprocessors, giving the teacher three distinct surfaces to modify. Second, every proposed patch is validated by re-running the student on the specific failed task before merging, ensuring that only empirically verified improvements enter the production prompt. Third, the evaluation target is a structured tool-agent-user benchmark (\u03C4\u00B2-bench) rather than reasoning or classification tasks, filling the gap identified in the literature review: automated prompt optimization methods have not been validated on multi-turn tool-calling benchmarks.'
+  'In the automated prompt optimization literature, this is a teacher-driven variant of reflective prompt evolution. The closest precedent is GEPA (Agrawal et al., 2025), a Genetic-Pareto prompt optimizer accepted as an oral at ICLR 2026, which uses natural language reflection from a stronger model to diagnose failures from execution traces and propose targeted mutations for a weaker task model, outperforming reinforcement learning baselines by up to 20 percent while using 35\u00D7 fewer rollouts. The present framework shares GEPA\u2019s core mechanism\u2014a strong reflection model inspecting the weaker model\u2019s failures and proposing prompt edits\u2014but departs from it in three respects. First, the patches target prompt text, tool schemas, and sandboxed input preprocessors\u2014three distinct surfaces. Second, every proposed patch is validated by re-running the student on the specific failed task before merging, so only verified improvements enter the production prompt. Third, the evaluation target is a structured tool-agent-user benchmark (\u03C4\u00B2-bench) instead of reasoning or classification tasks. As noted in the literature review, automated prompt optimization methods have not been tested on multi-turn tool-calling benchmarks.'
 ]),
 
 bodyPara([
-  'Unlike DSPy (Khattab et al., 2023), which compiles declarative modules against a target metric through self-bootstrapping, or TextGrad (Yuksekgonul et al., 2024), which backpropagates textual feedback through computation graphs, the present framework uses a separate teacher model to perform structured diagnosis and targeted patching on a per-failure basis. Unlike Reflexion (Shinn, Cassano, Gopinath, Narasimhan, & Yao, 2023), where reflections are ephemeral per-episode memory, the patches produced here are permanent modifications persisted across episodes and iterations.'
+  'DSPy (Khattab et al., 2023) compiles declarative modules against a target metric through self-bootstrapping; TextGrad (Yuksekgonul et al., 2024) backpropagates textual feedback through computation graphs. The present framework does neither\u2014it uses a separate teacher model to perform structured diagnosis and targeted patching on a per-failure basis. In Reflexion (Shinn, Cassano, Gopinath, Narasimhan, & Yao, 2023), reflections are ephemeral per-episode memory; here, patches are permanent modifications persisted across episodes and iterations.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.5.2 The Outer Loop'),
@@ -250,20 +250,20 @@ bodyPara([
   B('read_tool_code'),
   ' (inspect a tool\u2019s parameters and current preprocessor), and ',
   B('patch_tool_code'),
-  ' (find-and-replace on a tool\u2019s preprocessor source). The initial prompt is a structured template containing five sections: the current system prompt, all tool schemas serialized to JSON, the full failed conversation trace with role labels and preserved tool-call arguments, the task requirements, and the reward breakdown. Fidelity of this information transfer is validated by automated tests verifying no data is lost or truncated during formatting\u2014a critical invariant, since the teacher cannot diagnose what it cannot see. The teacher may make up to 10 rounds of tool calls per session; in practice, most sessions complete in two to four rounds.'
+  ' (find-and-replace on a tool\u2019s preprocessor source). The initial prompt is a structured template containing five sections: the current system prompt, all tool schemas serialized to JSON, the full failed conversation trace with role labels and preserved tool-call arguments, the task requirements, and the reward breakdown. Automated tests verify that no data is lost or truncated during formatting, since the teacher cannot diagnose what it cannot see. The teacher may make up to 10 rounds of tool calls per session; in practice, most sessions complete in two to four rounds.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
 heading(HeadingLevel.HEADING_2, '3.6 Patch Surfaces and Mechanisms'),
 
 bodyPara([
-  'The framework operates on three distinct patch surfaces, each addressing a different class of agent failure. All patches use a find-and-replace mechanism: the teacher specifies an old_text to locate and a new_text to substitute, ensuring precise, minimal modifications that can be versioned and rolled back.'
+  'The framework operates on three distinct patch surfaces, each for a different class of agent failure. All patches use a find-and-replace mechanism: the teacher specifies an old_text to locate and a new_text to substitute, which keeps modifications precise, minimal, and reversible.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.6.1 Prompt Patches'),
 
 bodyPara([
-  'Prompt patches modify the agent\u2019s system prompt, typically adding concrete behavioral rules the student was not following. When old_text is empty, new_text is appended to the prompt\u2019s end. This is the lightweight alternative to fine-tuning: rather than adjusting model weights to encode a behavioral rule, the rule is stated explicitly in natural language within the prompt. The approach draws on the finding that prompt-level interventions can achieve substantial behavioral changes\u2014consistent with the Superficial Alignment Hypothesis (Zhou et al., 2023). It is worth noting that Sclar, Choi, Tsvetkov, and Suhr (2024) demonstrated up to 76 accuracy points of variation from meaning-preserving formatting changes alone (spacing, delimiters, example ordering), a sensitivity that persisted even with increased model size or instruction tuning. The patches in this framework are the opposite: targeted, meaning-bearing modifications (rewriting instructions, adding policy constraints) rather than superficial formatting noise. Where Sclar et al. show that arbitrary formatting changes cause chaotic performance swings, the present work demonstrates that principled, diagnostic-driven edits produce consistent, validated improvement.'
+  'Prompt patches modify the agent\u2019s system prompt, typically adding concrete behavioral rules the student was not following. When old_text is empty, new_text is appended to the prompt\u2019s end. Instead of fine-tuning weights to encode a behavioral rule, the rule is simply stated in natural language within the prompt. The Superficial Alignment Hypothesis (Zhou et al., 2023) suggests this should work: alignment primarily teaches style and format, which prompt text can supply. Sclar, Choi, Tsvetkov, and Suhr (2024) demonstrated up to 76 accuracy points of variation from meaning-preserving formatting changes alone (spacing, delimiters, example ordering), a sensitivity that persisted even with increased model size or instruction tuning. The patches in this framework are meaning-bearing\u2014rewriting instructions, adding policy constraints\u2014not formatting noise. Sclar et al. show that arbitrary formatting changes cause chaotic performance swings; the question here is whether deliberate, diagnostic-driven edits behave differently.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.6.2 Tool Schema Patches'),
@@ -273,7 +273,7 @@ bodyPara([
 ]),
 
 bodyPara([
-  'This mechanism addresses a well-documented class of failures. Qin et al. (2023) showed that without their depth-first search approach, an initial parameter error \u201ccan lead to a cascade of subsequent errors\u201d that trap the model in a faulty loop of incorrect API calls. Xu, Hong, Li, Hu, Chen, and Zhang (2023) identified generation style regulation\u2014addressing formatting and parameter errors\u2014as a critical intervention, with targeted constraints boosting open-source LLMs to competitive with GPT-4 on 4 of 8 tasks. StableToolBench (Guo et al., 2024) found that up to 50 percent of queries and 75 percent of trajectories in the original ToolBench data suffered from hallucinations, underscoring that parameter extraction errors are systemic, not incidental.'
+  'Parameter and formatting errors in tool calling are well studied. Qin et al. (2023) showed that without their depth-first search approach, an initial parameter error \u201ccan lead to a cascade of subsequent errors\u201d that trap the model in a faulty loop of incorrect API calls. Xu, Hong, Li, Hu, Chen, and Zhang (2023) found that generation style regulation\u2014fixing formatting and parameter errors\u2014was effective, with targeted constraints boosting open-source LLMs to competitive with GPT-4 on 4 of 8 tasks. StableToolBench (Guo et al., 2024) found that up to 50 percent of queries and 75 percent of trajectories in the original ToolBench data suffered from hallucinations, meaning parameter extraction errors are systemic, not incidental.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.6.3 Tool Preprocessors'),
@@ -283,13 +283,13 @@ bodyPara([
 ]),
 
 bodyPara([
-  'This third patch surface addresses failures that neither prompt text nor schema descriptions can reliably prevent: formatting errors the model makes despite understanding the requirement. An agent may understand that reservation IDs should start with \u201c#\u201d but occasionally omit the prefix due to tokenization or sampling artifacts. A preprocessor guardrail catches such errors at the tool-call boundary. The design parallels findings from the ARTEMIS framework (Brookes et al., 2025), which jointly optimizes agent prompts, tool descriptions, and parameters using evolutionary methods, reporting 13.6 percent improvement on competitive programming and 22 percent on GSM8K for Qwen2.5-7B.'
+  'Some formatting errors persist even when the prompt and schema are clear: the model understands the requirement but still gets it wrong. An agent may understand that reservation IDs should start with \u201c#\u201d but occasionally omit the prefix due to tokenization or sampling artifacts. A preprocessor guardrail catches such errors at the tool-call boundary. The design parallels findings from the ARTEMIS framework (Brookes et al., 2025), which jointly optimizes agent prompts, tool descriptions, and parameters using evolutionary methods, reporting 13.6 percent improvement on competitive programming and 22 percent on GSM8K for Qwen2.5-7B.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.6.4 Patch Application and Merging'),
 
 bodyPara([
-  'Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single iteration, winning patches are merged into the global state in sequence. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, enabling exact reconstruction at any point.'
+  'Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single iteration, winning patches are merged into the global state in sequence. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
@@ -316,7 +316,7 @@ bodyPara([
 ]),
 
 bodyPara([
-  'The taxonomy enables per-category analysis of which failure types are most responsive to prompt evolution versus tool-schema patching versus preprocessor guardrails, directly addressing the sub-question about failure-mode responsiveness.'
+  'The taxonomy enables per-category analysis of which failure types are most responsive to prompt evolution versus tool-schema patching versus preprocessor guardrails, which is what the sub-question about failure-mode responsiveness requires.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
@@ -332,7 +332,7 @@ bodyPara([
 heading(HeadingLevel.HEADING_3, '3.8.2 Reward Breakdown'),
 
 bodyPara([
-  '\u03C4\u00B2-bench\u2019s evaluator produces a multi-dimensional reward: an action score (correct tools with correct arguments), environment assertions (expected database state), and a communication score (correct user-facing messages). This breakdown is passed in full to the teacher during diagnosis, enabling precise identification of which criteria failed and why.'
+  '\u03C4\u00B2-bench\u2019s evaluator produces a multi-dimensional reward: an action score (correct tools with correct arguments), environment assertions (expected database state), and a communication score (correct user-facing messages). This breakdown is passed in full to the teacher during diagnosis so it can identify exactly which criteria failed and why.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.8.3 Gap Closure'),
@@ -373,7 +373,7 @@ bodyPara([
 heading(HeadingLevel.HEADING_3, '3.9.3 State Persistence and Task Locking'),
 
 bodyPara([
-  'The complete evolution state is serialized to JSON after each iteration: the current system prompt, all tool schemas, all preprocessor source, iteration history with fix results, and metadata. Loading this state reconstructs the exact evolved agent. After the first evaluation in a run, task IDs are locked and reused for all subsequent iterations, ensuring pass-rate comparisons reflect the effect of patches on a fixed task set, not variation in sampling.'
+  'The complete evolution state is serialized to JSON after each iteration: the current system prompt, all tool schemas, all preprocessor source, iteration history with fix results, and metadata. Loading this state reconstructs the exact evolved agent. After the first evaluation in a run, task IDs are locked and reused for all subsequent iterations, so pass-rate changes reflect patches, not sampling variation.'
 ]),
 
 // ═══════════════════════════════════════════════════════════════════
@@ -405,7 +405,7 @@ heading(HeadingLevel.HEADING_3, '3.10.2 External Validity'),
 
 bodyPara([
   B('Benchmark versus production. '),
-  '\u03C4\u00B2-bench tasks are simulated customer-service interactions. While designed to approximate operational settings, they lack the full diversity and adversarial nature of real interactions. Kapoor et al. (2024) documented that 7 of 8 major agent benchmarks lack appropriate holdout sets and that benchmark-specific overfitting is common\u2014the top WebArena agent hardcodes policies for specific tasks. The framework\u2019s effectiveness in production remains to be validated.'
+  '\u03C4\u00B2-bench tasks are simulated customer-service interactions. While designed to approximate operational settings, they lack the full diversity and adversarial nature of real interactions. Kapoor et al. (2024) documented that 7 of 8 major agent benchmarks lack appropriate holdout sets and that benchmark-specific overfitting is common\u2014the top WebArena agent hardcodes policies for specific tasks. Whether the framework works in production is untested.'
 ]),
 
 bodyPara([
@@ -415,7 +415,7 @@ bodyPara([
 
 bodyPara([
   B('Domain specificity. '),
-  'Patches are domain-specific by design. The framework does not claim cross-domain transfer; its value proposition is that domain-specific diagnostic knowledge can be efficiently transferred to a weaker model\u2019s prompt configuration.'
+  'Patches are domain-specific by design. The framework does not claim cross-domain transfer; the claim is that domain-specific diagnostic knowledge can be transferred efficiently to a weaker model\u2019s prompt configuration.'
 ]),
 
 heading(HeadingLevel.HEADING_3, '3.10.3 Construct Validity'),
@@ -429,7 +429,7 @@ bodyPara([
 
 bodyPara([
   B('Prompt evolution as distillation. '),
-  'The thesis frames prompt patching as a form of knowledge transfer from teacher to student. This framing is supported by the trajectory from weight-level distillation (Hinton et al., 2015) through output-level distillation (Alpaca, Vicuna) to prompt-level transfer (SPoT; Vu, Lester, Constant, Al-Rfou, & Cer, 2022; GEPA; Agrawal et al., 2025). However, the patches may encode surface-level heuristics (add a \u201c#\u201d prefix) rather than deep domain understanding, and their durability under distribution shift is untested.'
+  'The thesis frames prompt patching as a form of knowledge transfer from teacher to student. There is precedent: weight-level distillation (Hinton et al., 2015), output-level distillation (Alpaca, Vicuna), and prompt-level transfer (SPoT; Vu, Lester, Constant, Al-Rfou, & Cer, 2022; GEPA; Agrawal et al., 2025) form a progression toward lighter-weight knowledge transfer. However, the patches may encode surface-level heuristics (add a \u201c#\u201d prefix) without transferring deep domain understanding, and their durability under distribution shift is untested.'
 ]),
 
 ];

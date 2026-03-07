@@ -438,7 +438,6 @@
                 <span class="text-gray-500 text-[11px]">${f.patches.length} patch${f.patches.length !== 1 ? 'es' : ''}</span>
               </summary>
               <div class="ml-5 mt-1 space-y-1.5">
-                ${f.diagnosis ? `<p class="text-[11px] text-gray-400 px-2 italic">${esc(f.diagnosis.slice(0, 300))}</p>` : ''}
                 ${patches}
               </div>
             </details>`;
@@ -470,12 +469,35 @@
       return { label: ctx, color: 'text-gray-400', bg: 'bg-surface-700' };
     }
 
+    function fmtDuration(secs) {
+      if (secs == null) return '';
+      const m = Math.floor(secs / 60);
+      const s = Math.round(secs % 60);
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function fmtStartTime(isoStr) {
+      if (!isoStr) return '';
+      try {
+        const d = new Date(isoStr);
+        return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+      } catch(e) { return ''; }
+    }
+
     function sessionLabel(s) {
       const statusIcon = s.status === 'active' ? '\u25CB' : s.status === 'done' ? '\u25CF' : '\u25B3';
       const ctx = parseSessionContext(s.context, s.session_type);
-      const reward = s.reward != null ? ` r=${s.reward.toFixed(2)}` : '';
-      const task = s.task_id ? ` ${s.task_id}` : '';
-      return `${statusIcon} [${ctx.label}]${task} (${s.message_count} msgs${reward})`;
+      const task = s.task_id || 'unknown';
+      const time = fmtStartTime(s.started_at);
+      const dur = fmtDuration(s.duration_s);
+
+      let parts = [`${statusIcon} ${task}`];
+      parts.push(ctx.label);
+      if (time) parts.push(dur ? `${time}, ${dur}` : time);
+      else if (dur) parts.push(dur);
+      if (s.reward != null) parts.push(s.reward >= 1 ? 'pass' : 'fail');
+      return parts.join(' \u2022 ');
     }
 
     function matchesContextFilter(session, ctxFilter) {
@@ -570,9 +592,14 @@
           statusEl.textContent = status;
           statusEl.className = status === 'active' ? 'text-amber-400' :
                                status === 'done' ? 'text-emerald-400' : 'text-accent';
-          let metaMsgs = `${data.total || msgs.length} msgs`;
-          if (data.reward != null) metaMsgs += ` | reward: ${data.reward.toFixed(2)}`;
-          document.getElementById('session-meta-msgs').textContent = metaMsgs;
+          const metaParts = [];
+          const startTime = fmtStartTime(data.started_at);
+          const dur = fmtDuration(data.duration_s);
+          if (startTime) metaParts.push(`started ${startTime}`);
+          if (dur) metaParts.push(`took ${dur}`);
+          metaParts.push(`${data.total || msgs.length} messages`);
+          if (data.reward != null) metaParts.push(`reward ${data.reward.toFixed(2)}`);
+          document.getElementById('session-meta-msgs').textContent = metaParts.join(' \u00b7 ');
 
           const container = document.getElementById('session-conversation');
           if (fullLoad) { container.innerHTML = ''; _sessionMsgCount = 0; }

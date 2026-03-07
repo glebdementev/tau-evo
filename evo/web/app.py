@@ -472,7 +472,9 @@ async def api_session(session_id: str):
     data = _get_session_data(session_id)
     if data is None:
         return JSONResponse({"error": "Session not found"}, status_code=404)
-    return JSONResponse(data.model_dump(**_DUMP))
+    result = data.model_dump(**_DUMP)
+    result["duration_s"] = slog._calc_duration(data)
+    return JSONResponse(result)
 
 
 @app.get("/api/sessions/{session_id}/messages")
@@ -624,6 +626,13 @@ async def delete_run(run_id: str):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _fmt_duration(secs: float) -> str:
+    if not secs:
+        return ""
+    m, s = divmod(int(secs), 60)
+    return f"{m}m {s}s" if m else f"{s}s"
+
+
 def _build_results() -> list[dict]:
     state = _get_viewed_state()
     if state is None:
@@ -640,7 +649,10 @@ def _build_results() -> list[dict]:
                 "retries": fix.retries,
                 "status": "FIXED" if fix.fixed else "NOT FIXED",
                 "fix_tier": fix.fix_tier,
-                "diagnosis": (fix.diagnosis or "")[:120],
+                "teacher_msgs": fix.teacher_msgs,
+                "teacher_tool_calls": fix.teacher_tool_calls,
+                "teacher_duration": _fmt_duration(fix.teacher_duration_s),
+                "fixed_at_try": fix.retries + 1 if fix.fixed else None,
                 "patches": fix.patches,
             })
     return rows

@@ -1,0 +1,4 @@
+from: markdown+superscript+subscript
+to: docx
+citeproc: true
+reference-doc: null
