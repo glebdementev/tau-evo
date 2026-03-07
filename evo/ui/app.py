@@ -6,7 +6,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, Button, DataTable, Log
 
-from tau_evo.config import DEFAULT_DOMAIN, DEFAULT_NUM_TASKS, DEFAULT_MAX_ITERATIONS, DEFAULT_SEED
+from evo.config import DEFAULT_DOMAIN, DEFAULT_NUM_TASKS, DEFAULT_MAX_ITERATIONS, DEFAULT_SEED
 
 
 class StatusPanel(Static):
@@ -93,7 +93,7 @@ class EvolutionApp(App):
 
     def _run_loop(self) -> None:
         """Worker thread that runs the evolution loop."""
-        from tau_evo.loop import run_loop
+        from evo.loop import run_loop
 
         state = run_loop(
             domain=DEFAULT_DOMAIN,

@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
 from tau2.registry import registry as tau2_registry
 
-from tau_evo.config import PATCHES_DIR, DEFAULT_DOMAIN, DEFAULT_NUM_TASKS, DEFAULT_MAX_ITERATIONS, DEFAULT_SEED
-from tau_evo.evaluation.runner import run_baseline, extract_failures
-from tau_evo.reflection.teacher import reflect, merge_patches
+from evo.config import PATCHES_DIR, DEFAULT_DOMAIN, DEFAULT_NUM_TASKS, DEFAULT_MAX_ITERATIONS, DEFAULT_SEED
+from evo.evaluation.runner import run_baseline, extract_failures
+from evo.reflection.teacher import reflect, merge_patches
 
 
 @dataclass
@@ -36,19 +36,7 @@ class LoopState:
         data = {
             "prompt_patch": self.prompt_patch,
             "tool_patches": self.tool_patches,
-            "history": [
-                {
-                    "iteration": r.iteration,
-                    "task_id": r.task_id,
-                    "baseline_reward": r.baseline_reward,
-                    "diagnosis": r.diagnosis,
-                    "delta_prompt_patch": r.delta_prompt_patch,
-                    "delta_tool_patches": r.delta_tool_patches,
-                    "patched_reward": r.patched_reward,
-                    "fixed": r.fixed,
-                }
-                for r in self.history
-            ],
+            "history": [asdict(r) for r in self.history],
         }
         path.write_text(json.dumps(data, indent=2))
 
@@ -73,26 +61,15 @@ def run_loop(
             on_status(msg)
 
     # ── Step 1: Baseline run ─────────────────────────────────────────────
-    if task_ids:
-        status(f"Running baseline on {domain} tasks {task_ids}...")
-        results = run_baseline(
-            domain=domain,
-            task_ids=task_ids,
-            seed=seed,
-            prompt_patch=state.prompt_patch,
-            tool_patches=state.tool_patches,
-            save_name="baseline",
-        )
-    else:
-        status(f"Running baseline on {domain} ({num_tasks} tasks)...")
-        results = run_baseline(
-            domain=domain,
-            num_tasks=num_tasks,
-            seed=seed,
-            prompt_patch=state.prompt_patch,
-            tool_patches=state.tool_patches,
-            save_name="baseline",
-        )
+    label = f"tasks {task_ids}" if task_ids else f"{num_tasks} tasks"
+    status(f"Running baseline on {domain} ({label})...")
+    results = run_baseline(
+        domain=domain,
+        num_tasks=num_tasks,
+        task_ids=task_ids,
+        seed=seed,
+        save_name="baseline",
+    )
 
     failures = extract_failures(results)
     status(f"Baseline done. {len(failures)}/{len(results.simulations)} tasks failed.")
@@ -105,7 +82,7 @@ def run_loop(
     env = tau2_registry.get_env_constructor(domain)()
     tools = env.get_tools()
 
-    # ── Step 2-5: Iterate over failures ──────────────────────────────────
+    # ── Step 2-N: Iterate over failures ──────────────────────────────────
     for i, sim in enumerate(failures[:max_iterations]):
         iteration = i + 1
         task_id = sim.task_id
@@ -117,7 +94,6 @@ def run_loop(
         # ── Reflect ──────────────────────────────────────────────────────
         status("Sending failure to teacher for reflection...")
 
-        # Extract the system prompt from the conversation trace.
         agent_system_prompt = ""
         for msg in sim.messages:
             if hasattr(msg, "role") and msg.role == "system":
@@ -158,7 +134,7 @@ def run_loop(
         patched_reward = val_results.simulations[0].reward_info.reward
         fixed = patched_reward > baseline_reward
 
-        result = IterationResult(
+        state.history.append(IterationResult(
             iteration=iteration,
             task_id=task_id,
             baseline_reward=baseline_reward,
@@ -167,8 +143,7 @@ def run_loop(
             delta_tool_patches=patch.get("tool_patches"),
             patched_reward=patched_reward,
             fixed=fixed,
-        )
-        state.history.append(result)
+        ))
 
         status(
             f"Result: reward {baseline_reward:.2f} -> {patched_reward:.2f} "

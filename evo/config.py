@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Paths ────────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = ROOT / "results"
 PROMPTS_DIR = ROOT / "prompts"
 EVOLVED_DIR = PROMPTS_DIR / "evolved"
@@ -27,12 +27,13 @@ def ensure_dirs() -> None:
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-# ── Models (all via OpenRouter / LiteLLM) ────────────────────────────────
-STUDENT_MODEL = "openrouter/qwen/qwen3.5-35b-a3b"
-TEACHER_MODEL = "openrouter/moonshotai/kimi-k2.5"
-USER_SIM_MODEL = "openrouter/qwen/qwen3.5-35b-a3b"
+# ── Models ────────────────────────────────────────────────────────────────
+# Bare model IDs (no litellm prefix). Callers add "openrouter/" when needed.
+STUDENT_MODEL = "qwen/qwen3.5-35b-a3b"
+TEACHER_MODEL = "moonshotai/kimi-k2.5"
+USER_SIM_MODEL = "qwen/qwen3.5-35b-a3b"
 
-# Disable reasoning/thinking tokens for Qwen3.5 — pass as extra litellm kwargs.
+# Disable reasoning/thinking tokens for Qwen3.5 via OpenRouter.
 NO_THINK_ARGS: dict = {"extra_body": {"reasoning": {"effort": "none"}}}
 
 # ── Defaults ─────────────────────────────────────────────────────────────

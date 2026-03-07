@@ -1,4 +1,4 @@
-"""CLI entry point: python -m tau_evo"""
+"""CLI entry point: python -m evo"""
 
 from __future__ import annotations
 
@@ -8,19 +8,22 @@ import sys
 
 from rich.console import Console
 
-import tau_evo.config as cfg
+import evo.config as cfg
 
 cfg.ensure_dirs()
 console = Console()
 
 
-def _quiet_litellm():
-    """Suppress litellm's noisy provider-list spam."""
+def _quiet_deps():
+    """Suppress noisy logs from litellm and tau2."""
     logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
     logging.getLogger("LiteLLM Router").setLevel(logging.CRITICAL)
     logging.getLogger("LiteLLM Proxy").setLevel(logging.CRITICAL)
     import litellm
     litellm.suppress_debug_info = True
+    # Suppress tau2's loguru error-level noise (cost lookup failures, git hash, etc.)
+    from loguru import logger
+    logger.disable("tau2")
 
 
 def main():
@@ -38,11 +41,16 @@ def main():
     # ── ui ────────────────────────────────────────────────────────────────
     sub.add_parser("ui", help="Launch the Textual dashboard")
 
+    # ── web ───────────────────────────────────────────────────────────────
+    web_p = sub.add_parser("web", help="Launch the NiceGUI web dashboard")
+    web_p.add_argument("--port", type=int, default=8080)
+    web_p.add_argument("--reload", action="store_true", help="Enable auto-reload for dev")
+
     args = parser.parse_args()
-    _quiet_litellm()
 
     if args.command == "loop":
-        from tau_evo.loop import run_loop
+        _quiet_deps()
+        from evo.loop import run_loop
 
         state = run_loop(
             domain=args.domain,
@@ -56,10 +64,16 @@ def main():
         console.print(f"\n[bold]Done.[/bold] {fixed}/{len(state.history)} failures fixed.")
 
     elif args.command == "ui":
-        from tau_evo.ui.app import EvolutionApp
+        from evo.ui.app import EvolutionApp
 
         app = EvolutionApp()
         app.run()
+
+    elif args.command == "web":
+        _quiet_deps()
+        from evo.web.app import start
+
+        start(port=args.port, reload=args.reload)
 
     else:
         parser.print_help()

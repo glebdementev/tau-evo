@@ -8,7 +8,7 @@ from typing import Optional
 
 from openai import OpenAI
 
-from tau_evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL
+from evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL
 
 
 _client: Optional[OpenAI] = None
@@ -158,10 +158,8 @@ def reflect(
     )
 
     client = _get_client()
-    # Strip litellm's "openrouter/" prefix — the OpenAI client talks directly to OpenRouter.
-    bare_model = model.removeprefix("openrouter/")
     response = client.chat.completions.create(
-        model=bare_model,
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
     )
