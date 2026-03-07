@@ -28,6 +28,10 @@ def main():
     loop_p.add_argument("--parallelism", type=int, default=cfg.DEFAULT_PARALLELISM, help="Max parallel workers (teachers & tau2 evals)")
     loop_p.add_argument("--seed", type=int, default=cfg.DEFAULT_SEED)
     loop_p.add_argument("--task-ids", nargs="+", help="Run only these task IDs")
+    loop_p.add_argument("--split", action=argparse.BooleanOptionalAction, default=True,
+                        help="Use canonical train/test split (default: on)")
+    loop_p.add_argument("--test-only", type=str, default=None, metavar="STATE_FILE",
+                        help="Run test evaluation on an existing LoopState (skip evolution)")
 
     # ── ui ────────────────────────────────────────────────────────────────
     sub.add_parser("ui", help="Launch the Textual dashboard")
@@ -46,19 +50,53 @@ def main():
             args.num_tasks = max_for_domain
 
         cfg.quiet_deps()
-        from evo.parallel_loop import run_loop
 
-        state = run_loop(
-            domain=args.domain,
-            num_tasks=args.num_tasks,
-            max_iterations=args.max_iterations,
-            max_retries=args.max_retries,
-            parallelism=args.parallelism,
-            seed=args.seed,
-            task_ids=args.task_ids,
-            on_status=lambda msg: console.print(msg),
-        )
-        console.print(f"\n[bold]Done.[/bold] {state.total_fixed}/{state.total_failures} total fixes.")
+        if args.test_only:
+            # Re-run test evaluation on an existing state file.
+            from pathlib import Path
+            from evo.models import LoopState
+            from evo.parallel_loop import _run_test_evaluation
+            from tau2.run import load_task_splits
+
+            state = LoopState.load(Path(args.test_only))
+            splits = load_task_splits(args.domain)
+            if not splits:
+                console.print("[red]No canonical splits for this domain.[/red]")
+                sys.exit(1)
+            test_ids = splits["test"]
+            console.print(f"Running test evaluation on {len(test_ids)} held-out tasks...")
+            state.test_results = _run_test_evaluation(
+                domain=args.domain, test_ids=test_ids, seed=args.seed,
+                evolved_prompt=state.system_prompt, evolved_schemas=state.tool_schemas,
+                evolved_code=state.tool_code, student_model=None,
+                parallelism=args.parallelism,
+                on_status=lambda msg: console.print(msg),
+            )
+            state.test_task_ids = test_ids
+            state.save(Path(args.test_only))
+            console.print("[bold]Done.[/bold] Test results saved.")
+        else:
+            from evo.parallel_loop import run_loop
+
+            state = run_loop(
+                domain=args.domain,
+                num_tasks=args.num_tasks,
+                max_iterations=args.max_iterations,
+                max_retries=args.max_retries,
+                parallelism=args.parallelism,
+                seed=args.seed,
+                task_ids=args.task_ids,
+                use_split=args.split,
+                on_status=lambda msg: console.print(msg),
+            )
+            console.print(f"\n[bold]Done.[/bold] {state.total_fixed}/{state.total_failures} total fixes.")
+            if state.test_results:
+                tr = state.test_results
+                console.print(f"[bold]Test results:[/bold] baseline={tr.baseline_pass_rate:.0%} "
+                              f"evolved={tr.evolved_pass_rate:.0%} prompt-only={tr.prompt_only_pass_rate:.0%} "
+                              f"frontier={tr.frontier_pass_rate:.0%}")
+                if tr.gap_closure is not None:
+                    console.print(f"[bold]Gap closure:[/bold] {tr.gap_closure:.1%}")
 
     elif args.command == "ui":
         from evo.ui.app import EvolutionApp

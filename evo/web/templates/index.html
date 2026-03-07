@@ -7,218 +7,240 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
+            mono: ['IBM Plex Mono', 'monospace'],
+          },
+          colors: {
+            surface: { 900: '#0f1117', 800: '#181a20', 700: '#23262f', 600: '#2e3241', 500: '#3a3f50' },
+            accent: { DEFAULT: '#4f8ff7', dim: '#3a6bc2', bright: '#6ba3ff' },
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    /* hide all scrollbars globally */
-    * { scrollbar-width: none; }
-    *::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: thin; scrollbar-color: #3a3f50 transparent; }
+    *::-webkit-scrollbar { width: 4px; height: 4px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: #3a3f50; border-radius: 2px; }
+
+    .tab-btn { position: relative; }
+    .tab-btn::after {
+      content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 2px; background: transparent; transition: background 0.15s;
+    }
+    .tab-btn.active { color: #4f8ff7; }
+    .tab-btn.active::after { background: #4f8ff7; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
   </style>
 </head>
-<body class="bg-gray-900 text-gray-100 h-screen overflow-hidden">
+<body class="bg-surface-900 text-gray-200 h-screen overflow-hidden font-sans">
 
   <!-- Header -->
-  <header class="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-    <div>
-      <span class="text-sm font-bold">tau-evo</span>
-      <span class="text-[10px] text-gray-400 ml-1.5">self-evolving LLM agents</span>
+  <header class="bg-surface-800 border-b border-surface-600 px-4 py-2 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-bold tracking-tight text-white">tau-evo</span>
+      <span class="text-[11px] text-gray-500 font-medium">self-evolving LLM agents</span>
     </div>
-    <div id="status" class="text-xs text-gray-400"></div>
+    <div id="status" class="text-xs text-gray-500"></div>
   </header>
 
-  <div class="flex gap-2 p-2 h-[calc(100vh-40px)]">
+  <div class="flex gap-0 h-[calc(100vh-41px)]">
 
-    <!-- LEFT: Config + Log -->
-    <div class="w-52 shrink-0 flex flex-col gap-2">
+    <!-- ════════════ LEFT SIDEBAR: Config + Log ════════════ -->
+    <aside class="w-56 shrink-0 flex flex-col border-r border-surface-600 bg-surface-800">
 
       <!-- Config -->
-      <form hx-post="/run" hx-target="#status" hx-swap="innerHTML" class="bg-gray-800 rounded p-2 border border-gray-700">
-        <h2 class="text-xs font-semibold mb-1.5">Config</h2>
+      <form hx-post="/run" hx-target="#status" hx-swap="innerHTML"
+            class="p-3 border-b border-surface-600">
+        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Configuration</h2>
 
-        <label class="block text-[10px] text-gray-400 mb-0.5">Student Model</label>
-        <select name="student_model" class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-1 mb-1.5 text-[11px]">
+        <label class="block text-[11px] text-gray-400 mb-0.5">Student Model</label>
+        <select name="student_model"
+                class="w-full bg-surface-700 border border-surface-600 rounded px-2 py-1 mb-2 text-xs text-gray-200 focus:border-accent focus:outline-none">
           {% for id, label in student_models.items() %}
           <option value="{{ id }}" {{ 'selected' if id == defaults.student_model }}>{{ label }}</option>
           {% endfor %}
         </select>
 
-        <label class="block text-[10px] text-gray-400 mb-0.5">Domain</label>
+        <label class="block text-[11px] text-gray-400 mb-0.5">Domain</label>
         <select name="domain" id="domain" onchange="updateTaskMax()"
-                class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-1 mb-1.5 text-[11px]">
+                class="w-full bg-surface-700 border border-surface-600 rounded px-2 py-1 mb-2 text-xs text-gray-200 focus:border-accent focus:outline-none">
           {% for d in domains %}
           <option value="{{ d }}" {{ 'selected' if d == defaults.domain }}>{{ d }}</option>
           {% endfor %}
         </select>
 
-        <div class="flex gap-1.5 mb-1.5">
-          <div class="flex-1">
-            <label class="block text-[10px] text-gray-400 mb-0.5">Iters</label>
+        <div class="grid grid-cols-4 gap-1.5 mb-2">
+          <div>
+            <label class="block text-[11px] text-gray-400 mb-0.5">Iters</label>
             <input type="number" name="max_iterations" value="{{ defaults.max_iterations }}" min="1" max="50"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
+                   class="w-full bg-surface-700 border border-surface-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:border-accent focus:outline-none">
           </div>
-          <div class="flex-1">
-            <label class="block text-[10px] text-gray-400 mb-0.5">Seed</label>
+          <div>
+            <label class="block text-[11px] text-gray-400 mb-0.5">Seed</label>
             <input type="number" name="seed" value="{{ defaults.seed }}"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
+                   class="w-full bg-surface-700 border border-surface-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:border-accent focus:outline-none">
           </div>
-        </div>
-
-        <div class="mb-1.5">
-          <label class="block text-[10px] text-gray-400 mb-0.5" title="Max parallel workers (teachers & evaluations)">Parallelism</label>
-          <input type="number" name="parallelism" value="{{ defaults.parallelism }}" min="1" max="16"
-                 class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
-        </div>
-
-        <div class="mb-1.5">
-          <label class="flex items-center gap-1 text-[10px] cursor-pointer mb-1">
-            <input type="checkbox" name="use_task_ids" id="use_task_ids"
-                   onchange="document.getElementById('task_num_section').classList.toggle('hidden', this.checked);
-                             document.getElementById('task_ids_section').classList.toggle('hidden', !this.checked);"
-                   class="rounded bg-gray-700 border-gray-600 w-3 h-3">
-            <span class="text-gray-400">Specific task IDs</span>
-          </label>
-
-          <div id="task_num_section">
-            <label class="block text-[10px] text-gray-400 mb-0.5">Tasks <span id="task-max-hint" class="text-gray-500">(max {{ domain_num_tasks[defaults.domain] }})</span></label>
+          <div>
+            <label class="block text-[11px] text-gray-400 mb-0.5" title="Parallel workers">Par</label>
+            <input type="number" name="parallelism" value="{{ defaults.parallelism }}" min="1" max="16"
+                   class="w-full bg-surface-700 border border-surface-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:border-accent focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] text-gray-400 mb-0.5">Tasks <span id="task-max-hint" class="text-gray-600 text-[9px]"></span></label>
             <input type="number" name="num_tasks" id="num_tasks" value="{{ defaults.num_tasks }}" min="1"
-                   max="{{ domain_num_tasks[defaults.domain] }}"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
-          </div>
-
-          <div id="task_ids_section" class="hidden">
-            <label class="block text-[10px] text-gray-400 mb-0.5">Task IDs</label>
-            <input type="text" name="task_ids" placeholder="1,2,5"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
+                   max="{{ domain_train_tasks[defaults.domain] }}"
+                   class="w-full bg-surface-700 border border-surface-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:border-accent focus:outline-none">
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-[11px] font-medium transition-colors"
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-[11px] text-gray-500">Train/test split always active</span>
+        </div>
+
+        <div class="mb-2">
+          <label class="flex items-center gap-1.5 text-[11px] cursor-pointer mb-1">
+            <input type="checkbox" name="use_task_ids" id="use_task_ids"
+                   onchange="document.getElementById('task_num_section').classList.toggle('hidden', !this.checked);
+                             document.getElementById('num_tasks').closest('div').classList.toggle('hidden', this.checked);"
+                   class="rounded bg-surface-700 border-surface-500 w-3.5 h-3.5 text-accent focus:ring-accent/30">
+            <span class="text-gray-300">Specific task IDs</span>
+          </label>
+          <div id="task_num_section" class="hidden mt-1">
+            <input type="text" name="task_ids" placeholder="1, 2, 5"
+                   class="w-full bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 focus:border-accent focus:outline-none">
+          </div>
+        </div>
+
+        <button type="submit"
+                class="w-full bg-accent hover:bg-accent-dim text-white rounded px-3 py-1.5 text-xs font-semibold transition-colors"
                 {{ 'disabled' if running }}>
-          Run
+          Run Experiment
         </button>
       </form>
 
       <!-- Log -->
-      <div class="bg-gray-800 rounded p-2 border border-gray-700 flex-1 min-h-0 flex flex-col">
-        <h2 class="text-xs font-semibold mb-1">Log</h2>
-        <pre id="log" class="bg-gray-950 rounded p-1.5 text-[10px] text-gray-300 font-mono flex-1 overflow-y-auto whitespace-pre-wrap min-h-0"></pre>
+      <div class="flex-1 min-h-0 flex flex-col p-3 pt-2">
+        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Log</h2>
+        <pre id="log" class="bg-surface-900 rounded p-2 text-[11px] text-gray-400 font-mono flex-1 overflow-y-auto whitespace-pre-wrap min-h-0 leading-relaxed border border-surface-700"></pre>
       </div>
-    </div>
+    </aside>
 
-    <!-- CENTER: Results + Charts -->
-    <div class="flex-1 min-w-0 overflow-y-auto">
-      <div class="flex flex-col gap-2">
+    <!-- ════════════ CENTER: Tabbed Content ════════════ -->
+    <main class="flex-1 min-w-0 flex flex-col">
 
-        <!-- Summary + Results -->
-        <div id="results-panel">
-          {% include "_results.html" %}
-        </div>
+      <!-- Tab bar -->
+      <nav class="bg-surface-800 border-b border-surface-600 px-4 flex items-center gap-1">
+        <button class="tab-btn active px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                onclick="switchTab('results', this)">Results</button>
+        <button class="tab-btn px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                onclick="switchTab('sessions', this)">
+          Sessions <span id="session-count" class="text-[10px] text-gray-600 font-normal ml-0.5"></span>
+        </button>
+        <button class="tab-btn px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                onclick="switchTab('charts', this)">Charts</button>
+      </nav>
 
-        <!-- Sessions Viewer (teacher + student) -->
-        <div id="sessions-panel" class="bg-gray-800 rounded border border-gray-700">
-          <div class="flex items-center justify-between px-2 py-1.5 border-b border-gray-700 cursor-pointer"
-               onclick="document.getElementById('sessions-body').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-90');">
-            <h2 class="text-xs font-semibold flex items-center gap-1.5">
-              <svg class="w-3 h-3 text-gray-500 transition-transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-              Sessions
-              <span id="session-count" class="text-[10px] text-gray-500 font-normal"></span>
-            </h2>
-          </div>
-          <div id="sessions-body">
-            <!-- Filter + selector -->
-            <div class="flex items-center gap-1.5 px-2 py-1 border-b border-gray-700/50">
-              <select id="session-type-filter" onchange="refreshSessionList()"
-                      class="bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-[10px] w-16">
-                <option value="">all</option>
-                <option value="teacher">teacher</option>
-                <option value="student">student</option>
-              </select>
-              <select id="session-select" onchange="loadSession(this.value)"
-                      class="flex-1 bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
-                <option value="">Select a session...</option>
-              </select>
-              <button onclick="refreshSessionList()" class="text-gray-400 hover:text-white text-[10px] px-1">refresh</button>
-            </div>
-            <!-- Session meta -->
-            <div id="session-meta" class="hidden px-2 py-1 border-b border-gray-700/50 text-[10px] text-gray-400 flex gap-3">
-              <span id="session-meta-type"></span>
-              <span id="session-meta-model"></span>
-              <span id="session-meta-task"></span>
-              <span id="session-meta-status"></span>
-              <span id="session-meta-msgs"></span>
-            </div>
-            <!-- Conversation stream -->
-            <div id="session-conversation" class="max-h-[500px] overflow-y-auto p-2 space-y-1.5">
-              <p class="text-[10px] text-gray-500 italic">No session selected.</p>
-            </div>
+      <!-- Tab content -->
+      <div class="flex-1 min-h-0 overflow-y-auto">
+
+        <!-- ── Results Tab ── -->
+        <div id="tab-results" class="tab-panel active p-3 space-y-3">
+          <div id="results-panel">
+            {% include "_results.html" %}
           </div>
         </div>
 
-        <!-- Charts -->
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
-          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
-            <button onclick="exportChart('reward_progression')" title="Export SVG"
-                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+        <!-- ── Sessions Tab ── -->
+        <div id="tab-sessions" class="tab-panel p-3">
+          <div class="flex items-center gap-2 mb-3">
+            <select id="session-type-filter" onchange="refreshSessionList()"
+                    class="bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 focus:border-accent focus:outline-none">
+              <option value="">All sessions</option>
+              <option value="teacher">Teacher (reflection)</option>
+              <option value="student">Student (all)</option>
+            </select>
+            <select id="session-context-filter" onchange="filterSessionsByContext()"
+                    class="bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 focus:border-accent focus:outline-none">
+              <option value="">Any stage</option>
+              <option value="eval">Evaluation (student baseline)</option>
+              <option value="fix">Fixing (teacher + validation)</option>
+              <option value="test">Test split evaluation</option>
+            </select>
+            <select id="session-select" onchange="loadSession(this.value)"
+                    class="flex-1 bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-accent focus:outline-none">
+              <option value="">Select a session...</option>
+            </select>
+            <button onclick="refreshSessionList()"
+                    class="text-gray-500 hover:text-gray-200 text-xs px-2 py-1 rounded border border-surface-600 hover:border-surface-500 transition-colors">
+              Refresh
             </button>
-            <div id="chart-reward_progression"></div>
           </div>
-          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
-            <button onclick="exportChart('cumulative_fix_rate')" title="Export SVG"
-                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
-            </button>
-            <div id="chart-cumulative_fix_rate"></div>
+
+          <!-- Session meta -->
+          <div id="session-meta" class="hidden bg-surface-700 rounded px-3 py-2 mb-3 flex items-center gap-3 text-xs">
+            <span id="session-meta-context" class="px-1.5 py-0.5 rounded text-[11px] font-medium"></span>
+            <span id="session-meta-type" class="font-semibold"></span>
+            <span class="w-px h-4 bg-surface-500"></span>
+            <span id="session-meta-task" class="text-gray-400"></span>
+            <span id="session-meta-model" class="text-gray-500"></span>
+            <span id="session-meta-status"></span>
+            <span id="session-meta-msgs" class="text-gray-400 ml-auto"></span>
           </div>
-          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
-            <button onclick="exportChart('comparison_bar')" title="Export SVG"
-                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
-            </button>
-            <div id="chart-comparison_bar"></div>
-          </div>
-          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
-            <button onclick="exportChart('failure_types')" title="Export SVG"
-                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
-            </button>
-            <div id="chart-failure_types"></div>
+
+          <!-- Conversation stream -->
+          <div id="session-conversation" class="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
+            <p class="text-xs text-gray-500 italic py-8 text-center">No session selected.</p>
           </div>
         </div>
 
-        <!-- Fix Tiers + Heatmap -->
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
-          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
-            <button onclick="exportChart('fix_tiers')" title="Export SVG"
-                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
-            </button>
-            <div id="chart-fix_tiers"></div>
-          </div>
-          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
-            <button onclick="exportChart('task_heatmap')" title="Export SVG"
-                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
-            </button>
-            <div id="chart-task_heatmap"></div>
+        <!-- ── Charts Tab ── -->
+        <div id="tab-charts" class="tab-panel p-3">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-3" id="charts-grid">
           </div>
         </div>
 
       </div>
-    </div>
+    </main>
 
-    <!-- RIGHT: Run History -->
-    <div class="w-44 shrink-0 flex flex-col bg-gray-800 rounded border border-gray-700">
-      <div class="px-2 py-1.5 border-b border-gray-700">
-        <h2 class="text-xs font-semibold">Run History</h2>
+    <!-- ════════════ RIGHT SIDEBAR: Run History ════════════ -->
+    <aside class="w-48 shrink-0 flex flex-col border-l border-surface-600 bg-surface-800">
+      <div class="px-3 py-2 border-b border-surface-600">
+        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Run History</h2>
       </div>
-      <div id="history-list" class="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0">
+      <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
         {% include "_history.html" %}
       </div>
-    </div>
+    </aside>
 
   </div>
 
   <script>
-    const DOMAIN_NUM_TASKS = {{ domain_num_tasks | tojson }};
+    // ── Tabs ──────────────────────────────────────────────────────────
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      btn.classList.add('active');
+      if (name === 'charts') refreshCharts();
+      if (name === 'sessions') refreshSessionList();
+    }
+
+    // ── Domain / Task max ────────────────────────────────────────────
+    const DOMAIN_NUM_TASKS = {{ domain_train_tasks | tojson }};
 
     function updateTaskMax() {
       const domain = document.getElementById('domain').value;
@@ -226,22 +248,34 @@
       const input = document.getElementById('num_tasks');
       input.max = max;
       if (parseInt(input.value) > max) input.value = max;
-      document.getElementById('task-max-hint').textContent = '(max ' + max + ')';
+      document.getElementById('task-max-hint').textContent = '\u2264' + max;
     }
 
+    // ── Charts ───────────────────────────────────────────────────────
     const CHART_IDS = [
-      'reward_progression',
-      'cumulative_fix_rate',
-      'comparison_bar',
-      'failure_types',
-      'fix_tiers',
-      'task_heatmap',
+      'reward_progression', 'cumulative_fix_rate',
+      'comparison_bar', 'train_comparison',
+      'failure_types', 'fix_tiers',
+      'task_heatmap', 'test_comparison', 'test_heatmap',
     ];
 
-    const plotlyConfig = {
-      displayModeBar: false,
-      responsive: true,
-    };
+    const plotlyConfig = { displayModeBar: false, responsive: true };
+
+    // Build chart cells once
+    (function initChartGrid() {
+      const grid = document.getElementById('charts-grid');
+      CHART_IDS.forEach(id => {
+        const cell = document.createElement('div');
+        cell.className = 'bg-surface-800 rounded border border-surface-600 p-3 relative group';
+        cell.innerHTML = `
+          <button onclick="exportChart('${id}')" title="Export SVG"
+                  class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+          </button>
+          <div id="chart-${id}"></div>`;
+        grid.appendChild(cell);
+      });
+    })();
 
     function refreshCharts() {
       fetch('/api/charts')
@@ -250,8 +284,7 @@
           CHART_IDS.forEach(id => {
             const el = document.getElementById('chart-' + id);
             if (el && charts[id]) {
-              const fig = charts[id];
-              Plotly.react(el, fig.data || [], fig.layout || {}, plotlyConfig);
+              Plotly.react(el, charts[id].data || [], charts[id].layout || {}, plotlyConfig);
             }
           });
         })
@@ -282,43 +315,32 @@
       htmx.ajax('GET', '/runs', {target: '#history-list', swap: 'innerHTML'});
     }
 
-    // Whether the user is currently viewing the active (running) run.
-    // When true, SSE events auto-refresh dashboard/sessions.
     let _viewingActive = {{ 'true' if active_run_id and active_run_id == viewed_run_id else 'false' }};
-
-    // Monotonic counter to discard stale refreshSessionList responses.
     let _sessionRefreshSeq = 0;
 
     function resetForNewRun() {
       _viewingActive = true;
-      // Bump sequence so any in-flight refreshSessionList is discarded
       _sessionRefreshSeq++;
-      // Refresh history so the new run appears immediately
       refreshHistory();
-      // Clear results panel
       htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
-      // Clear charts
       CHART_IDS.forEach(id => {
         const el = document.getElementById('chart-' + id);
         if (el) Plotly.purge(el);
       });
-      // Clear sessions
       _activeSession = null;
       _sessionMsgCount = 0;
       if (_sessionPollTimer) { clearInterval(_sessionPollTimer); _sessionPollTimer = null; }
       document.getElementById('session-select').innerHTML = '<option value="">Select a session...</option>';
       document.getElementById('session-count').textContent = '';
       document.getElementById('session-conversation').innerHTML =
-        '<p class="text-[10px] text-gray-500 italic">No session selected.</p>';
+        '<p class="text-xs text-gray-500 italic py-8 text-center">No session selected.</p>';
       document.getElementById('session-meta').classList.add('hidden');
     }
 
+    // ── SSE ──────────────────────────────────────────────────────────
     function startSSE(isNewRun) {
       const log = document.getElementById('log');
-      if (isNewRun) {
-        log.textContent = '';
-        resetForNewRun();
-      }
+      if (isNewRun) { log.textContent = ''; resetForNewRun(); }
       const src = new EventSource('/logs');
 
       src.addEventListener('log', (e) => {
@@ -346,9 +368,7 @@
           const sel = document.getElementById('session-select');
           const opt = sel.querySelector(`option[value="${sessionId}"]`);
           if (opt) {
-            const statusIcon = info.status === 'active' ? '~' : info.status === 'done' ? '+' : '!';
-            const typeTag = info.session_type === 'student' ? 'S' : 'T';
-            opt.textContent = `[${typeTag}${statusIcon}] ${info.task_id || sessionId.slice(0,20)} (${info.message_count} msgs)`;
+            opt.textContent = sessionLabel(info);
           }
         }
 
@@ -358,10 +378,7 @@
 
         if (!_activeSession && info.is_new) {
           const sel = document.getElementById('session-select');
-          if (!sel.value) {
-            sel.value = sessionId;
-            loadSession(sessionId);
-          }
+          if (!sel.value) { sel.value = sessionId; loadSession(sessionId); }
         }
       });
 
@@ -373,7 +390,7 @@
       src.addEventListener('done', () => {
         src.close();
         document.getElementById('status').innerHTML =
-          '<span class="text-green-400">Finished.</span>';
+          '<span class="text-emerald-400 font-medium">Finished</span>';
         const lf = document.getElementById('live-fixes');
         if (lf) lf.classList.add('hidden');
         refreshDashboard();
@@ -383,10 +400,11 @@
       src.onerror = () => {
         src.close();
         document.getElementById('status').innerHTML =
-          '<span class="text-red-400">Connection lost.</span>';
+          '<span class="text-red-400">Connection lost</span>';
       };
     }
 
+    // ── Live Fixes ───────────────────────────────────────────────────
     function refreshLiveFixes() {
       fetch('/api/live-fixes')
         .then(r => r.json())
@@ -398,29 +416,29 @@
           container.classList.remove('hidden');
 
           list.innerHTML = fixes.map(f => {
-            const statusColor = f.status === 'fixed' ? 'text-green-400' :
-                                f.status === 'reflecting' ? 'text-amber-400' : 'text-blue-400';
+            const statusColor = f.status === 'fixed' ? 'text-emerald-400' :
+                                f.status === 'reflecting' ? 'text-amber-400' : 'text-accent';
             const patches = f.patches.map(p => {
               const kind = p.tool_name
-                ? `<span class="text-blue-400">tool: ${esc(p.tool_name)}</span>`
+                ? `<span class="text-accent">tool: ${esc(p.tool_name)}</span>`
                 : `<span class="text-purple-400">prompt</span>`;
-              return `<div class="bg-gray-950 rounded p-1.5 text-[10px] font-mono">
+              return `<div class="bg-surface-900 rounded p-2 text-[11px] font-mono border border-surface-700">
                 ${kind}<br>
                 <span class="text-red-400">- ${esc(p.old_text.slice(0, 200))}</span><br>
-                <span class="text-green-400">+ ${esc(p.new_text.slice(0, 200))}</span>
+                <span class="text-emerald-400">+ ${esc(p.new_text.slice(0, 200))}</span>
               </div>`;
             }).join('');
 
             return `<details class="group">
-              <summary class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-700/30 text-[11px]">
+              <summary class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-surface-600/50 text-xs">
                 <svg class="w-3 h-3 text-gray-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 <span class="font-mono">${esc(f.task_id)}</span>
                 <span class="text-gray-500">attempt ${f.attempt}</span>
-                <span class="${statusColor} text-[10px] font-medium">${esc(f.status)}</span>
-                <span class="text-gray-500 text-[10px]">${f.patches.length} patch${f.patches.length !== 1 ? 'es' : ''}</span>
+                <span class="${statusColor} text-[11px] font-medium">${esc(f.status)}</span>
+                <span class="text-gray-500 text-[11px]">${f.patches.length} patch${f.patches.length !== 1 ? 'es' : ''}</span>
               </summary>
-              <div class="ml-4 mt-0.5 space-y-1">
-                ${f.diagnosis ? `<p class="text-[10px] text-gray-400 px-1.5 italic">${esc(f.diagnosis.slice(0, 300))}</p>` : ''}
+              <div class="ml-5 mt-1 space-y-1.5">
+                ${f.diagnosis ? `<p class="text-[11px] text-gray-400 px-2 italic">${esc(f.diagnosis.slice(0, 300))}</p>` : ''}
                 ${patches}
               </div>
             </details>`;
@@ -435,49 +453,74 @@
       return d.innerHTML;
     }
 
-    // ── Session Viewer (teacher + student) ────────────────────────────
+    // ── Session Viewer ───────────────────────────────────────────────
     let _activeSession = null;
     let _sessionMsgCount = 0;
     let _sessionPollTimer = null;
 
+    function parseSessionContext(ctx, sessionType) {
+      if (!ctx) return sessionType === 'teacher'
+        ? { label: 'Teacher reflection', color: 'text-purple-400', bg: 'bg-purple-900/40' }
+        : { label: 'Student', color: 'text-accent', bg: 'bg-blue-900/40' };
+      const evalMatch = ctx.match(/^eval_iter(\d+)$/);
+      if (evalMatch) return { label: `Eval iter ${evalMatch[1]}`, color: 'text-cyan-400', bg: 'bg-cyan-900/40' };
+      const fixMatch = ctx.match(/^fix_(.+?)_a(\d+)$/);
+      if (fixMatch) return { label: `Validation ${fixMatch[1]} #${fixMatch[2]}`, color: 'text-amber-400', bg: 'bg-amber-900/40' };
+      if (ctx.startsWith('test_')) return { label: ctx.replace(/_/g, ' '), color: 'text-emerald-400', bg: 'bg-emerald-900/40' };
+      return { label: ctx, color: 'text-gray-400', bg: 'bg-surface-700' };
+    }
+
+    function sessionLabel(s) {
+      const statusIcon = s.status === 'active' ? '\u25CB' : s.status === 'done' ? '\u25CF' : '\u25B3';
+      const ctx = parseSessionContext(s.context, s.session_type);
+      const reward = s.reward != null ? ` r=${s.reward.toFixed(2)}` : '';
+      const task = s.task_id ? ` ${s.task_id}` : '';
+      return `${statusIcon} [${ctx.label}]${task} (${s.message_count} msgs${reward})`;
+    }
+
+    function matchesContextFilter(session, ctxFilter) {
+      if (!ctxFilter) return true;
+      const ctx = session.context || '';
+      if (ctxFilter === 'eval') return ctx.startsWith('eval_iter');
+      if (ctxFilter === 'fix') return ctx.startsWith('fix_') || session.session_type === 'teacher';
+      if (ctxFilter === 'test') return ctx.startsWith('test_');
+      return true;
+    }
+
+    function filterSessionsByContext() {
+      // Client-side re-filter of the current session list
+      refreshSessionList();
+    }
+
     function refreshSessionList() {
       const seq = ++_sessionRefreshSeq;
       const typeFilter = document.getElementById('session-type-filter').value;
+      const ctxFilter = document.getElementById('session-context-filter').value;
       const url = typeFilter ? `/api/sessions?type=${typeFilter}` : '/api/sessions';
       fetch(url)
         .then(r => { if (!r.ok) throw new Error(`sessions ${r.status}`); return r.json(); })
         .then(sessions => {
-          // Discard if a newer refresh was triggered while this was in-flight
           if (seq !== _sessionRefreshSeq) return;
+          const filtered = sessions.filter(s => matchesContextFilter(s, ctxFilter));
           const sel = document.getElementById('session-select');
           const prev = sel.value;
           document.getElementById('session-count').textContent =
-            sessions.length ? `(${sessions.length})` : '';
+            filtered.length ? `(${filtered.length}${filtered.length !== sessions.length ? '/' + sessions.length : ''})` : '';
 
           sel.innerHTML = '<option value="">Select a session...</option>';
-          sessions.forEach(s => {
-            const statusIcon = s.status === 'active' ? '~' : s.status === 'done' ? '+' : '!';
-            const typeTag = (s.session_type === 'student') ? 'S' : 'T';
-            const reward = s.reward != null ? ` r=${s.reward.toFixed(2)}` : '';
-            const label = `[${typeTag}${statusIcon}] ${s.task_id || s.session_id.slice(0,20)} (${s.message_count} msgs${reward})`;
+          filtered.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.session_id;
-            opt.textContent = label;
+            opt.textContent = sessionLabel(s);
             if (s.session_id === prev) opt.selected = true;
             sel.appendChild(opt);
           });
 
-          // If previous selection is no longer in the list, reset viewer
-          if (prev && !sel.value) {
-            loadSession('');
-          }
+          if (prev && !sel.value) loadSession('');
 
-          if (!sel.value && sessions.length > 0) {
-            const active = sessions.find(s => s.status === 'active');
-            if (active) {
-              sel.value = active.session_id;
-              loadSession(active.session_id);
-            }
+          if (!sel.value && filtered.length > 0) {
+            const active = filtered.find(s => s.status === 'active');
+            if (active) { sel.value = active.session_id; loadSession(active.session_id); }
           }
         })
         .catch(err => console.warn('Session list refresh failed:', err));
@@ -488,7 +531,7 @@
       if (!sessionId) {
         _activeSession = null;
         document.getElementById('session-conversation').innerHTML =
-          '<p class="text-[10px] text-gray-500 italic">No session selected.</p>';
+          '<p class="text-xs text-gray-500 italic py-8 text-center">No session selected.</p>';
         document.getElementById('session-meta').classList.add('hidden');
         return;
       }
@@ -512,32 +555,32 @@
           const msgs = data.messages || [];
           const sType = data.session_type || 'teacher';
 
-          // Update meta
+          const ctx = parseSessionContext(data.context, sType);
+          const ctxEl = document.getElementById('session-meta-context');
+          ctxEl.textContent = ctx.label;
+          ctxEl.className = `px-1.5 py-0.5 rounded text-[11px] font-medium ${ctx.bg} ${ctx.color}`;
+
           const typeEl = document.getElementById('session-meta-type');
           typeEl.textContent = sType;
-          typeEl.className = sType === 'student' ? 'text-blue-400 font-semibold' : 'text-purple-400 font-semibold';
-          if (data.model) document.getElementById('session-meta-model').textContent = `model: ${data.model}`;
+          typeEl.className = sType === 'student' ? 'text-accent font-semibold' : 'text-purple-400 font-semibold';
+          if (data.model) document.getElementById('session-meta-model').textContent = data.model;
           if (data.task_id) document.getElementById('session-meta-task').textContent = `task: ${data.task_id}`;
           const status = data.status || 'unknown';
           const statusEl = document.getElementById('session-meta-status');
           statusEl.textContent = status;
           statusEl.className = status === 'active' ? 'text-amber-400' :
-                               status === 'done' ? 'text-green-400' : 'text-blue-400';
+                               status === 'done' ? 'text-emerald-400' : 'text-accent';
           let metaMsgs = `${data.total || msgs.length} msgs`;
           if (data.reward != null) metaMsgs += ` | reward: ${data.reward.toFixed(2)}`;
           document.getElementById('session-meta-msgs').textContent = metaMsgs;
 
           const container = document.getElementById('session-conversation');
-          if (fullLoad) {
-            container.innerHTML = '';
-            _sessionMsgCount = 0;
-          }
+          if (fullLoad) { container.innerHTML = ''; _sessionMsgCount = 0; }
 
           msgs.forEach((msg, i) => {
             container.appendChild(renderMessage(msg, _sessionMsgCount + i));
           });
           _sessionMsgCount += msgs.length;
-
           container.scrollTop = container.scrollHeight;
 
           if (status === 'active' || status === 'retrying') {
@@ -557,158 +600,137 @@
       const ts = msg.ts ? new Date(msg.ts).toLocaleTimeString() : '';
 
       if (role === 'user') {
-        el.className = 'bg-blue-950/40 border border-blue-800/30 rounded p-2';
+        el.className = 'bg-blue-950/30 border border-blue-900/30 rounded-lg p-3';
         const content = msg.content || '';
-        // For the initial prompt (very long), show collapsed
         if (content.length > 500) {
           el.innerHTML = `
-            <div class="flex items-center gap-1.5 mb-1">
-              <span class="text-[10px] font-semibold text-blue-400">USER PROMPT</span>
-              <span class="text-[9px] text-gray-500">${ts}</span>
-              <span class="text-[9px] text-gray-600">${content.length.toLocaleString()} chars</span>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-[11px] font-semibold text-blue-400">USER PROMPT</span>
+              <span class="text-[10px] text-gray-500">${ts}</span>
+              <span class="text-[10px] text-gray-600">${content.length.toLocaleString()} chars</span>
             </div>
             <details>
-              <summary class="text-[10px] text-gray-400 cursor-pointer hover:text-gray-300">
+              <summary class="text-[11px] text-gray-400 cursor-pointer hover:text-gray-300">
                 ${esc(content.slice(0, 200))}...
               </summary>
-              <pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap mt-1 max-h-[300px] overflow-y-auto">${esc(content)}</pre>
+              <pre class="text-[11px] text-gray-300 font-mono whitespace-pre-wrap mt-1.5 max-h-[300px] overflow-y-auto">${esc(content)}</pre>
             </details>`;
         } else {
           el.innerHTML = `
-            <div class="flex items-center gap-1.5 mb-1">
-              <span class="text-[10px] font-semibold text-blue-400">USER</span>
-              <span class="text-[9px] text-gray-500">${ts}</span>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-[11px] font-semibold text-blue-400">USER</span>
+              <span class="text-[10px] text-gray-500">${ts}</span>
             </div>
-            <pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap">${esc(content)}</pre>`;
+            <pre class="text-[11px] text-gray-300 font-mono whitespace-pre-wrap">${esc(content)}</pre>`;
         }
       } else if (role === 'assistant') {
-        el.className = 'bg-gray-800/60 border border-gray-700/50 rounded p-2';
-        let html = `<div class="flex items-center gap-1.5 mb-1">
-          <span class="text-[10px] font-semibold text-green-400">ASSISTANT</span>
-          <span class="text-[9px] text-gray-500">${ts}</span>`;
-
-        // Show usage if available
+        el.className = 'bg-surface-700/60 border border-surface-600/50 rounded-lg p-3';
+        let html = `<div class="flex items-center gap-2 mb-1.5">
+          <span class="text-[11px] font-semibold text-emerald-400">ASSISTANT</span>
+          <span class="text-[10px] text-gray-500">${ts}</span>`;
         if (msg.meta && msg.meta.usage) {
           const u = msg.meta.usage;
-          html += `<span class="text-[9px] text-gray-600">${u.prompt_tokens}+${u.completion_tokens} tokens</span>`;
+          html += `<span class="text-[10px] text-gray-600">${u.prompt_tokens}+${u.completion_tokens} tok</span>`;
         }
         if (msg.meta && msg.meta.response_model) {
-          html += `<span class="text-[9px] text-gray-600">${esc(msg.meta.response_model)}</span>`;
+          html += `<span class="text-[10px] text-gray-600">${esc(msg.meta.response_model)}</span>`;
         }
         html += '</div>';
-
-        // Content (diagnosis text)
         if (msg.content) {
-          html += `<pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap mb-1.5">${esc(msg.content)}</pre>`;
+          html += `<pre class="text-[11px] text-gray-300 font-mono whitespace-pre-wrap mb-2">${esc(msg.content)}</pre>`;
         }
-
-        // Tool calls
         if (msg.tool_calls && msg.tool_calls.length > 0) {
           msg.tool_calls.forEach(tc => {
             const fn = tc.function || {};
             let argsDisplay = fn.arguments || '';
-            try {
-              argsDisplay = JSON.stringify(JSON.parse(argsDisplay), null, 2);
-            } catch(e) {}
-            html += `<div class="bg-gray-950 rounded p-1.5 mb-1 border border-gray-700/30">
-              <div class="flex items-center gap-1 mb-0.5">
-                <span class="text-[10px] font-semibold text-purple-400">TOOL CALL</span>
-                <span class="text-[10px] text-amber-400 font-mono">${esc(fn.name || '?')}</span>
-                <span class="text-[9px] text-gray-600 font-mono">${esc(tc.id || '')}</span>
+            try { argsDisplay = JSON.stringify(JSON.parse(argsDisplay), null, 2); } catch(e) {}
+            html += `<div class="bg-surface-900 rounded p-2 mb-1.5 border border-surface-700">
+              <div class="flex items-center gap-1.5 mb-1">
+                <span class="text-[11px] font-semibold text-purple-400">TOOL CALL</span>
+                <span class="text-[11px] text-amber-400 font-mono">${esc(fn.name || '?')}</span>
+                <span class="text-[10px] text-gray-600 font-mono">${esc(tc.id || '')}</span>
               </div>
-              <pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap">${esc(argsDisplay)}</pre>
+              <pre class="text-[11px] text-gray-300 font-mono whitespace-pre-wrap">${esc(argsDisplay)}</pre>
             </div>`;
           });
         }
         el.innerHTML = html;
       } else if (role === 'tool') {
-        el.className = 'bg-gray-950/60 border border-gray-700/30 rounded p-1.5 ml-4';
+        el.className = 'bg-surface-900/60 border border-surface-700/30 rounded-lg p-2 ml-6';
         const content = msg.content || '';
         const isOk = content.startsWith('OK:');
         const isFail = content.startsWith('FAILED:');
-        const color = isOk ? 'text-green-400' : isFail ? 'text-red-400' : 'text-gray-300';
+        const color = isOk ? 'text-emerald-400' : isFail ? 'text-red-400' : 'text-gray-300';
         el.innerHTML = `
-          <div class="flex items-center gap-1.5 mb-0.5">
-            <span class="text-[10px] font-semibold text-cyan-400">TOOL RESULT</span>
-            <span class="text-[9px] text-gray-500">${ts}</span>
-            <span class="text-[9px] text-gray-600 font-mono">${esc(msg.tool_call_id || '')}</span>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[11px] font-semibold text-cyan-400">TOOL RESULT</span>
+            <span class="text-[10px] text-gray-500">${ts}</span>
+            <span class="text-[10px] text-gray-600 font-mono">${esc(msg.tool_call_id || '')}</span>
           </div>
-          <pre class="text-[10px] ${color} font-mono whitespace-pre-wrap">${esc(content)}</pre>`;
+          <pre class="text-[11px] ${color} font-mono whitespace-pre-wrap">${esc(content)}</pre>`;
       } else if (role === 'system') {
-        // Errors or session events
-        const isError = msg.error || (msg.content && msg.content.includes('[ERROR]'));
         const isDone = msg.content && msg.content.includes('[SESSION_DONE]');
         if (isDone) {
-          el.className = 'border-t border-gray-700 pt-1 mt-1';
-          el.innerHTML = `<span class="text-[10px] text-green-400 font-semibold">SESSION COMPLETE</span>
-            <span class="text-[9px] text-gray-500 ml-1">${ts}</span>`;
+          el.className = 'border-t border-surface-600 pt-2 mt-2';
+          el.innerHTML = `<span class="text-[11px] text-emerald-400 font-semibold">SESSION COMPLETE</span>
+            <span class="text-[10px] text-gray-500 ml-1.5">${ts}</span>`;
         } else {
-          el.className = 'bg-red-950/30 border border-red-800/30 rounded p-1.5';
+          el.className = 'bg-red-950/20 border border-red-900/30 rounded-lg p-2';
           el.innerHTML = `
-            <div class="flex items-center gap-1.5 mb-0.5">
-              <span class="text-[10px] font-semibold text-red-400">ERROR</span>
-              <span class="text-[9px] text-gray-500">${ts}</span>
-              ${msg.context ? `<span class="text-[9px] text-gray-600">${esc(msg.context)}</span>` : ''}
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-[11px] font-semibold text-red-400">ERROR</span>
+              <span class="text-[10px] text-gray-500">${ts}</span>
+              ${msg.context ? `<span class="text-[10px] text-gray-600">${esc(msg.context)}</span>` : ''}
             </div>
-            <pre class="text-[10px] text-red-300 font-mono whitespace-pre-wrap">${esc(msg.content || msg.error || '')}</pre>`;
+            <pre class="text-[11px] text-red-300 font-mono whitespace-pre-wrap">${esc(msg.content || msg.error || '')}</pre>`;
         }
       }
       return el;
     }
 
-    // Load session list on page load
-    refreshSessionList();
-
-    // If a run is already active (page refresh mid-run), reconnect SSE
-    {% if running %}
-    startSSE(false);
-    {% endif %}
-
-    // Academic-ready SVG export with white background and proper fonts
+    // ── Chart Export ─────────────────────────────────────────────────
     function exportChart(chartId) {
       const el = document.getElementById('chart-' + chartId);
       if (!el || !el.data) return;
 
-      // Override layout for print: white bg, black text, larger serif font
-      const academicLayout = {
-        paper_bgcolor: '#ffffff',
-        plot_bgcolor: '#ffffff',
-        font: { color: '#000000', size: 14, family: 'Times New Roman, serif' },
-        title: { font: { size: 16, color: '#000000' } },
-        legend: { bgcolor: 'rgba(0,0,0,0)', font: { color: '#000000' } },
-        xaxis: { ...el.layout.xaxis, gridcolor: '#e0e0e0', linecolor: '#000', zerolinecolor: '#ccc', title: el.layout.xaxis?.title ? { ...el.layout.xaxis.title, font: { color: '#000' } } : undefined },
-        yaxis: { ...el.layout.yaxis, gridcolor: '#e0e0e0', linecolor: '#000', zerolinecolor: '#ccc', title: el.layout.yaxis?.title ? { ...el.layout.yaxis.title, font: { color: '#000' } } : undefined },
-      };
-
       Plotly.downloadImage(el, {
-        format: 'svg',
-        width: 700,
-        height: 400,
-        filename: chartId,
+        format: 'svg', width: 900, height: 500, filename: chartId,
       });
 
-      // Also offer a version with academic styling via a temporary clone
       const clone = document.createElement('div');
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
+      clone.style.cssText = 'position:absolute;left:-9999px';
       document.body.appendChild(clone);
 
-      Plotly.newPlot(clone, JSON.parse(JSON.stringify(el.data)), {
-        ...JSON.parse(JSON.stringify(el.layout)),
-        ...academicLayout,
+      const src = JSON.parse(JSON.stringify(el.layout));
+      const printAxis = {
+        gridcolor: 'rgba(0,0,0,0.08)', linecolor: '#000', linewidth: 1.5,
+        zerolinecolor: 'rgba(0,0,0,0.12)',
+        tickfont: { size: 12, color: '#000', family: 'Arial, Helvetica, sans-serif' },
+      };
+      const academicLayout = {
         template: null,
-      }, { displayModeBar: false }).then(() => {
-        return Plotly.downloadImage(clone, {
-          format: 'svg',
-          width: 700,
-          height: 400,
-          filename: chartId + '_print',
-        });
-      }).then(() => {
-        Plotly.purge(clone);
-        clone.remove();
+        paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+        font: { color: '#000', size: 14, family: 'Arial, Helvetica, sans-serif' },
+        title: { ...src.title, font: { size: 18, color: '#000', family: 'Arial, Helvetica, sans-serif' }, x: 0.5, xanchor: 'center' },
+        legend: { ...src.legend, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#000', borderwidth: 1, font: { color: '#000', size: 12 } },
+        xaxis: { ...src.xaxis, ...printAxis, title: { ...src.xaxis?.title, font: { size: 14, color: '#000' } } },
+        yaxis: { ...src.yaxis, ...printAxis, title: { ...src.yaxis?.title, font: { size: 14, color: '#000' } } },
+        margin: { l: 80, r: 40, t: 80, b: 70 },
+      };
+
+      const printData = JSON.parse(JSON.stringify(el.data)).map(t => {
+        if (t.textfont) t.textfont.color = '#000';
+        return t;
       });
+
+      Plotly.newPlot(clone, printData, { ...src, ...academicLayout }, { displayModeBar: false })
+        .then(() => Plotly.downloadImage(clone, { format: 'svg', width: 900, height: 500, filename: chartId + '_print' }))
+        .then(() => { Plotly.purge(clone); clone.remove(); });
     }
+
+    // ── Init ─────────────────────────────────────────────────────────
+    refreshSessionList();
+    {% if running %}startSSE(false);{% endif %}
   </script>
 </body>
 </html>

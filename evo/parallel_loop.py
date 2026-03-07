@@ -13,10 +13,10 @@ from tau2.registry import registry as tau2_registry
 from evo.config import (
     PATCHES_DIR, DEFAULT_DOMAIN, DEFAULT_NUM_TASKS,
     DEFAULT_MAX_ITERATIONS, DEFAULT_MAX_RETRIES, DEFAULT_SEED,
-    DEFAULT_PARALLELISM,
+    DEFAULT_PARALLELISM, TEACHER_MODEL,
 )
 from evo.evaluation.runner import run_baseline, extract_failures
-from evo.models import Patch, FixResult, IterationResult, LoopState
+from evo.models import Patch, FixResult, IterationResult, LoopState, TestResults
 from evo.reflection.teacher import TeacherSession, apply_patches
 from evo.session_log import save_student_sessions
 
@@ -227,6 +227,89 @@ def _fix_single_failure(
     )
 
 
+def _run_test_evaluation(
+    domain: str,
+    test_ids: list[str],
+    seed: int,
+    evolved_prompt: Optional[str],
+    evolved_schemas: Optional[dict],
+    evolved_code: Optional[dict[str, str]],
+    student_model: Optional[str],
+    parallelism: int,
+    on_status: Callable[[str], None],
+    on_session: Optional[Callable] = None,
+) -> TestResults:
+    """Run all four conditions on the held-out test split."""
+    on_status("\n" + "=" * 60)
+    on_status("TEST EVALUATION (held-out test split)")
+    on_status("=" * 60)
+
+    def _rewards(results) -> dict[str, float]:
+        return {
+            s.task_id: s.reward_info.reward
+            for s in results.simulations
+            if s.reward_info is not None
+        }
+
+    # a) Baseline: default prompt, no patches
+    on_status(f"[test] Running baseline ({len(test_ids)} tasks)...")
+    baseline = run_baseline(
+        domain=domain, task_ids=test_ids, seed=seed,
+        save_name="test_baseline", student_model=student_model,
+        parallelism=parallelism,
+    )
+    baseline_rewards = _rewards(baseline)
+    bp = sum(1 for r in baseline_rewards.values() if r >= 1.0)
+    on_status(f"[test] Baseline: {bp}/{len(baseline_rewards)} passed")
+
+    # b) Evolved: full evolved system
+    on_status(f"[test] Running evolved ({len(test_ids)} tasks)...")
+    evolved = run_baseline(
+        domain=domain, task_ids=test_ids, seed=seed,
+        system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
+        tool_code=evolved_code, save_name="test_evolved",
+        student_model=student_model, parallelism=parallelism,
+    )
+    evolved_rewards = _rewards(evolved)
+    ep = sum(1 for r in evolved_rewards.values() if r >= 1.0)
+    on_status(f"[test] Evolved: {ep}/{len(evolved_rewards)} passed")
+
+    # c) Prompt-only: evolved prompt + schemas, NO code patches
+    on_status(f"[test] Running prompt-only ({len(test_ids)} tasks)...")
+    prompt_only = run_baseline(
+        domain=domain, task_ids=test_ids, seed=seed,
+        system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
+        tool_code=None, save_name="test_prompt_only",
+        student_model=student_model, parallelism=parallelism,
+    )
+    prompt_only_rewards = _rewards(prompt_only)
+    pp = sum(1 for r in prompt_only_rewards.values() if r >= 1.0)
+    on_status(f"[test] Prompt-only: {pp}/{len(prompt_only_rewards)} passed")
+
+    # d) Frontier: teacher model as student, default prompt
+    on_status(f"[test] Running frontier / {TEACHER_MODEL} ({len(test_ids)} tasks)...")
+    frontier = run_baseline(
+        domain=domain, task_ids=test_ids, seed=seed,
+        save_name="test_frontier", student_model=TEACHER_MODEL,
+        parallelism=parallelism,
+    )
+    frontier_rewards = _rewards(frontier)
+    fp = sum(1 for r in frontier_rewards.values() if r >= 1.0)
+    on_status(f"[test] Frontier: {fp}/{len(frontier_rewards)} passed")
+
+    tr = TestResults(
+        baseline_rewards=baseline_rewards,
+        evolved_rewards=evolved_rewards,
+        prompt_only_rewards=prompt_only_rewards,
+        frontier_rewards=frontier_rewards,
+    )
+    on_status(
+        f"[test] Gap closure: {tr.gap_closure:.1%}"
+        if tr.gap_closure is not None else "[test] Gap closure: N/A (no gap)"
+    )
+    return tr
+
+
 def run_loop(
     domain: str = DEFAULT_DOMAIN,
     num_tasks: int = DEFAULT_NUM_TASKS,
@@ -236,6 +319,7 @@ def run_loop(
     task_ids: Optional[list[str]] = None,
     parallelism: int = DEFAULT_PARALLELISM,
     student_model: Optional[str] = None,
+    use_split: bool = True,
     on_status: Optional[Callable[[str], None]] = None,
     on_iteration: Optional[Callable[[LoopState], None]] = None,
     on_fix_attempt: Optional[Callable[[str, int, list[Patch], str, str], None]] = None,
@@ -248,6 +332,23 @@ def run_loop(
     def status(msg: str):
         if on_status:
             on_status(msg)
+
+    # Load train/test splits if enabled.
+    train_ids: Optional[list[str]] = None
+    test_ids: list[str] = []
+    if use_split and task_ids is None:
+        from tau2.run import load_task_splits
+        splits = load_task_splits(domain)
+        if splits:
+            train_ids = splits["train"]
+            test_ids = splits["test"]
+            task_ids = train_ids[:num_tasks] if num_tasks < len(train_ids) else train_ids
+            status(f"Using canonical split: {len(train_ids)} train, {len(test_ids)} test")
+            status(f"Evolving on {len(task_ids)} train task(s)")
+        else:
+            status(f"No canonical splits for {domain}, using all tasks")
+    elif task_ids is not None:
+        train_ids = task_ids
 
     # Pre-load domain tools and policy once.
     env = tau2_registry.get_env_constructor(domain)()
@@ -413,6 +514,27 @@ def run_loop(
             eval_rewards=eval_rewards,
         ))
 
+        if on_iteration:
+            on_iteration(state)
+
+    # -- Store split info ----------------------------------------------------
+    state.train_task_ids = train_ids or task_ids or []
+    state.test_task_ids = test_ids
+
+    # -- Phase 2: Test evaluation on held-out split -------------------------
+    if test_ids:
+        state.test_results = _run_test_evaluation(
+            domain=domain,
+            test_ids=test_ids,
+            seed=seed,
+            evolved_prompt=state.system_prompt,
+            evolved_schemas=state.tool_schemas,
+            evolved_code=state.tool_code,
+            student_model=student_model,
+            parallelism=parallelism,
+            on_status=status,
+            on_session=on_session,
+        )
         if on_iteration:
             on_iteration(state)
 

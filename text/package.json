@@ -1,0 +1,18 @@
+{
+  "name": "text",
+  "version": "1.0.0",
+  "description": "",
+  "main": "full_text.js",
+  "scripts": {
+    "build": "node full_text.js",
+    "build:lit": "node -e \"const c=require('./lit_review_source');const{Document,Packer}=require('docx');const fs=require('fs');const d=new Document({styles:{default:{document:{run:{font:'Times New Roman',size:24}}}},sections:[{children:c}]});Packer.toBuffer(d).then(b=>{fs.writeFileSync('lit_review.docx',b);console.log('Done')})\"",
+    "build:method": "node -e \"const c=require('./gen_methodology_v2');const{Document,Packer}=require('docx');const fs=require('fs');const d=new Document({styles:{default:{document:{run:{font:'Times New Roman',size:24}}}},sections:[{children:c}]});Packer.toBuffer(d).then(b=>{fs.writeFileSync('methodology.docx',b);console.log('Done')})\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "docx": "^9.6.0"
+  }
+}

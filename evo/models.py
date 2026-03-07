@@ -60,6 +60,51 @@ class IterationResult:
 
 
 @dataclass
+class TestResults:
+    """Results of evaluating the evolved system on held-out test tasks."""
+    baseline_rewards: dict[str, float] = field(default_factory=dict)
+    evolved_rewards: dict[str, float] = field(default_factory=dict)
+    prompt_only_rewards: dict[str, float] = field(default_factory=dict)
+    frontier_rewards: dict[str, float] = field(default_factory=dict)
+
+    def _pass_rate(self, rewards: dict[str, float]) -> float:
+        if not rewards:
+            return 0.0
+        return sum(1 for r in rewards.values() if r >= 1.0) / len(rewards)
+
+    @property
+    def baseline_pass_rate(self) -> float:
+        return self._pass_rate(self.baseline_rewards)
+
+    @property
+    def evolved_pass_rate(self) -> float:
+        return self._pass_rate(self.evolved_rewards)
+
+    @property
+    def prompt_only_pass_rate(self) -> float:
+        return self._pass_rate(self.prompt_only_rewards)
+
+    @property
+    def frontier_pass_rate(self) -> float:
+        return self._pass_rate(self.frontier_rewards)
+
+    @property
+    def gap_closure(self) -> Optional[float]:
+        """(evolved - baseline) / (frontier - baseline). None if denominator is 0."""
+        gap = self.frontier_pass_rate - self.baseline_pass_rate
+        if gap <= 0:
+            return None
+        return (self.evolved_pass_rate - self.baseline_pass_rate) / gap
+
+    @property
+    def prompt_only_gap_closure(self) -> Optional[float]:
+        gap = self.frontier_pass_rate - self.baseline_pass_rate
+        if gap <= 0:
+            return None
+        return (self.prompt_only_pass_rate - self.baseline_pass_rate) / gap
+
+
+@dataclass
 class RunMeta:
     """Lightweight metadata for a run, used in the history sidebar."""
     run_id: str
@@ -93,6 +138,9 @@ class LoopState:
     meta: Optional[RunMeta] = None
     session_ids: list[str] = field(default_factory=list)
     dropped_task_ids: list[str] = field(default_factory=list)
+    train_task_ids: list[str] = field(default_factory=list)
+    test_task_ids: list[str] = field(default_factory=list)
+    test_results: Optional[TestResults] = None
 
     def save(self, path: Path) -> None:
         path.write_text(json.dumps(asdict(self), indent=2))
@@ -125,6 +173,8 @@ class LoopState:
             ))
         meta_raw = raw.get("meta")
         meta = RunMeta(**meta_raw) if meta_raw else None
+        test_raw = raw.get("test_results")
+        test_results = TestResults(**test_raw) if test_raw else None
         return cls(
             system_prompt=raw.get("system_prompt"),
             prompt_instruction=raw.get("prompt_instruction"),
@@ -134,6 +184,9 @@ class LoopState:
             meta=meta,
             session_ids=raw.get("session_ids", []),
             dropped_task_ids=raw.get("dropped_task_ids", []),
+            train_task_ids=raw.get("train_task_ids", []),
+            test_task_ids=raw.get("test_task_ids", []),
+            test_results=test_results,
         )
 
     @property

@@ -170,6 +170,7 @@ def _on_student_session(session_id: str, data: slog.SessionData) -> None:
         "message_count": len(data.messages),
         "is_new": True,
         "reward": data.reward,
+        "context": data.context or "",
     })
     _log_queue.put(f"[SESSION:{payload}]")
 
@@ -181,11 +182,7 @@ def _on_student_session(session_id: str, data: slog.SessionData) -> None:
 async def index(request: Request):
     _try_load_latest_run()
     state = _get_viewed_state()
-    fixes = state.flat_fixes() if state else []
-    total = len(fixes)
-    fixed = sum(1 for f in fixes if f.fixed)
-    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
-    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
+    ctx = _build_stats_context(state)
     return templates.TemplateResponse("index.html", {
         "request": request,
         "domains": cfg.DOMAINS,
@@ -198,18 +195,13 @@ async def index(request: Request):
             "parallelism": cfg.DEFAULT_PARALLELISM,
             "seed": cfg.DEFAULT_SEED,
         },
-        "domain_num_tasks": cfg.DOMAIN_NUM_TASKS,
+        "domain_train_tasks": cfg.DOMAIN_TRAIN_TASKS,
         "results": _build_results(),
         "running": _running,
         "runs": _list_runs(),
         "active_run_id": _active_run_id,
         "viewed_run_id": _viewed_run_id,
-        "total": total,
-        "fixed": fixed,
-        "fixed_prompt": fixed_prompt,
-        "fixed_code": fixed_code,
-        "not_fixed": total - fixed,
-        "rate": int(fixed / total * 100) if total else 0,
+        **ctx,
     })
 
 
@@ -232,7 +224,7 @@ async def run(request: Request):
     task_ids_raw = form.get("task_ids", "")
     num_tasks = int(form.get("num_tasks", cfg.DEFAULT_NUM_TASKS))
 
-    max_for_domain = cfg.DOMAIN_NUM_TASKS.get(domain, 100)
+    max_for_domain = cfg.DOMAIN_TRAIN_TASKS.get(domain, cfg.DOMAIN_NUM_TASKS.get(domain, 100))
     if num_tasks > max_for_domain:
         num_tasks = max_for_domain
 
@@ -249,11 +241,7 @@ async def run(request: Request):
         _teacher_sessions.clear()
     with _run_session_ids_lock:
         _run_session_ids.clear()
-    while not _log_queue.empty():
-        try:
-            _log_queue.get_nowait()
-        except queue.Empty:
-            break
+    _drain_queue()
 
     # Save the run immediately so it appears in history while running.
     meta = RunMeta(
@@ -379,52 +367,30 @@ async def logs():
 @app.get("/results", response_class=HTMLResponse)
 async def results(request: Request):
     state = _get_viewed_state()
-    fixes = state.flat_fixes() if state else []
-    total = len(fixes)
-    fixed = sum(1 for f in fixes if f.fixed)
-    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
-    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
+    ctx = _build_stats_context(state)
+    can_test = (
+        _viewed_run_id is not None
+        and not _running
+        and state is not None
+        and state.meta is not None
+        and state.meta.status == "finished"
+        and not ctx["test_results"]
+    )
     return templates.TemplateResponse("_results.html", {
         "request": request,
         "results": _build_results(),
-        "total": total,
-        "fixed": fixed,
-        "fixed_prompt": fixed_prompt,
-        "fixed_code": fixed_code,
-        "not_fixed": total - fixed,
-        "rate": int(fixed / total * 100) if total else 0,
+        **ctx,
+        "can_test": can_test,
+        "viewed_run_id": _viewed_run_id,
     })
 
 
 @app.get("/summary", response_class=HTMLResponse)
 async def summary(request: Request):
     state = _get_viewed_state()
-    fixes = state.flat_fixes() if state else []
-    total = len(fixes)
-    fixed = sum(1 for f in fixes if f.fixed)
-    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
-    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
-
-    # If no fixes but we have eval data, show eval-based pass rate
-    eval_total = 0
-    eval_passed = 0
-    if state and not fixes:
-        for h in state.history:
-            eval_total += len(h.eval_rewards)
-            eval_passed += sum(1 for r in h.eval_rewards.values() if r >= 1.0)
-
     return templates.TemplateResponse("_summary.html", {
         "request": request,
-        "total": total,
-        "fixed": fixed,
-        "fixed_prompt": fixed_prompt,
-        "fixed_code": fixed_code,
-        "not_fixed": total - fixed,
-        "rate": int(fixed / total * 100) if total else (
-            int(eval_passed / eval_total * 100) if eval_total else 0
-        ),
-        "eval_total": eval_total,
-        "eval_passed": eval_passed,
+        **_build_stats_context(state),
     })
 
 
@@ -554,21 +520,91 @@ async def load_run_endpoint(run_id: str, request: Request):
             return HTMLResponse('<p class="text-red-400 text-sm">Run not found.</p>')
         _viewed_run_id = run_id
         _viewed_state = state
-    fixes = state.flat_fixes() if state else []
-    total = len(fixes)
-    fixed = sum(1 for f in fixes if f.fixed)
-    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
-    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
+    ctx = _build_stats_context(state)
+    can_test = (
+        not _running
+        and state is not None
+        and state.meta is not None
+        and state.meta.status == "finished"
+        and not ctx["test_results"]
+    )
     return templates.TemplateResponse("_results.html", {
         "request": request,
         "results": _build_results(),
-        "total": total,
-        "fixed": fixed,
-        "fixed_prompt": fixed_prompt,
-        "fixed_code": fixed_code,
-        "not_fixed": total - fixed,
-        "rate": int(fixed / total * 100) if total else 0,
+        **ctx,
+        "can_test": can_test,
+        "viewed_run_id": _viewed_run_id,
     })
+
+
+@app.post("/runs/{run_id}/test", response_class=HTMLResponse)
+async def run_test_evaluation(run_id: str, request: Request):
+    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state
+
+    if _running:
+        return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
+
+    state = _load_run(run_id)
+    if state is None:
+        return HTMLResponse('<div id="status" class="text-red-400">Run not found.</div>')
+    if not state.meta:
+        return HTMLResponse('<div id="status" class="text-red-400">Run has no metadata.</div>')
+
+    form = await request.form()
+    parallelism = int(form.get("parallelism", cfg.DEFAULT_PARALLELISM))
+
+    domain = state.meta.domain
+    _running = True
+    _active_run_id = run_id
+    _viewed_run_id = run_id
+    _viewed_state = None
+    _active_state = state
+    _drain_queue()
+
+    def _test_in_thread():
+        global _running, _active_state, _active_run_id, _viewed_state
+        try:
+            from tau2.run import load_task_splits
+            from evo.parallel_loop import _run_test_evaluation
+
+            splits = load_task_splits(domain)
+            if not splits:
+                _log_queue.put("ERROR: No canonical splits for this domain.")
+                return
+            test_ids = splits["test"]
+            _log_queue.put(f"Running test evaluation on {len(test_ids)} held-out tasks...")
+
+            state.test_results = _run_test_evaluation(
+                domain=domain, test_ids=test_ids, seed=cfg.DEFAULT_SEED,
+                evolved_prompt=state.system_prompt,
+                evolved_schemas=state.tool_schemas,
+                evolved_code=state.tool_code,
+                student_model=None,
+                parallelism=parallelism,
+                on_status=lambda msg: _log_queue.put(msg),
+            )
+            state.test_task_ids = test_ids
+            state.meta.status = "finished"
+            _active_state = state
+            _save_run(state)
+            _log_queue.put("Test evaluation complete.")
+            _log_queue.put("[CHARTS]")
+        except Exception as e:
+            _log_queue.put(f"\nERROR: {e}")
+        finally:
+            if _viewed_run_id == _active_run_id and _active_state:
+                _viewed_state = _active_state
+            _running = False
+            _active_run_id = None
+            _active_state = None
+            _log_queue.put("[DONE]")
+
+    threading.Thread(target=_test_in_thread, daemon=True).start()
+
+    return HTMLResponse(
+        '<div id="status" class="text-green-400">Test evaluation started.</div>'
+        '<script>startSSE(false)</script>'
+    )
 
 
 @app.delete("/runs/{run_id}")
@@ -608,6 +644,50 @@ def _build_results() -> list[dict]:
                 "patches": fix.patches,
             })
     return rows
+
+
+def _build_stats_context(state: Optional[LoopState]) -> dict:
+    """Build the shared template context for fix/eval/test stats."""
+    fixes = state.flat_fixes() if state else []
+    total = len(fixes)
+    fixed = sum(1 for f in fixes if f.fixed)
+    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
+    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
+
+    eval_total = 0
+    eval_passed = 0
+    if state and not fixes:
+        for h in state.history:
+            eval_total += len(h.eval_rewards)
+            eval_passed += sum(1 for r in h.eval_rewards.values() if r >= 1.0)
+
+    tr = state.test_results if state else None
+    return {
+        "total": total,
+        "fixed": fixed,
+        "fixed_prompt": fixed_prompt,
+        "fixed_code": fixed_code,
+        "not_fixed": total - fixed,
+        "rate": int(fixed / total * 100) if total else (
+            int(eval_passed / eval_total * 100) if eval_total else 0
+        ),
+        "eval_total": eval_total,
+        "eval_passed": eval_passed,
+        "test_results": tr is not None,
+        "test_baseline_rate": int(tr.baseline_pass_rate * 100) if tr else 0,
+        "test_evolved_rate": int(tr.evolved_pass_rate * 100) if tr else 0,
+        "test_prompt_only_rate": int(tr.prompt_only_pass_rate * 100) if tr else 0,
+        "test_gap_closure": int(tr.gap_closure * 100) if tr and tr.gap_closure is not None else 0,
+    }
+
+
+def _drain_queue() -> None:
+    """Drain the log queue (best-effort)."""
+    while True:
+        try:
+            _log_queue.get_nowait()
+        except queue.Empty:
+            break
 
 
 def _try_load_latest_run() -> None:

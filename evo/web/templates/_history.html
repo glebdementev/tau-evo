@@ -2,25 +2,26 @@
 {% for run in runs %}
 {% set is_active = run.run_id == active_run_id %}
 {% set is_viewed = run.run_id == viewed_run_id %}
-<div class="group flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-gray-700/50 {{ 'bg-gray-700/60 ring-1 ring-blue-500/50' if is_viewed else '' }}"
+<div class="group flex items-center gap-2 px-2.5 py-2 rounded cursor-pointer transition-colors
+            {{ 'bg-surface-600/60 ring-1 ring-accent/40' if is_viewed else 'hover:bg-surface-700/50' }}"
      hx-get="/runs/{{ run.run_id }}"
      hx-target="#results-panel"
      hx-swap="innerHTML"
      hx-on::after-request="onRunSelected('{{ run.run_id }}', {{ 'true' if is_active else 'false' }})">
   <div class="flex-1 min-w-0">
-    <div class="text-xs font-medium truncate flex items-center gap-1">
+    <div class="text-xs font-medium truncate flex items-center gap-1.5">
       {{ run.domain }}
-      {% if is_active %}<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" title="Running"></span>{% endif %}
+      {% if is_active %}<span class="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot shrink-0" title="Running"></span>{% endif %}
     </div>
-    <div class="text-[10px] text-gray-500 font-mono">{{ run.started_at[:16].replace('T', ' ') }}</div>
+    <div class="text-[10px] text-gray-500 font-mono mt-0.5">{{ run.started_at[:16].replace('T', ' ') }}</div>
   </div>
   <div class="text-right shrink-0">
-    <span class="text-xs font-medium {{ 'text-green-400' if run.status == 'finished' else 'text-yellow-400' if run.status == 'running' else 'text-red-400' }}">
+    <span class="text-xs font-semibold {{ 'text-emerald-400' if run.status == 'finished' else 'text-amber-400' if run.status == 'running' else 'text-red-400' }}">
       {% if run.status == 'finished' %}{{ run.fix_rate }}%{% elif run.status == 'running' %}...{% else %}err{% endif %}
     </span>
     <div class="text-[10px] text-gray-500">{{ run.total_fixes }}/{{ run.total_failures }}</div>
   </div>
-  <button class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 text-xs p-1 transition-opacity"
+  <button class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 text-xs px-1 transition-opacity"
           hx-delete="/runs/{{ run.run_id }}"
           hx-target="closest div.group"
           hx-swap="outerHTML"
@@ -31,5 +32,5 @@
 </div>
 {% endfor %}
 {% else %}
-<p class="text-xs text-gray-500 text-center py-4">No runs yet.</p>
+<p class="text-xs text-gray-500 text-center py-6">No runs yet.</p>
 {% endif %}
