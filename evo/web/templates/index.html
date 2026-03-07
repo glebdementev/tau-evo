@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tau-evo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+    <div>
+      <span class="text-lg font-bold">tau-evo</span>
+      <span class="text-xs text-gray-400 ml-2">self-evolving LLM agents</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <!-- Tab switcher -->
+      <nav class="flex gap-1 text-sm">
+        <button onclick="switchTab('results')" id="tab-results"
+                class="px-3 py-1 rounded-t border border-gray-700 border-b-0 bg-gray-800 text-gray-100">
+          Results
+        </button>
+        <button onclick="switchTab('charts')" id="tab-charts"
+                class="px-3 py-1 rounded-t border border-gray-700 border-b-0 bg-gray-700 text-gray-400">
+          Charts
+        </button>
+      </nav>
+      <div id="status" class="text-sm text-gray-400"></div>
+    </div>
+  </header>
+
+  <div class="flex flex-col lg:flex-row gap-4 p-4">
+
+    <!-- Left: Config + Log -->
+    <div class="lg:w-1/3 flex flex-col gap-4">
+
+      <!-- Config -->
+      <form hx-post="/run" hx-target="#status" hx-swap="innerHTML" class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <h2 class="text-base font-semibold mb-3">Experiment Config</h2>
+
+        <label class="block text-sm text-gray-400 mb-1">Domain</label>
+        <select name="domain" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 mb-3 text-sm">
+          {% for d in domains %}
+          <option value="{{ d }}" {{ 'selected' if d == defaults.domain }}>{{ d }}</option>
+          {% endfor %}
+        </select>
+
+        <div class="flex gap-3 mb-3">
+          <div class="flex-1">
+            <label class="block text-sm text-gray-400 mb-1">Max iterations</label>
+            <input type="number" name="max_iterations" value="{{ defaults.max_iterations }}" min="1" max="50"
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+          </div>
+          <div class="flex-1">
+            <label class="block text-sm text-gray-400 mb-1">Seed</label>
+            <input type="number" name="seed" value="{{ defaults.seed }}"
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+          </div>
+        </div>
+
+        <!-- Task selection toggle -->
+        <div class="mb-3">
+          <label class="flex items-center gap-2 text-sm cursor-pointer mb-2">
+            <input type="checkbox" name="use_task_ids" id="use_task_ids"
+                   onchange="document.getElementById('task_num_section').classList.toggle('hidden', this.checked);
+                             document.getElementById('task_ids_section').classList.toggle('hidden', !this.checked);"
+                   class="rounded bg-gray-700 border-gray-600">
+            <span class="text-gray-400">Use specific task IDs</span>
+          </label>
+
+          <div id="task_num_section">
+            <label class="block text-sm text-gray-400 mb-1">Number of tasks</label>
+            <input type="number" name="num_tasks" value="{{ defaults.num_tasks }}" min="1" max="100"
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+          </div>
+
+          <div id="task_ids_section" class="hidden">
+            <label class="block text-sm text-gray-400 mb-1">Task IDs (comma-separated)</label>
+            <input type="text" name="task_ids" placeholder="e.g. 1,2,5"
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium transition-colors"
+                {{ 'disabled' if running }}>
+          Run Evolution Loop
+        </button>
+      </form>
+
+      <!-- Log -->
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex-1">
+        <h2 class="text-base font-semibold mb-2">Log</h2>
+        <pre id="log" class="bg-gray-950 rounded p-3 text-xs text-gray-300 font-mono h-96 overflow-y-auto whitespace-pre-wrap"></pre>
+      </div>
+    </div>
+
+    <!-- Right: Results + Charts (tabbed) -->
+    <div class="lg:w-2/3 flex flex-col gap-4">
+
+      <!-- Tab: Results -->
+      <div id="panel-results">
+        <div id="results-panel">
+          {% include "_results.html" %}
+        </div>
+      </div>
+
+      <!-- Tab: Charts -->
+      <div id="panel-charts" class="hidden">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+            <div id="chart-reward_progression"></div>
+          </div>
+          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+            <div id="chart-cumulative_fix_rate"></div>
+          </div>
+          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+            <div id="chart-comparison_bar"></div>
+          </div>
+          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+            <div id="chart-failure_types"></div>
+          </div>
+        </div>
+        <div class="mt-4 bg-gray-800 rounded-lg p-3 border border-gray-700">
+          <div id="chart-task_heatmap"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ── Tab switching ──────────────────────────────────────────────────
+    function switchTab(tab) {
+      const tabs = ['results', 'charts'];
+      tabs.forEach(t => {
+        document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById('tab-' + t);
+        if (t === tab) {
+          btn.classList.remove('bg-gray-700', 'text-gray-400');
+          btn.classList.add('bg-gray-800', 'text-gray-100');
+        } else {
+          btn.classList.remove('bg-gray-800', 'text-gray-100');
+          btn.classList.add('bg-gray-700', 'text-gray-400');
+        }
+      });
+      if (tab === 'charts') refreshCharts();
+    }
+
+    // ── Chart rendering ────────────────────────────────────────────────
+    const CHART_IDS = [
+      'reward_progression',
+      'cumulative_fix_rate',
+      'comparison_bar',
+      'failure_types',
+      'task_heatmap',
+    ];
+
+    const plotlyConfig = {
+      displayModeBar: false,
+      responsive: true,
+    };
+
+    function refreshCharts() {
+      fetch('/api/charts')
+        .then(r => r.json())
+        .then(charts => {
+          CHART_IDS.forEach(id => {
+            const el = document.getElementById('chart-' + id);
+            if (el && charts[id]) {
+              const fig = charts[id];
+              Plotly.react(el, fig.data || [], fig.layout || {}, plotlyConfig);
+            }
+          });
+        })
+        .catch(err => console.warn('Chart refresh failed:', err));
+    }
+
+    // Load charts on page load if data exists
+    refreshCharts();
+
+    // ── SSE log streaming ──────────────────────────────────────────────
+    function startSSE() {
+      const log = document.getElementById('log');
+      log.textContent = '';
+      const src = new EventSource('/logs');
+
+      src.addEventListener('log', (e) => {
+        log.textContent += e.data + '\n';
+        log.scrollTop = log.scrollHeight;
+      });
+
+      src.addEventListener('charts', () => {
+        refreshCharts();
+      });
+
+      src.addEventListener('done', () => {
+        src.close();
+        document.getElementById('status').innerHTML =
+          '<span class="text-green-400">Finished.</span>';
+        // Refresh both results and charts
+        htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
+        refreshCharts();
+      });
+
+      src.onerror = () => {
+        src.close();
+        document.getElementById('status').innerHTML =
+          '<span class="text-red-400">Connection lost.</span>';
+      };
+    }
+  </script>
+</body>
+</html>

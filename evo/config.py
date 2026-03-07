@@ -40,4 +40,5 @@ NO_THINK_ARGS: dict = {"extra_body": {"reasoning": {"effort": "none"}}}
 DEFAULT_DOMAIN = "airline"
 DEFAULT_NUM_TASKS = 5
 DEFAULT_MAX_ITERATIONS = 3
+DEFAULT_MAX_RETRIES = 2
 DEFAULT_SEED = 42

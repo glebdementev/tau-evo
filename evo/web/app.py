@@ -1,213 +1,258 @@
-"""NiceGUI web dashboard for tau-evo experiments."""
+"""FastAPI + Jinja2 + HTMX web dashboard for tau-evo experiments."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-from functools import partial
+import queue
+import threading
+from pathlib import Path
 from typing import Optional
 
-from nicegui import ui
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from sse_starlette.sse import EventSourceResponse
 
 import evo.config as cfg
+from evo.analysis.charts import all_charts_from_history
 
 cfg.ensure_dirs()
 
-# Suppress noisy loggers before anything imports litellm.
 logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
 logging.getLogger("LiteLLM Router").setLevel(logging.CRITICAL)
 logging.getLogger("LiteLLM Proxy").setLevel(logging.CRITICAL)
 
+DOMAINS = ["airline", "retail", "telecom"]
+
+app = FastAPI(title="tau-evo")
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 # ---------------------------------------------------------------------------
-# State shared across the UI
+# In-memory state (single-user, single-run)
 # ---------------------------------------------------------------------------
-class RunState:
-    running: bool = False
-    loop_state: Optional[object] = None  # LoopState once finished
-    log_element: Optional[ui.log] = None
-    results_table: Optional[ui.table] = None
-    patches_editor: Optional[ui.textarea] = None
-
-
-state = RunState()
+_running = False
+_log_queue: queue.Queue[str] = queue.Queue()
+_loop_state: Optional[object] = None  # LoopState once finished
 
 
 # ---------------------------------------------------------------------------
-# Background loop execution
+# Routes
 # ---------------------------------------------------------------------------
-async def _run_loop_async(domain: str, num_tasks: int, max_iter: int, seed: int, task_ids_raw: str):
-    """Run the evolution loop in a thread, streaming status to the log widget."""
-    if state.running:
-        ui.notify("Already running!", type="warning")
-        return
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    saved = _load_saved_state()
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "domains": DOMAINS,
+        "defaults": {
+            "domain": cfg.DEFAULT_DOMAIN,
+            "num_tasks": cfg.DEFAULT_NUM_TASKS,
+            "max_iterations": cfg.DEFAULT_MAX_ITERATIONS,
+            "seed": cfg.DEFAULT_SEED,
+        },
+        "results": saved.get("results", []),
+        "patches": saved.get("patches", "{}"),
+        "running": _running,
+    })
 
-    state.running = True
-    log = state.log_element
-    log.clear()
-    log.push("Starting evolution loop...")
 
-    # Parse optional task IDs.
+@app.post("/run", response_class=HTMLResponse)
+async def run(request: Request):
+    global _running, _loop_state
+
+    if _running:
+        return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
+
+    form = await request.form()
+    domain = form.get("domain", cfg.DEFAULT_DOMAIN)
+    max_iter = int(form.get("max_iterations", cfg.DEFAULT_MAX_ITERATIONS))
+    seed = int(form.get("seed", cfg.DEFAULT_SEED))
+    use_task_ids = form.get("use_task_ids") == "on"
+    task_ids_raw = form.get("task_ids", "")
+    num_tasks = int(form.get("num_tasks", cfg.DEFAULT_NUM_TASKS))
+
     task_ids = None
-    if task_ids_raw.strip():
+    if use_task_ids and task_ids_raw.strip():
         task_ids = [t.strip() for t in task_ids_raw.split(",") if t.strip()]
 
-    def on_status(msg: str):
-        log.push(msg)
+    _running = True
+    # Clear old logs
+    while not _log_queue.empty():
+        try:
+            _log_queue.get_nowait()
+        except queue.Empty:
+            break
 
-    try:
-        # Import lazily so the web UI starts fast.
-        from evo.loop import run_loop
+    def _run_in_thread():
+        global _running, _loop_state
+        try:
+            from evo.parallel_loop import run_loop
 
-        loop_state = await asyncio.get_event_loop().run_in_executor(
-            None,
-            partial(
-                run_loop,
+            state = run_loop(
                 domain=domain,
                 num_tasks=num_tasks,
                 max_iterations=max_iter,
                 seed=seed,
                 task_ids=task_ids,
-                on_status=on_status,
-            ),
-        )
-        state.loop_state = loop_state
-        _refresh_results(loop_state)
-        _refresh_patches(loop_state)
-        fixed = sum(1 for r in loop_state.history if r.fixed)
-        log.push(f"\nDone. {fixed}/{len(loop_state.history)} failures fixed.")
-        ui.notify(f"Loop complete: {fixed}/{len(loop_state.history)} fixed", type="positive")
-    except Exception as e:
-        log.push(f"\nERROR: {e}")
-        ui.notify(str(e), type="negative")
-    finally:
-        state.running = False
+                on_status=lambda msg: _log_queue.put(msg),
+            )
+            _loop_state = state
+            total_fixed = sum(r.num_fixed for r in state.history)
+            total_failures = sum(r.num_failures for r in state.history)
+            _log_queue.put(f"\nDone. {total_fixed}/{total_failures} total fixes.")
+            _log_queue.put("[CHARTS]")
+        except Exception as e:
+            _log_queue.put(f"\nERROR: {e}")
+        finally:
+            _running = False
+            _log_queue.put("[DONE]")
+
+    threading.Thread(target=_run_in_thread, daemon=True).start()
+
+    return HTMLResponse(
+        '<div id="status" class="text-green-400">Started.</div>'
+        '<script>startSSE()</script>'
+    )
+
+
+@app.get("/logs")
+async def logs():
+    """SSE endpoint streaming log messages."""
+    async def event_generator():
+        while True:
+            try:
+                msg = _log_queue.get_nowait()
+            except queue.Empty:
+                if not _running and _log_queue.empty():
+                    # Check once more — race between _running flip and last msg
+                    await asyncio.sleep(0.1)
+                    if _log_queue.empty():
+                        yield {"event": "done", "data": ""}
+                        return
+                await asyncio.sleep(0.2)
+                continue
+
+            if msg == "[DONE]":
+                yield {"event": "done", "data": ""}
+                return
+            if msg == "[CHARTS]":
+                yield {"event": "charts", "data": "update"}
+                continue
+            yield {"event": "log", "data": msg}
+
+    return EventSourceResponse(event_generator())
+
+
+@app.get("/results", response_class=HTMLResponse)
+async def results(request: Request):
+    """Return the results table fragment."""
+    rows = _build_results()
+    return templates.TemplateResponse("_results.html", {
+        "request": request,
+        "results": rows,
+        "patches": _build_patches_json(),
+    })
+
+
+@app.get("/api/charts")
+async def api_charts():
+    """Return Plotly figure dicts for all charts."""
+    history = _build_history_dicts()
+    charts = all_charts_from_history(history)
+    return JSONResponse(charts)
 
 
 # ---------------------------------------------------------------------------
-# Refresh helpers
+# Helpers
 # ---------------------------------------------------------------------------
-def _refresh_results(loop_state):
-    if state.results_table is None or loop_state is None:
-        return
+def _build_results() -> list[dict]:
+    if _loop_state is None:
+        return []
     rows = []
-    for r in loop_state.history:
-        rows.append({
-            "iter": r.iteration,
-            "task": r.task_id,
-            "baseline": f"{r.baseline_reward:.2f}",
-            "patched": f"{r.patched_reward:.2f}",
-            "delta": f"{r.patched_reward - r.baseline_reward:+.2f}",
-            "status": "FIXED" if r.fixed else "NOT FIXED",
-            "type": r.diagnosis.get("failure_type", ""),
-            "explanation": r.diagnosis.get("explanation", "")[:120],
-        })
-    state.results_table.rows = rows
-    state.results_table.update()
+    for r in _loop_state.history:
+        for fix in r.fixes:
+            rows.append({
+                "iter": r.iteration,
+                "task": fix.task_id,
+                "baseline": f"{fix.baseline_reward:.2f}",
+                "patched": f"{fix.patched_reward:.2f}",
+                "delta": f"{fix.patched_reward - fix.baseline_reward:+.2f}",
+                "retries": fix.retries,
+                "status": "FIXED" if fix.fixed else "NOT FIXED",
+                "diagnosis": (fix.diagnosis or "")[:120],
+            })
+    return rows
 
 
-def _refresh_patches(loop_state):
-    if state.patches_editor is None or loop_state is None:
-        return
+def _build_history_dicts() -> list[dict]:
+    """Flatten history into per-fix dicts for charts compatibility."""
+    if _loop_state is None:
+        return []
+    rows = []
+    for r in _loop_state.history:
+        for fix in r.fixes:
+            rows.append({
+                "iteration": r.iteration,
+                "task_id": fix.task_id,
+                "baseline_reward": fix.baseline_reward,
+                "patched_reward": fix.patched_reward,
+                "fixed": fix.fixed,
+                "diagnosis": fix.diagnosis,
+                "retries": fix.retries,
+            })
+    return rows
+
+
+def _build_patches_json() -> str:
+    if _loop_state is None:
+        return "{}"
     data = {
-        "prompt_patch": loop_state.prompt_patch,
-        "tool_patches": loop_state.tool_patches,
+        "prompt_instruction": _loop_state.prompt_instruction,
+        "tool_schemas": _loop_state.tool_schemas,
     }
-    state.patches_editor.set_value(json.dumps(data, indent=2))
+    return json.dumps(data, indent=2)
 
 
-def _load_saved_state():
-    """Load loop_state.json if it exists from a previous run."""
+def _load_saved_state() -> dict:
     path = cfg.PATCHES_DIR / "loop_state.json"
     if not path.exists():
-        return
+        return {}
     try:
         raw = json.loads(path.read_text())
-        _load_state_dict(raw)
+        from evo.parallel_loop import LoopState, IterationResult, FixResult
+        global _loop_state
+        history = []
+        for h in raw.get("history", []):
+            fixes = [FixResult(**f) for f in h.get("fixes", [])]
+            history.append(IterationResult(
+                iteration=h["iteration"],
+                num_evaluated=h["num_evaluated"],
+                num_failures=h["num_failures"],
+                fixes=fixes,
+                num_fixed=h["num_fixed"],
+            ))
+        ls = LoopState(
+            prompt_instruction=raw.get("prompt_instruction"),
+            tool_schemas=raw.get("tool_schemas"),
+            history=history,
+        )
+        _loop_state = ls
+        return {"results": _build_results(), "patches": _build_patches_json()}
     except Exception:
-        pass
-
-
-def _load_state_dict(raw: dict):
-    """Populate the UI from a saved state dict."""
-    from evo.loop import LoopState, IterationResult
-
-    ls = LoopState(
-        prompt_patch=raw.get("prompt_patch"),
-        tool_patches=raw.get("tool_patches"),
-        history=[IterationResult(**h) for h in raw.get("history", [])],
-    )
-    state.loop_state = ls
-    _refresh_results(ls)
-    _refresh_patches(ls)
+        return {}
 
 
 # ---------------------------------------------------------------------------
-# Page
+# Entry point
 # ---------------------------------------------------------------------------
-@ui.page("/")
-def index():
-    ui.dark_mode().enable()
-
-    with ui.header().classes("items-center justify-between"):
-        ui.label("tau-evo").classes("text-xl font-bold")
-        ui.label("self-evolving LLM agents").classes("text-sm opacity-70")
-
-    with ui.splitter(value=35).classes("w-full h-full") as splitter:
-        # ── Left panel: controls + log ─────────────────────────────
-        with splitter.before:
-            with ui.card().classes("w-full"):
-                ui.label("Experiment Config").classes("text-lg font-semibold")
-
-                domain = ui.input("Domain", value=cfg.DEFAULT_DOMAIN).classes("w-full")
-                with ui.row().classes("w-full gap-2"):
-                    num_tasks = ui.number("Tasks", value=cfg.DEFAULT_NUM_TASKS, min=1, max=100)
-                    max_iter = ui.number("Max iterations", value=cfg.DEFAULT_MAX_ITERATIONS, min=1, max=50)
-                    seed = ui.number("Seed", value=cfg.DEFAULT_SEED)
-                task_ids = ui.input("Task IDs (comma-sep, optional)").classes("w-full")
-
-                ui.button(
-                    "Run Evolution Loop",
-                    on_click=lambda: _run_loop_async(
-                        domain.value, int(num_tasks.value), int(max_iter.value),
-                        int(seed.value), task_ids.value,
-                    ),
-                    icon="play_arrow",
-                ).classes("w-full mt-2").props("color=primary")
-
-            with ui.card().classes("w-full mt-4"):
-                ui.label("Log").classes("text-lg font-semibold")
-                state.log_element = ui.log(max_lines=500).classes("w-full h-96")
-
-        # ── Right panel: results + patches ─────────────────────────
-        with splitter.after:
-            with ui.card().classes("w-full"):
-                ui.label("Iteration Results").classes("text-lg font-semibold")
-                columns = [
-                    {"name": "iter", "label": "#", "field": "iter", "sortable": True},
-                    {"name": "task", "label": "Task", "field": "task", "sortable": True},
-                    {"name": "baseline", "label": "Baseline", "field": "baseline"},
-                    {"name": "patched", "label": "Patched", "field": "patched"},
-                    {"name": "delta", "label": "Delta", "field": "delta"},
-                    {"name": "status", "label": "Status", "field": "status"},
-                    {"name": "type", "label": "Failure Type", "field": "type"},
-                    {"name": "explanation", "label": "Explanation", "field": "explanation"},
-                ]
-                state.results_table = ui.table(
-                    columns=columns, rows=[], row_key="iter",
-                ).classes("w-full")
-
-            with ui.card().classes("w-full mt-4"):
-                ui.label("Accumulated Patches").classes("text-lg font-semibold")
-                state.patches_editor = ui.textarea(
-                    value="{}",
-                ).classes("w-full").props("type=textarea rows=12 outlined")
-
-    # Load previous results if available.
-    _load_saved_state()
-
-
 def start(port: int = 8080, reload: bool = False):
-    """Entry point for the web UI."""
-    ui.run(title="tau-evo", port=port, reload=reload, show=False)
+    import uvicorn
+    uvicorn.run(
+        "evo.web.app:app",
+        host="0.0.0.0",
+        port=port,
+        reload=reload,
+        reload_dirs=[str(Path(__file__).resolve().parents[1])] if reload else None,
+    )

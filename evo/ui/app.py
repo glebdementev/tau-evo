@@ -70,7 +70,7 @@ class EvolutionApp(App):
 
     def on_mount(self) -> None:
         table = self.query_one("#results-table", DataTable)
-        table.add_columns("Iter", "Task ID", "Before", "After", "Status")
+        table.add_columns("Iter", "Task ID", "Before", "After", "Retries", "Status")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "start-btn":
@@ -93,7 +93,7 @@ class EvolutionApp(App):
 
     def _run_loop(self) -> None:
         """Worker thread that runs the evolution loop."""
-        from evo.loop import run_loop
+        from evo.parallel_loop import run_loop
 
         state = run_loop(
             domain=DEFAULT_DOMAIN,
@@ -105,19 +105,22 @@ class EvolutionApp(App):
 
         table = self.query_one("#results-table", DataTable)
         for r in state.history:
-            status = "[green]FIXED[/green]" if r.fixed else "[red]FAILED[/red]"
-            self.call_from_thread(
-                table.add_row,
-                str(r.iteration),
-                r.task_id,
-                f"{r.baseline_reward:.2f}",
-                f"{r.patched_reward:.2f}",
-                status,
-            )
+            for fix in r.fixes:
+                status = "[green]FIXED[/green]" if fix.fixed else "[red]FAILED[/red]"
+                self.call_from_thread(
+                    table.add_row,
+                    str(r.iteration),
+                    fix.task_id,
+                    f"{fix.baseline_reward:.2f}",
+                    f"{fix.patched_reward:.2f}",
+                    str(fix.retries),
+                    status,
+                )
 
-        fixed = sum(1 for r in state.history if r.fixed)
+        total_fixed = sum(r.num_fixed for r in state.history)
+        total_failures = sum(r.num_failures for r in state.history)
         self.call_from_thread(
             self._update_ui,
-            f"Done. {fixed}/{len(state.history)} failures fixed.",
+            f"Done. {total_fixed}/{total_failures} total fixes.",
         )
         self.call_from_thread(self._enable_start_btn)

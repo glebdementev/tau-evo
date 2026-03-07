@@ -1,0 +1,46 @@
+<!-- Results table -->
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+  <h2 class="text-base font-semibold mb-2">Iteration Results</h2>
+  {% if results %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-left">
+      <thead class="text-xs text-gray-400 uppercase border-b border-gray-700">
+        <tr>
+          <th class="px-3 py-2">#</th>
+          <th class="px-3 py-2">Task</th>
+          <th class="px-3 py-2">Baseline</th>
+          <th class="px-3 py-2">Patched</th>
+          <th class="px-3 py-2">Delta</th>
+          <th class="px-3 py-2">Status</th>
+          <th class="px-3 py-2">Diagnosis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr class="border-b border-gray-700/50 hover:bg-gray-700/30">
+          <td class="px-3 py-2">{{ r.iter }}</td>
+          <td class="px-3 py-2 font-mono">{{ r.task }}</td>
+          <td class="px-3 py-2">{{ r.baseline }}</td>
+          <td class="px-3 py-2">{{ r.patched }}</td>
+          <td class="px-3 py-2 {{ 'text-green-400' if r.delta.startswith('+') and r.delta != '+0.00' else 'text-red-400' if r.delta.startswith('-') else 'text-gray-400' }}">{{ r.delta }}</td>
+          <td class="px-3 py-2">
+            <span class="px-2 py-0.5 rounded text-xs font-medium {{ 'bg-green-900 text-green-300' if r.status == 'FIXED' else 'bg-red-900 text-red-300' }}">
+              {{ r.status }}
+            </span>
+          </td>
+          <td class="px-3 py-2 text-xs text-gray-400 max-w-xs truncate">{{ r.diagnosis }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-500">No results yet. Run an experiment to see data here.</p>
+  {% endif %}
+</div>
+
+<!-- Patches -->
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+  <h2 class="text-base font-semibold mb-2">Accumulated Patches</h2>
+  <pre class="bg-gray-950 rounded p-3 text-xs text-gray-300 font-mono max-h-96 overflow-y-auto whitespace-pre-wrap">{{ patches }}</pre>
+</div>

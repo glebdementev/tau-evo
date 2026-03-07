@@ -19,16 +19,16 @@ def run_baseline(
     num_tasks: int = 5,
     task_ids: Optional[list[str]] = None,
     seed: int = 42,
-    prompt_patch: Optional[str] = None,
-    tool_patches: Optional[dict] = None,
+    prompt_instruction: Optional[str] = None,
+    tool_schemas: Optional[dict] = None,
     save_name: Optional[str] = None,
 ) -> Results:
     """Run the EvolvableAgent on tau2-bench tasks and return Results."""
     llm_args: dict = deepcopy(NO_THINK_ARGS)
-    if prompt_patch is not None:
-        llm_args["prompt_patch"] = prompt_patch
-    if tool_patches is not None:
-        llm_args["tool_patches"] = tool_patches
+    if prompt_instruction is not None:
+        llm_args["prompt_instruction"] = prompt_instruction
+    if tool_schemas is not None:
+        llm_args["tool_schemas"] = tool_schemas
 
     config = RunConfig(
         domain=domain,

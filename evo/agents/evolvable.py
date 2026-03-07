@@ -39,9 +39,9 @@ class EvolvableAgent(LLMAgent):
 
     Patch types
     -----------
-    - **prompt_patch**: extra rules appended to the agent instruction.
-    - **tool_patches**: per-tool overrides for descriptions and parameter descriptions.
-      Format: ``{tool_name: {"description": str, "params": {param_name: str}}}``
+    - **prompt_instruction**: full replacement for AGENT_INSTRUCTION (None = use default).
+    - **tool_schemas**: per-tool full schema overrides.
+      Format: ``{tool_name: {<openai tool schema>}}``
     """
 
     def __init__(
@@ -52,53 +52,36 @@ class EvolvableAgent(LLMAgent):
         llm_args: Optional[dict] = None,
     ):
         # Extract our custom keys from llm_args before passing to parent.
-        # tau2 calls: AgentConstructor(tools=..., domain_policy=..., llm=..., llm_args=...)
         llm_args = dict(llm_args) if llm_args else {}
-        self.prompt_patch: Optional[str] = llm_args.pop("prompt_patch", None)
-        self.tool_patches: Optional[dict] = llm_args.pop("tool_patches", None)
+        self.prompt_instruction: Optional[str] = llm_args.pop("prompt_instruction", None)
+        tool_schemas: Optional[dict] = llm_args.pop("tool_schemas", None)
         super().__init__(tools=tools, domain_policy=domain_policy, llm=llm, llm_args=llm_args or None)
-        if self.tool_patches:
-            self.tools = self._apply_tool_patches()
+        if tool_schemas:
+            self.tools = self._apply_tool_schemas(tool_schemas)
 
     @property
     def system_prompt(self) -> str:
-        instruction = AGENT_INSTRUCTION
-        if self.prompt_patch:
-            instruction += "\n\n## Learned Rules\n" + self.prompt_patch
+        instruction = self.prompt_instruction or AGENT_INSTRUCTION
         return SYSTEM_PROMPT.format(
             domain_policy=self.domain_policy,
             agent_instruction=instruction,
         )
 
-    def _apply_tool_patches(self) -> list:
-        """Return tools with description / param-description overrides applied."""
+    def _apply_tool_schemas(self, tool_schemas: dict) -> list:
+        """Return tools with full schema overrides applied."""
         patched = []
         for tool in self.tools:
-            if tool.name not in self.tool_patches:
+            if tool.name in tool_schemas:
+                patched.append(PatchedTool(tool, tool_schemas[tool.name]))
+            else:
                 patched.append(tool)
-                continue
-
-            patch = self.tool_patches[tool.name]
-            schema = deepcopy(tool.openai_schema)
-
-            if "description" in patch:
-                schema["function"]["description"] = patch["description"]
-            if "params" in patch:
-                props = schema["function"]["parameters"].get("properties", {})
-                for param_name, new_desc in patch["params"].items():
-                    if param_name in props:
-                        props[param_name]["description"] = new_desc
-
-            patched.append(PatchedTool(tool, schema))
-
         return patched
 
     # ── Serialisation helpers ────────────────────────────────────────────
 
     def save_patches(self, path: Path) -> None:
         data = {
-            "prompt_patch": self.prompt_patch,
-            "tool_patches": self.tool_patches,
+            "prompt_instruction": self.prompt_instruction,
         }
         path.write_text(json.dumps(data, indent=2))
 
