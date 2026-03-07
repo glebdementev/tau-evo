@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -48,18 +49,41 @@ class IterationResult:
     num_failures: int
     fixes: list[FixResult]
     num_fixed: int
+    eval_rewards: dict[str, float] = field(default_factory=dict)  # task_id → reward
+
+
+
+@dataclass
+class RunMeta:
+    """Lightweight metadata for a run, used in the history sidebar."""
+    run_id: str
+    domain: str
+    started_at: str  # ISO format
+    status: str = "running"  # running | finished | error
+    num_tasks: int = 0
+    total_fixes: int = 0
+    total_failures: int = 0
 
     @property
-    def all_fixes(self) -> list[FixResult]:
-        return self.fixes
+    def fix_rate(self) -> int:
+        if self.total_failures == 0:
+            return 0
+        return int(self.total_fixes / self.total_failures * 100)
+
+    @staticmethod
+    def make_id(domain: str) -> str:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{domain}_{ts}"
 
 
 @dataclass
 class LoopState:
     """Full state of the evolution loop, serialisable to JSON."""
-    prompt_instruction: Optional[str] = None
+    system_prompt: Optional[str] = None
+    prompt_instruction: Optional[str] = None  # legacy, kept for old state files
     tool_schemas: Optional[dict] = None
     history: list[IterationResult] = field(default_factory=list)
+    meta: Optional[RunMeta] = None
 
     def save(self, path: Path) -> None:
         path.write_text(json.dumps(asdict(self), indent=2))
@@ -87,12 +111,25 @@ class LoopState:
                 num_failures=h["num_failures"],
                 fixes=fixes,
                 num_fixed=h["num_fixed"],
+                eval_rewards=h.get("eval_rewards", {}),
             ))
+        meta_raw = raw.get("meta")
+        meta = RunMeta(**meta_raw) if meta_raw else None
         return cls(
+            system_prompt=raw.get("system_prompt"),
             prompt_instruction=raw.get("prompt_instruction"),
             tool_schemas=raw.get("tool_schemas"),
             history=history,
+            meta=meta,
         )
+
+    @property
+    def total_fixed(self) -> int:
+        return sum(r.num_fixed for r in self.history)
+
+    @property
+    def total_failures(self) -> int:
+        return sum(r.num_failures for r in self.history)
 
     def flat_fixes(self) -> list[FixResult]:
         """All FixResults across all iterations, in order."""

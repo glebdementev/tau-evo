@@ -1,0 +1,39 @@
+{% if total > 0 %}
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold">{{ total }}</div>
+  <div class="text-[10px] text-gray-400">Total</div>
+</div>
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold text-green-400">{{ fixed }}</div>
+  <div class="text-[10px] text-gray-400">Fixed</div>
+</div>
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold text-red-400">{{ not_fixed }}</div>
+  <div class="text-[10px] text-gray-400">Not Fixed</div>
+</div>
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold text-blue-400">{{ rate }}%</div>
+  <div class="text-[10px] text-gray-400">Fix Rate</div>
+</div>
+{% elif eval_total is defined and eval_total > 0 %}
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold">{{ eval_total }}</div>
+  <div class="text-[10px] text-gray-400">Evaluated</div>
+</div>
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold text-green-400">{{ eval_passed }}</div>
+  <div class="text-[10px] text-gray-400">Passed</div>
+</div>
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold text-red-400">{{ eval_total - eval_passed }}</div>
+  <div class="text-[10px] text-gray-400">Failed</div>
+</div>
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center">
+  <div class="text-lg font-bold text-blue-400">{{ rate }}%</div>
+  <div class="text-[10px] text-gray-400">Pass Rate</div>
+</div>
+{% else %}
+<div class="bg-gray-800 rounded p-2 border border-gray-700 text-center col-span-4">
+  <div class="text-sm text-gray-400">No results yet</div>
+</div>
+{% endif %}

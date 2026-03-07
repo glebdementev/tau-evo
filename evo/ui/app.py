@@ -117,10 +117,8 @@ class EvolutionApp(App):
                     status,
                 )
 
-        total_fixed = sum(r.num_fixed for r in state.history)
-        total_failures = sum(r.num_failures for r in state.history)
         self.call_from_thread(
             self._update_ui,
-            f"Done. {total_fixed}/{total_failures} total fixes.",
+            f"Done. {state.total_fixed}/{state.total_failures} total fixes.",
         )
         self.call_from_thread(self._enable_start_btn)

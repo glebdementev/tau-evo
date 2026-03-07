@@ -7,149 +7,206 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    /* hide all scrollbars globally */
+    * { scrollbar-width: none; }
+    *::-webkit-scrollbar { display: none; }
+  </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
+<body class="bg-gray-900 text-gray-100 h-screen overflow-hidden">
 
   <!-- Header -->
-  <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+  <header class="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
     <div>
-      <span class="text-lg font-bold">tau-evo</span>
-      <span class="text-xs text-gray-400 ml-2">self-evolving LLM agents</span>
+      <span class="text-sm font-bold">tau-evo</span>
+      <span class="text-[10px] text-gray-400 ml-1.5">self-evolving LLM agents</span>
     </div>
-    <div class="flex items-center gap-4">
-      <!-- Tab switcher -->
-      <nav class="flex gap-1 text-sm">
-        <button onclick="switchTab('results')" id="tab-results"
-                class="px-3 py-1 rounded-t border border-gray-700 border-b-0 bg-gray-800 text-gray-100">
-          Results
-        </button>
-        <button onclick="switchTab('charts')" id="tab-charts"
-                class="px-3 py-1 rounded-t border border-gray-700 border-b-0 bg-gray-700 text-gray-400">
-          Charts
-        </button>
-      </nav>
-      <div id="status" class="text-sm text-gray-400"></div>
-    </div>
+    <div id="status" class="text-xs text-gray-400"></div>
   </header>
 
-  <div class="flex flex-col lg:flex-row gap-4 p-4">
+  <div class="flex gap-2 p-2 h-[calc(100vh-40px)]">
 
-    <!-- Left: Config + Log -->
-    <div class="lg:w-1/3 flex flex-col gap-4">
+    <!-- LEFT: Config + Log -->
+    <div class="w-52 shrink-0 flex flex-col gap-2">
 
       <!-- Config -->
-      <form hx-post="/run" hx-target="#status" hx-swap="innerHTML" class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <h2 class="text-base font-semibold mb-3">Experiment Config</h2>
+      <form hx-post="/run" hx-target="#status" hx-swap="innerHTML" class="bg-gray-800 rounded p-2 border border-gray-700">
+        <h2 class="text-xs font-semibold mb-1.5">Config</h2>
 
-        <label class="block text-sm text-gray-400 mb-1">Domain</label>
-        <select name="domain" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 mb-3 text-sm">
+        <label class="block text-[10px] text-gray-400 mb-0.5">Student Model</label>
+        <select name="student_model" class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-1 mb-1.5 text-[11px]">
+          {% for id, label in student_models.items() %}
+          <option value="{{ id }}" {{ 'selected' if id == defaults.student_model }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+
+        <label class="block text-[10px] text-gray-400 mb-0.5">Domain</label>
+        <select name="domain" class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-1 mb-1.5 text-[11px]">
           {% for d in domains %}
           <option value="{{ d }}" {{ 'selected' if d == defaults.domain }}>{{ d }}</option>
           {% endfor %}
         </select>
 
-        <div class="flex gap-3 mb-3">
+        <div class="flex gap-1.5 mb-1.5">
           <div class="flex-1">
-            <label class="block text-sm text-gray-400 mb-1">Max iterations</label>
+            <label class="block text-[10px] text-gray-400 mb-0.5">Iters</label>
             <input type="number" name="max_iterations" value="{{ defaults.max_iterations }}" min="1" max="50"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
           </div>
           <div class="flex-1">
-            <label class="block text-sm text-gray-400 mb-1">Seed</label>
+            <label class="block text-[10px] text-gray-400 mb-0.5">Seed</label>
             <input type="number" name="seed" value="{{ defaults.seed }}"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
           </div>
         </div>
 
-        <!-- Task selection toggle -->
-        <div class="mb-3">
-          <label class="flex items-center gap-2 text-sm cursor-pointer mb-2">
+        <div class="mb-1.5">
+          <label class="block text-[10px] text-gray-400 mb-0.5" title="Max parallel workers (teachers & evaluations)">Parallelism</label>
+          <input type="number" name="parallelism" value="{{ defaults.parallelism }}" min="1" max="16"
+                 class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
+        </div>
+
+        <div class="mb-1.5">
+          <label class="flex items-center gap-1 text-[10px] cursor-pointer mb-1">
             <input type="checkbox" name="use_task_ids" id="use_task_ids"
                    onchange="document.getElementById('task_num_section').classList.toggle('hidden', this.checked);
                              document.getElementById('task_ids_section').classList.toggle('hidden', !this.checked);"
-                   class="rounded bg-gray-700 border-gray-600">
-            <span class="text-gray-400">Use specific task IDs</span>
+                   class="rounded bg-gray-700 border-gray-600 w-3 h-3">
+            <span class="text-gray-400">Specific task IDs</span>
           </label>
 
           <div id="task_num_section">
-            <label class="block text-sm text-gray-400 mb-1">Number of tasks</label>
+            <label class="block text-[10px] text-gray-400 mb-0.5">Tasks</label>
             <input type="number" name="num_tasks" value="{{ defaults.num_tasks }}" min="1" max="100"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
           </div>
 
           <div id="task_ids_section" class="hidden">
-            <label class="block text-sm text-gray-400 mb-1">Task IDs (comma-separated)</label>
-            <input type="text" name="task_ids" placeholder="e.g. 1,2,5"
-                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+            <label class="block text-[10px] text-gray-400 mb-0.5">Task IDs</label>
+            <input type="text" name="task_ids" placeholder="1,2,5"
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium transition-colors"
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-2 py-1 text-[11px] font-medium transition-colors"
                 {{ 'disabled' if running }}>
-          Run Evolution Loop
+          Run
         </button>
       </form>
 
       <!-- Log -->
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex-1">
-        <h2 class="text-base font-semibold mb-2">Log</h2>
-        <pre id="log" class="bg-gray-950 rounded p-3 text-xs text-gray-300 font-mono h-96 overflow-y-auto whitespace-pre-wrap"></pre>
+      <div class="bg-gray-800 rounded p-2 border border-gray-700 flex-1 min-h-0 flex flex-col">
+        <h2 class="text-xs font-semibold mb-1">Log</h2>
+        <pre id="log" class="bg-gray-950 rounded p-1.5 text-[10px] text-gray-300 font-mono flex-1 overflow-y-auto whitespace-pre-wrap min-h-0"></pre>
       </div>
     </div>
 
-    <!-- Right: Results + Charts (tabbed) -->
-    <div class="lg:w-2/3 flex flex-col gap-4">
+    <!-- CENTER: Results + Charts -->
+    <div class="flex-1 min-w-0 overflow-y-auto">
+      <div class="flex flex-col gap-2">
 
-      <!-- Tab: Results -->
-      <div id="panel-results">
+        <!-- Summary + Results -->
         <div id="results-panel">
           {% include "_results.html" %}
         </div>
-      </div>
 
-      <!-- Tab: Charts -->
-      <div id="panel-charts" class="hidden">
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <!-- Sessions Viewer (teacher + student) -->
+        <div id="sessions-panel" class="bg-gray-800 rounded border border-gray-700">
+          <div class="flex items-center justify-between px-2 py-1.5 border-b border-gray-700 cursor-pointer"
+               onclick="document.getElementById('sessions-body').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-90');">
+            <h2 class="text-xs font-semibold flex items-center gap-1.5">
+              <svg class="w-3 h-3 text-gray-500 transition-transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              Sessions
+              <span id="session-count" class="text-[10px] text-gray-500 font-normal"></span>
+            </h2>
+          </div>
+          <div id="sessions-body">
+            <!-- Filter + selector -->
+            <div class="flex items-center gap-1.5 px-2 py-1 border-b border-gray-700/50">
+              <select id="session-type-filter" onchange="refreshSessionList()"
+                      class="bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-[10px] w-16">
+                <option value="">all</option>
+                <option value="teacher">teacher</option>
+                <option value="student">student</option>
+              </select>
+              <select id="session-select" onchange="loadSession(this.value)"
+                      class="flex-1 bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-[11px]">
+                <option value="">Select a session...</option>
+              </select>
+              <button onclick="refreshSessionList()" class="text-gray-400 hover:text-white text-[10px] px-1">refresh</button>
+            </div>
+            <!-- Session meta -->
+            <div id="session-meta" class="hidden px-2 py-1 border-b border-gray-700/50 text-[10px] text-gray-400 flex gap-3">
+              <span id="session-meta-type"></span>
+              <span id="session-meta-model"></span>
+              <span id="session-meta-task"></span>
+              <span id="session-meta-status"></span>
+              <span id="session-meta-msgs"></span>
+            </div>
+            <!-- Conversation stream -->
+            <div id="session-conversation" class="max-h-[500px] overflow-y-auto p-2 space-y-1.5">
+              <p class="text-[10px] text-gray-500 italic">No session selected.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
+          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
+            <button onclick="exportChart('reward_progression')" title="Export SVG"
+                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+            </button>
             <div id="chart-reward_progression"></div>
           </div>
-          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
+            <button onclick="exportChart('cumulative_fix_rate')" title="Export SVG"
+                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+            </button>
             <div id="chart-cumulative_fix_rate"></div>
           </div>
-          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
+            <button onclick="exportChart('comparison_bar')" title="Export SVG"
+                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+            </button>
             <div id="chart-comparison_bar"></div>
           </div>
-          <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+          <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
+            <button onclick="exportChart('failure_types')" title="Export SVG"
+                    class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+            </button>
             <div id="chart-failure_types"></div>
           </div>
         </div>
-        <div class="mt-4 bg-gray-800 rounded-lg p-3 border border-gray-700">
+
+        <!-- Heatmap -->
+        <div class="bg-gray-800 rounded p-2 border border-gray-700 relative group">
+          <button onclick="exportChart('task_heatmap')" title="Export SVG"
+                  class="absolute top-1.5 right-1.5 z-10 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity text-gray-400 hover:text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+          </button>
           <div id="chart-task_heatmap"></div>
         </div>
-      </div>
 
+      </div>
     </div>
+
+    <!-- RIGHT: Run History -->
+    <div class="w-44 shrink-0 flex flex-col bg-gray-800 rounded border border-gray-700">
+      <div class="px-2 py-1.5 border-b border-gray-700">
+        <h2 class="text-xs font-semibold">Run History</h2>
+      </div>
+      <div id="history-list" class="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0">
+        {% include "_history.html" %}
+      </div>
+    </div>
+
   </div>
 
   <script>
-    // ── Tab switching ──────────────────────────────────────────────────
-    function switchTab(tab) {
-      const tabs = ['results', 'charts'];
-      tabs.forEach(t => {
-        document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
-        const btn = document.getElementById('tab-' + t);
-        if (t === tab) {
-          btn.classList.remove('bg-gray-700', 'text-gray-400');
-          btn.classList.add('bg-gray-800', 'text-gray-100');
-        } else {
-          btn.classList.remove('bg-gray-800', 'text-gray-100');
-          btn.classList.add('bg-gray-700', 'text-gray-400');
-        }
-      });
-      if (tab === 'charts') refreshCharts();
-    }
-
-    // ── Chart rendering ────────────────────────────────────────────────
     const CHART_IDS = [
       'reward_progression',
       'cumulative_fix_rate',
@@ -178,10 +235,23 @@
         .catch(err => console.warn('Chart refresh failed:', err));
     }
 
-    // Load charts on page load if data exists
+    function refreshDashboard() {
+      htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
+      refreshCharts();
+    }
+
+    function refreshHistory() {
+      htmx.ajax('GET', '/runs', {target: '#history-list', swap: 'innerHTML'});
+    }
+
+    let _refreshTimer = null;
+    function debouncedRefreshDashboard() {
+      clearTimeout(_refreshTimer);
+      _refreshTimer = setTimeout(refreshDashboard, 500);
+    }
+
     refreshCharts();
 
-    // ── SSE log streaming ──────────────────────────────────────────────
     function startSSE() {
       const log = document.getElementById('log');
       log.textContent = '';
@@ -193,16 +263,56 @@
       });
 
       src.addEventListener('charts', () => {
-        refreshCharts();
+        debouncedRefreshDashboard();
+      });
+
+      src.addEventListener('live', () => {
+        refreshLiveFixes();
+      });
+
+      src.addEventListener('session', (e) => {
+        let info;
+        try { info = JSON.parse(e.data); } catch(ex) { return; }
+        const sessionId = info.session_id;
+
+        if (info.is_new) {
+          refreshSessionList();
+        } else {
+          const sel = document.getElementById('session-select');
+          const opt = sel.querySelector(`option[value="${sessionId}"]`);
+          if (opt) {
+            const statusIcon = info.status === 'active' ? '~' : info.status === 'done' ? '+' : '!';
+            const typeTag = info.session_type === 'student' ? 'S' : 'T';
+            opt.textContent = `[${typeTag}${statusIcon}] ${info.task_id || sessionId.slice(0,20)} (${info.message_count} msgs)`;
+          }
+        }
+
+        if (_activeSession === sessionId) {
+          fetchSessionMessages(sessionId, false);
+        }
+
+        if (!_activeSession && info.is_new) {
+          const sel = document.getElementById('session-select');
+          if (!sel.value) {
+            sel.value = sessionId;
+            loadSession(sessionId);
+          }
+        }
+      });
+
+      src.addEventListener('save', () => {
+        refreshHistory();
+        debouncedRefreshDashboard();
       });
 
       src.addEventListener('done', () => {
         src.close();
         document.getElementById('status').innerHTML =
           '<span class="text-green-400">Finished.</span>';
-        // Refresh both results and charts
-        htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
-        refreshCharts();
+        const lf = document.getElementById('live-fixes');
+        if (lf) lf.classList.add('hidden');
+        refreshDashboard();
+        refreshHistory();
       });
 
       src.onerror = () => {
@@ -210,6 +320,316 @@
         document.getElementById('status').innerHTML =
           '<span class="text-red-400">Connection lost.</span>';
       };
+    }
+
+    function refreshLiveFixes() {
+      fetch('/api/live-fixes')
+        .then(r => r.json())
+        .then(fixes => {
+          const container = document.getElementById('live-fixes');
+          const list = document.getElementById('live-fixes-list');
+          if (!container || !list) return;
+          if (fixes.length === 0) { container.classList.add('hidden'); return; }
+          container.classList.remove('hidden');
+
+          list.innerHTML = fixes.map(f => {
+            const statusColor = f.status === 'fixed' ? 'text-green-400' :
+                                f.status === 'reflecting' ? 'text-amber-400' : 'text-blue-400';
+            const patches = f.patches.map(p => {
+              const kind = p.tool_name
+                ? `<span class="text-blue-400">tool: ${esc(p.tool_name)}</span>`
+                : `<span class="text-purple-400">prompt</span>`;
+              return `<div class="bg-gray-950 rounded p-1.5 text-[10px] font-mono">
+                ${kind}<br>
+                <span class="text-red-400">- ${esc(p.old_text.slice(0, 200))}</span><br>
+                <span class="text-green-400">+ ${esc(p.new_text.slice(0, 200))}</span>
+              </div>`;
+            }).join('');
+
+            return `<details class="group">
+              <summary class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-700/30 text-[11px]">
+                <svg class="w-3 h-3 text-gray-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <span class="font-mono">${esc(f.task_id)}</span>
+                <span class="text-gray-500">attempt ${f.attempt}</span>
+                <span class="${statusColor} text-[10px] font-medium">${esc(f.status)}</span>
+                <span class="text-gray-500 text-[10px]">${f.patches.length} patch${f.patches.length !== 1 ? 'es' : ''}</span>
+              </summary>
+              <div class="ml-4 mt-0.5 space-y-1">
+                ${f.diagnosis ? `<p class="text-[10px] text-gray-400 px-1.5 italic">${esc(f.diagnosis.slice(0, 300))}</p>` : ''}
+                ${patches}
+              </div>
+            </details>`;
+          }).join('');
+        })
+        .catch(() => {});
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // ── Session Viewer (teacher + student) ────────────────────────────
+    let _activeSession = null;
+    let _sessionMsgCount = 0;
+    let _sessionPollTimer = null;
+
+    function refreshSessionList() {
+      const typeFilter = document.getElementById('session-type-filter').value;
+      const url = typeFilter ? `/api/sessions?type=${typeFilter}` : '/api/sessions';
+      fetch(url)
+        .then(r => r.json())
+        .then(sessions => {
+          const sel = document.getElementById('session-select');
+          const prev = sel.value;
+          document.getElementById('session-count').textContent =
+            sessions.length ? `(${sessions.length})` : '';
+
+          sel.innerHTML = '<option value="">Select a session...</option>';
+          sessions.forEach(s => {
+            const statusIcon = s.status === 'active' ? '~' : s.status === 'done' ? '+' : '!';
+            const typeTag = (s.session_type === 'student') ? 'S' : 'T';
+            const reward = s.reward != null ? ` r=${s.reward.toFixed(2)}` : '';
+            const label = `[${typeTag}${statusIcon}] ${s.task_id || s.session_id.slice(0,20)} (${s.message_count} msgs${reward})`;
+            const opt = document.createElement('option');
+            opt.value = s.session_id;
+            opt.textContent = label;
+            if (s.session_id === prev) opt.selected = true;
+            sel.appendChild(opt);
+          });
+
+          if (!prev && sessions.length > 0) {
+            const active = sessions.find(s => s.status === 'active');
+            if (active) {
+              sel.value = active.session_id;
+              loadSession(active.session_id);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    function loadSession(sessionId) {
+      if (_sessionPollTimer) { clearInterval(_sessionPollTimer); _sessionPollTimer = null; }
+      if (!sessionId) {
+        _activeSession = null;
+        document.getElementById('session-conversation').innerHTML =
+          '<p class="text-[10px] text-gray-500 italic">No session selected.</p>';
+        document.getElementById('session-meta').classList.add('hidden');
+        return;
+      }
+      _activeSession = sessionId;
+      _sessionMsgCount = 0;
+      document.getElementById('session-conversation').innerHTML = '';
+      document.getElementById('session-meta').classList.remove('hidden');
+      fetchSessionMessages(sessionId, true);
+    }
+
+    function fetchSessionMessages(sessionId, fullLoad) {
+      if (sessionId !== _activeSession) return;
+      const url = fullLoad
+        ? `/api/sessions/${sessionId}`
+        : `/api/sessions/${sessionId}/messages?after=${_sessionMsgCount}`;
+
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (sessionId !== _activeSession) return;
+          const msgs = data.messages || [];
+          const sType = data.session_type || 'teacher';
+
+          // Update meta
+          const typeEl = document.getElementById('session-meta-type');
+          typeEl.textContent = sType;
+          typeEl.className = sType === 'student' ? 'text-blue-400 font-semibold' : 'text-purple-400 font-semibold';
+          if (data.model) document.getElementById('session-meta-model').textContent = `model: ${data.model}`;
+          if (data.task_id) document.getElementById('session-meta-task').textContent = `task: ${data.task_id}`;
+          const status = data.status || 'unknown';
+          const statusEl = document.getElementById('session-meta-status');
+          statusEl.textContent = status;
+          statusEl.className = status === 'active' ? 'text-amber-400' :
+                               status === 'done' ? 'text-green-400' : 'text-blue-400';
+          let metaMsgs = `${data.total || msgs.length} msgs`;
+          if (data.reward != null) metaMsgs += ` | reward: ${data.reward.toFixed(2)}`;
+          document.getElementById('session-meta-msgs').textContent = metaMsgs;
+
+          const container = document.getElementById('session-conversation');
+          if (fullLoad) {
+            container.innerHTML = '';
+            _sessionMsgCount = 0;
+          }
+
+          msgs.forEach((msg, i) => {
+            container.appendChild(renderMessage(msg, _sessionMsgCount + i));
+          });
+          _sessionMsgCount += msgs.length;
+
+          container.scrollTop = container.scrollHeight;
+
+          if (status === 'active' || status === 'retrying') {
+            if (!_sessionPollTimer) {
+              _sessionPollTimer = setInterval(() => fetchSessionMessages(sessionId, false), 5000);
+            }
+          } else {
+            if (_sessionPollTimer) { clearInterval(_sessionPollTimer); _sessionPollTimer = null; }
+          }
+        })
+        .catch(() => {});
+    }
+
+    function renderMessage(msg, idx) {
+      const el = document.createElement('div');
+      const role = msg.role || 'unknown';
+      const ts = msg.ts ? new Date(msg.ts).toLocaleTimeString() : '';
+
+      if (role === 'user') {
+        el.className = 'bg-blue-950/40 border border-blue-800/30 rounded p-2';
+        const content = msg.content || '';
+        // For the initial prompt (very long), show collapsed
+        if (content.length > 500) {
+          el.innerHTML = `
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="text-[10px] font-semibold text-blue-400">USER PROMPT</span>
+              <span class="text-[9px] text-gray-500">${ts}</span>
+              <span class="text-[9px] text-gray-600">${content.length.toLocaleString()} chars</span>
+            </div>
+            <details>
+              <summary class="text-[10px] text-gray-400 cursor-pointer hover:text-gray-300">
+                ${esc(content.slice(0, 200))}...
+              </summary>
+              <pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap mt-1 max-h-[300px] overflow-y-auto">${esc(content)}</pre>
+            </details>`;
+        } else {
+          el.innerHTML = `
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="text-[10px] font-semibold text-blue-400">USER</span>
+              <span class="text-[9px] text-gray-500">${ts}</span>
+            </div>
+            <pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap">${esc(content)}</pre>`;
+        }
+      } else if (role === 'assistant') {
+        el.className = 'bg-gray-800/60 border border-gray-700/50 rounded p-2';
+        let html = `<div class="flex items-center gap-1.5 mb-1">
+          <span class="text-[10px] font-semibold text-green-400">ASSISTANT</span>
+          <span class="text-[9px] text-gray-500">${ts}</span>`;
+
+        // Show usage if available
+        if (msg.meta && msg.meta.usage) {
+          const u = msg.meta.usage;
+          html += `<span class="text-[9px] text-gray-600">${u.prompt_tokens}+${u.completion_tokens} tokens</span>`;
+        }
+        if (msg.meta && msg.meta.response_model) {
+          html += `<span class="text-[9px] text-gray-600">${esc(msg.meta.response_model)}</span>`;
+        }
+        html += '</div>';
+
+        // Content (diagnosis text)
+        if (msg.content) {
+          html += `<pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap mb-1.5">${esc(msg.content)}</pre>`;
+        }
+
+        // Tool calls
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+          msg.tool_calls.forEach(tc => {
+            const fn = tc.function || {};
+            let argsDisplay = fn.arguments || '';
+            try {
+              argsDisplay = JSON.stringify(JSON.parse(argsDisplay), null, 2);
+            } catch(e) {}
+            html += `<div class="bg-gray-950 rounded p-1.5 mb-1 border border-gray-700/30">
+              <div class="flex items-center gap-1 mb-0.5">
+                <span class="text-[10px] font-semibold text-purple-400">TOOL CALL</span>
+                <span class="text-[10px] text-amber-400 font-mono">${esc(fn.name || '?')}</span>
+                <span class="text-[9px] text-gray-600 font-mono">${esc(tc.id || '')}</span>
+              </div>
+              <pre class="text-[10px] text-gray-300 font-mono whitespace-pre-wrap">${esc(argsDisplay)}</pre>
+            </div>`;
+          });
+        }
+        el.innerHTML = html;
+      } else if (role === 'tool') {
+        el.className = 'bg-gray-950/60 border border-gray-700/30 rounded p-1.5 ml-4';
+        const content = msg.content || '';
+        const isOk = content.startsWith('OK:');
+        const isFail = content.startsWith('FAILED:');
+        const color = isOk ? 'text-green-400' : isFail ? 'text-red-400' : 'text-gray-300';
+        el.innerHTML = `
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="text-[10px] font-semibold text-cyan-400">TOOL RESULT</span>
+            <span class="text-[9px] text-gray-500">${ts}</span>
+            <span class="text-[9px] text-gray-600 font-mono">${esc(msg.tool_call_id || '')}</span>
+          </div>
+          <pre class="text-[10px] ${color} font-mono whitespace-pre-wrap">${esc(content)}</pre>`;
+      } else if (role === 'system') {
+        // Errors or session events
+        const isError = msg.error || (msg.content && msg.content.includes('[ERROR]'));
+        const isDone = msg.content && msg.content.includes('[SESSION_DONE]');
+        if (isDone) {
+          el.className = 'border-t border-gray-700 pt-1 mt-1';
+          el.innerHTML = `<span class="text-[10px] text-green-400 font-semibold">SESSION COMPLETE</span>
+            <span class="text-[9px] text-gray-500 ml-1">${ts}</span>`;
+        } else {
+          el.className = 'bg-red-950/30 border border-red-800/30 rounded p-1.5';
+          el.innerHTML = `
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-[10px] font-semibold text-red-400">ERROR</span>
+              <span class="text-[9px] text-gray-500">${ts}</span>
+              ${msg.context ? `<span class="text-[9px] text-gray-600">${esc(msg.context)}</span>` : ''}
+            </div>
+            <pre class="text-[10px] text-red-300 font-mono whitespace-pre-wrap">${esc(msg.content || msg.error || '')}</pre>`;
+        }
+      }
+      return el;
+    }
+
+    // Load session list on page load
+    refreshSessionList();
+
+    // Academic-ready SVG export with white background and proper fonts
+    function exportChart(chartId) {
+      const el = document.getElementById('chart-' + chartId);
+      if (!el || !el.data) return;
+
+      // Override layout for print: white bg, black text, larger serif font
+      const academicLayout = {
+        paper_bgcolor: '#ffffff',
+        plot_bgcolor: '#ffffff',
+        font: { color: '#000000', size: 14, family: 'Times New Roman, serif' },
+        title: { font: { size: 16, color: '#000000' } },
+        legend: { bgcolor: 'rgba(0,0,0,0)', font: { color: '#000000' } },
+        xaxis: { ...el.layout.xaxis, gridcolor: '#e0e0e0', linecolor: '#000', zerolinecolor: '#ccc', title: el.layout.xaxis?.title ? { ...el.layout.xaxis.title, font: { color: '#000' } } : undefined },
+        yaxis: { ...el.layout.yaxis, gridcolor: '#e0e0e0', linecolor: '#000', zerolinecolor: '#ccc', title: el.layout.yaxis?.title ? { ...el.layout.yaxis.title, font: { color: '#000' } } : undefined },
+      };
+
+      Plotly.downloadImage(el, {
+        format: 'svg',
+        width: 700,
+        height: 400,
+        filename: chartId,
+      });
+
+      // Also offer a version with academic styling via a temporary clone
+      const clone = document.createElement('div');
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      document.body.appendChild(clone);
+
+      Plotly.newPlot(clone, JSON.parse(JSON.stringify(el.data)), {
+        ...JSON.parse(JSON.stringify(el.layout)),
+        ...academicLayout,
+        template: null,
+      }, { displayModeBar: false }).then(() => {
+        return Plotly.downloadImage(clone, {
+          format: 'svg',
+          width: 700,
+          height: 400,
+          filename: chartId + '_print',
+        });
+      }).then(() => {
+        Plotly.purge(clone);
+        clone.remove();
+      });
     }
   </script>
 </body>

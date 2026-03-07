@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 
 from rich.console import Console
@@ -12,18 +11,6 @@ import evo.config as cfg
 
 cfg.ensure_dirs()
 console = Console()
-
-
-def _quiet_deps():
-    """Suppress noisy logs from litellm and tau2."""
-    logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
-    logging.getLogger("LiteLLM Router").setLevel(logging.CRITICAL)
-    logging.getLogger("LiteLLM Proxy").setLevel(logging.CRITICAL)
-    import litellm
-    litellm.suppress_debug_info = True
-    # Suppress tau2's loguru error-level noise (cost lookup failures, git hash, etc.)
-    from loguru import logger
-    logger.disable("tau2")
 
 
 def main():
@@ -36,7 +23,7 @@ def main():
     loop_p.add_argument("--num-tasks", type=int, default=cfg.DEFAULT_NUM_TASKS)
     loop_p.add_argument("--max-iterations", type=int, default=cfg.DEFAULT_MAX_ITERATIONS)
     loop_p.add_argument("--max-retries", type=int, default=cfg.DEFAULT_MAX_RETRIES)
-    loop_p.add_argument("--max-workers", type=int, default=4, help="Max parallel teachers")
+    loop_p.add_argument("--parallelism", type=int, default=cfg.DEFAULT_PARALLELISM, help="Max parallel workers (teachers & tau2 evals)")
     loop_p.add_argument("--seed", type=int, default=cfg.DEFAULT_SEED)
     loop_p.add_argument("--task-ids", nargs="+", help="Run only these task IDs")
 
@@ -51,7 +38,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "loop":
-        _quiet_deps()
+        cfg.quiet_deps()
         from evo.parallel_loop import run_loop
 
         state = run_loop(
@@ -59,14 +46,12 @@ def main():
             num_tasks=args.num_tasks,
             max_iterations=args.max_iterations,
             max_retries=args.max_retries,
-            max_workers=args.max_workers,
+            parallelism=args.parallelism,
             seed=args.seed,
             task_ids=args.task_ids,
             on_status=lambda msg: console.print(msg),
         )
-        total_fixed = sum(r.num_fixed for r in state.history)
-        total_failures = sum(r.num_failures for r in state.history)
-        console.print(f"\n[bold]Done.[/bold] {total_fixed}/{total_failures} total fixes.")
+        console.print(f"\n[bold]Done.[/bold] {state.total_fixed}/{state.total_failures} total fixes.")
 
     elif args.command == "ui":
         from evo.ui.app import EvolutionApp
@@ -75,7 +60,7 @@ def main():
         app.run()
 
     elif args.command == "web":
-        _quiet_deps()
+        cfg.quiet_deps()
         from evo.web.app import start
 
         start(port=args.port, reload=args.reload)

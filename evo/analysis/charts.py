@@ -17,17 +17,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 import plotly.graph_objects as go
-import plotly.io as pio
 
 from evo.config import RESULTS_DIR
+from evo.models import FixResult, IterationResult, LoopState
 
 FIGURES_DIR = RESULTS_DIR / "figures"
-DOMAINS = ["airline", "retail", "telecom"]
 FAILURE_TYPES = ["TOOL_MISUSE", "POLICY_VIOLATION", "REASONING_ERROR", "COMMUNICATION_ERROR"]
 
 # Consistent dark theme matching the web UI
@@ -60,14 +58,14 @@ COLORS = {
 # Chart 1: Reward progression per iteration
 # ---------------------------------------------------------------------------
 
-def chart_reward_progression(history: list[dict]) -> dict:
-    """Grouped bar: baseline vs patched reward for each iteration."""
-    if not history:
+def chart_reward_progression(fixes: list[FixResult]) -> dict:
+    """Grouped bar: baseline vs patched reward for each fix attempt."""
+    if not fixes:
         return _empty_figure("Reward Progression", "No data yet.")
 
-    labels = [f"Iter {h['iteration']}<br>Task {h['task_id']}" for h in history]
-    baselines = [h["baseline_reward"] for h in history]
-    patched = [h["patched_reward"] for h in history]
+    labels = [f"Task {f.task_id}" for f in fixes]
+    baselines = [f.baseline_reward for f in fixes]
+    patched = [f.patched_reward for f in fixes]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -92,16 +90,16 @@ def chart_reward_progression(history: list[dict]) -> dict:
 # Chart 2: Cumulative fix rate
 # ---------------------------------------------------------------------------
 
-def chart_cumulative_fix_rate(history: list[dict]) -> dict:
-    """Line chart showing running fix rate as iterations progress."""
-    if not history:
+def chart_cumulative_fix_rate(fixes: list[FixResult]) -> dict:
+    """Line chart showing running fix rate as fixes progress."""
+    if not fixes:
         return _empty_figure("Cumulative Fix Rate", "No data yet.")
 
     xs = []
     ys = []
     fixed_count = 0
-    for i, h in enumerate(history, 1):
-        if h["fixed"]:
+    for i, f in enumerate(fixes, 1):
+        if f.fixed:
             fixed_count += 1
         xs.append(i)
         ys.append(fixed_count / i * 100)
@@ -117,7 +115,7 @@ def chart_cumulative_fix_rate(history: list[dict]) -> dict:
     fig.update_layout(
         **DARK_LAYOUT,
         title="Cumulative Fix Rate",
-        xaxis=dict(title="Iteration", dtick=1),
+        xaxis=dict(title="Fix #", dtick=1),
         yaxis=dict(title="Fix Rate (%)", range=[0, 105]),
         height=350,
     )
@@ -169,16 +167,17 @@ def chart_comparison_bar(
     return fig.to_dict()
 
 
-def chart_comparison_bar_from_history(history: list[dict]) -> dict:
-    """Derive baseline/evolved pass rates from loop history."""
-    if not history:
+def chart_comparison_bar_from_fixes(fixes: list[FixResult]) -> dict:
+    """Derive baseline/evolved pass rates from fix results."""
+    if not fixes:
         return _empty_figure("Baseline vs Evolved", "No data yet.")
 
-    n = len(history)
-    baseline_pass = sum(1 for h in history if h["baseline_reward"] >= 1.0) / n
-    evolved_pass = sum(1 for h in history
-                       if (h["patched_reward"] >= 1.0 if h["fixed"]
-                           else h["baseline_reward"] >= 1.0)) / n
+    n = len(fixes)
+    baseline_pass = sum(1 for f in fixes if f.baseline_reward >= 1.0) / n
+    evolved_pass = sum(
+        1 for f in fixes
+        if (f.patched_reward >= 1.0 if f.fixed else f.baseline_reward >= 1.0)
+    ) / n
 
     return chart_comparison_bar(
         baseline_pass_rate=baseline_pass,
@@ -219,34 +218,25 @@ def chart_failure_types(
     return fig.to_dict()
 
 
-def chart_failure_types_from_history(history: list[dict]) -> dict:
-    """Derive failure type counts from diagnoses in history.
-
-    Scans each diagnosis string for failure type keywords.
-    """
+def chart_failure_types_from_fixes(fixes: list[FixResult]) -> dict:
+    """Derive failure type counts from diagnoses in fix results."""
     before: dict[str, int] = {ft: 0 for ft in FAILURE_TYPES}
     after: dict[str, int] = {ft: 0 for ft in FAILURE_TYPES}
 
-    for h in history:
-        diag = h.get("diagnosis") or ""
-        # Diagnosis may be a dict (structured) or a string.
-        if isinstance(diag, dict):
-            diag_str = diag.get("failure_type", "")
-        else:
-            diag_str = str(diag)
-        diag_upper = diag_str.upper()
+    for f in fixes:
+        diag_upper = (f.diagnosis or "").upper()
 
         matched = False
         for ft in FAILURE_TYPES:
             if ft in diag_upper:
                 before[ft] += 1
-                if not h["fixed"]:
+                if not f.fixed:
                     after[ft] += 1
                 matched = True
                 break
-        if not matched and h.get("baseline_reward", 1.0) < 1.0:
+        if not matched and f.baseline_reward < 1.0:
             before["REASONING_ERROR"] += 1
-            if not h["fixed"]:
+            if not f.fixed:
                 after["REASONING_ERROR"] += 1
 
     return chart_failure_types(before, after)
@@ -256,14 +246,14 @@ def chart_failure_types_from_history(history: list[dict]) -> dict:
 # Chart 5: Per-task pass/fail heatmap
 # ---------------------------------------------------------------------------
 
-def chart_task_heatmap(history: list[dict]) -> dict:
+def chart_task_heatmap(fixes: list[FixResult]) -> dict:
     """Heatmap: rows=tasks, columns=[baseline, patched], green/red."""
-    if not history:
+    if not fixes:
         return _empty_figure("Task Pass/Fail", "No data yet.")
 
-    tasks = [f"Task {h['task_id']}" for h in history]
-    baseline_pass = [1 if h["baseline_reward"] >= 1.0 else 0 for h in history]
-    patched_pass = [1 if h["patched_reward"] >= 1.0 else 0 for h in history]
+    tasks = [f"Task {f.task_id}" for f in fixes]
+    baseline_pass = [1 if f.baseline_reward >= 1.0 else 0 for f in fixes]
+    patched_pass = [1 if f.patched_reward >= 1.0 else 0 for f in fixes]
 
     z = [baseline_pass, patched_pass]
 
@@ -280,23 +270,114 @@ def chart_task_heatmap(history: list[dict]) -> dict:
         **DARK_LAYOUT,
         title="Per-Task Pass/Fail",
         yaxis=dict(autorange="reversed"),
-        height=max(250, len(history) * 35 + 80),
+        height=max(250, len(fixes) * 35 + 80),
     )
     return fig.to_dict()
 
 
 # ---------------------------------------------------------------------------
-# Aggregate: all charts from loop history
+# Aggregate: all charts from fix results
 # ---------------------------------------------------------------------------
 
-def all_charts_from_history(history: list[dict]) -> dict[str, dict]:
-    """Return all chart figure dicts keyed by chart ID."""
+def chart_eval_rewards(eval_rewards: dict[str, float]) -> dict:
+    """Bar chart of per-task rewards from evaluation (used when no fixes needed)."""
+    if not eval_rewards:
+        return _empty_figure("Evaluation Results", "No data yet.")
+
+    tasks = [f"Task {tid}" for tid in sorted(eval_rewards.keys())]
+    rewards = [eval_rewards[tid] for tid in sorted(eval_rewards.keys())]
+    colors = [COLORS["fixed"] if r >= 1.0 else COLORS["not_fixed"] for r in rewards]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=tasks, y=rewards,
+        marker_color=colors,
+        text=[f"{r:.2f}" for r in rewards],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        **DARK_LAYOUT,
+        title="Evaluation Rewards",
+        yaxis=dict(title="Reward", range=[0, 1.15]),
+        height=350,
+        showlegend=False,
+    )
+    return fig.to_dict()
+
+
+def chart_eval_pass_rate(history: list[IterationResult]) -> dict:
+    """Pass rate across iterations (works even with 0 failures)."""
+    if not history:
+        return _empty_figure("Pass Rate", "No data yet.")
+
+    iters = []
+    rates = []
+    for h in history:
+        if h.eval_rewards:
+            n = len(h.eval_rewards)
+            passed = sum(1 for r in h.eval_rewards.values() if r >= 1.0)
+            iters.append(f"Iter {h.iteration}")
+            rates.append(passed / n * 100 if n else 0)
+
+    if not iters:
+        return _empty_figure("Pass Rate", "No evaluation data.")
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=iters, y=rates,
+        marker_color=COLORS["fixed"],
+        text=[f"{r:.0f}%" for r in rates],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        **DARK_LAYOUT,
+        title="Pass Rate per Iteration",
+        yaxis=dict(title="Pass Rate (%)", range=[0, 115]),
+        height=350,
+        showlegend=False,
+    )
+    return fig.to_dict()
+
+
+def all_charts_from_state(state: LoopState) -> dict[str, dict]:
+    """Return all chart figure dicts, using eval data when no fixes exist."""
+    fixes = state.flat_fixes()
+
+    if fixes:
+        return {
+            "reward_progression": chart_reward_progression(fixes),
+            "cumulative_fix_rate": chart_cumulative_fix_rate(fixes),
+            "comparison_bar": chart_comparison_bar_from_fixes(fixes),
+            "failure_types": chart_failure_types_from_fixes(fixes),
+            "task_heatmap": chart_task_heatmap(fixes),
+        }
+
+    # No fixes — show eval-based charts
+    all_rewards: dict[str, float] = {}
+    for h in state.history:
+        all_rewards.update(h.eval_rewards)
+
+    n = len(all_rewards)
+    passed = sum(1 for r in all_rewards.values() if r >= 1.0)
+    pass_rate = passed / n if n else None
+
     return {
-        "reward_progression": chart_reward_progression(history),
-        "cumulative_fix_rate": chart_cumulative_fix_rate(history),
-        "comparison_bar": chart_comparison_bar_from_history(history),
-        "failure_types": chart_failure_types_from_history(history),
-        "task_heatmap": chart_task_heatmap(history),
+        "reward_progression": chart_eval_rewards(all_rewards),
+        "cumulative_fix_rate": chart_eval_pass_rate(state.history),
+        "comparison_bar": chart_comparison_bar(baseline_pass_rate=pass_rate),
+        "failure_types": _empty_figure("Failure Types", "No failures to analyse."),
+        "task_heatmap": _empty_figure("Task Heatmap", "All tasks passed — no fix comparison."),
+    }
+
+
+def all_charts(fixes: list[FixResult]) -> dict[str, dict]:
+    """Return all chart figure dicts keyed by chart ID (legacy, from fixes only)."""
+    return {
+        "reward_progression": chart_reward_progression(fixes),
+        "cumulative_fix_rate": chart_cumulative_fix_rate(fixes),
+        "comparison_bar": chart_comparison_bar_from_fixes(fixes),
+        "failure_types": chart_failure_types_from_fixes(fixes),
+        "task_heatmap": chart_task_heatmap(fixes),
     }
 
 
@@ -334,47 +415,26 @@ def _export_charts(charts: dict[str, dict], out: Path) -> None:
         print(f"  Saved {path}")
 
 
-def _flatten_history(raw_history: list[dict]) -> list[dict]:
-    """Flatten nested IterationResult/FixResult dicts into per-fix dicts."""
-    rows = []
-    for h in raw_history:
-        if "fixes" in h:
-            for fix in h["fixes"]:
-                rows.append({
-                    "iteration": h["iteration"],
-                    "task_id": fix["task_id"],
-                    "baseline_reward": fix["baseline_reward"],
-                    "patched_reward": fix["patched_reward"],
-                    "fixed": fix["fixed"],
-                    "diagnosis": fix.get("diagnosis", ""),
-                    "retries": fix.get("retries", 0),
-                })
-        else:
-            rows.append(h)
-    return rows
-
-
-def _demo_history() -> list[dict]:
-    """Synthetic history for preview."""
+def _demo_fixes() -> list[FixResult]:
+    """Synthetic fix results for preview."""
     import random
     random.seed(42)
-    history = []
+    fixes = []
     for i in range(8):
         baseline_r = random.uniform(0.0, 0.6)
         fixed = random.random() < 0.6
         patched_r = 1.0 if fixed else random.uniform(0.0, baseline_r + 0.1)
         ft = random.choice(FAILURE_TYPES)
-        history.append({
-            "iteration": i + 1,
-            "task_id": str(i),
-            "baseline_reward": round(baseline_r, 2),
-            "patched_reward": round(patched_r, 2),
-            "fixed": fixed,
-            "diagnosis": f"{ft}: the agent failed to ...",
-            "patches": [],
-            "retries": random.randint(0, 2),
-        })
-    return history
+        fixes.append(FixResult(
+            task_id=str(i),
+            baseline_reward=round(baseline_r, 2),
+            patched_reward=round(patched_r, 2),
+            fixed=fixed,
+            diagnosis=f"{ft}: the agent failed to ...",
+            patches=[],
+            retries=random.randint(0, 2),
+        ))
+    return fixes
 
 
 def main() -> None:
@@ -386,19 +446,18 @@ def main() -> None:
 
     if args.demo:
         print("Using synthetic demo data.")
-        history = _demo_history()
+        fixes = _demo_fixes()
+        charts = all_charts(fixes)
     else:
         state_path = Path("patches/loop_state.json")
         if not state_path.exists():
             state_path = RESULTS_DIR.parent / "patches" / "loop_state.json"
         if state_path.exists():
-            raw = json.loads(state_path.read_text())
-            history = _flatten_history(raw.get("history", []))
+            state = LoopState.load(state_path)
+            charts = all_charts_from_state(state)
         else:
             print("No loop_state.json found. Use --demo for preview.")
             return
-
-    charts = all_charts_from_history(history)
 
     if args.json:
         print(json.dumps(charts, indent=2))
