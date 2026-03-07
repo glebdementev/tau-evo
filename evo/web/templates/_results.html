@@ -16,6 +16,7 @@
         <th class="px-1.5 py-1">Patch</th>
         <th class="px-1.5 py-1">Delta</th>
         <th class="px-1.5 py-1">Status</th>
+        <th class="px-1.5 py-1">Tier</th>
         <th class="px-1.5 py-1">Diagnosis</th>
       </tr>
     </thead>
@@ -31,6 +32,15 @@
           <span class="px-1 py-0.5 rounded text-[10px] font-medium {{ 'bg-green-900 text-green-300' if r.status == 'FIXED' else 'bg-red-900 text-red-300' }}">
             {{ r.status }}
           </span>
+        </td>
+        <td class="px-1.5 py-1">
+          {% if r.fix_tier == 'prompt' %}
+          <span class="px-1 py-0.5 rounded text-[10px] font-medium bg-purple-900 text-purple-300">prompt</span>
+          {% elif r.fix_tier == 'code' %}
+          <span class="px-1 py-0.5 rounded text-[10px] font-medium bg-amber-900 text-amber-300">guardrail</span>
+          {% else %}
+          <span class="text-[10px] text-gray-500">—</span>
+          {% endif %}
         </td>
         <td class="px-1.5 py-1 text-[10px] text-gray-400 max-w-[200px] truncate">{{ r.diagnosis }}</td>
       </tr>

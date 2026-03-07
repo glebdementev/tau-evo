@@ -20,15 +20,8 @@ Your job is to:
 2. **Fix** the issue by calling the provided tools:
    - `patch_prompt`: to edit the agent's system prompt (find-and-replace). Use old_text='' to append new text at the end.
    - `patch_tool`: to edit a tool's schema JSON (find-and-replace).
-   - `read_tool_code`: to inspect a tool's parameter details, types, exceptions, and its current input preprocessor. \
-Use this BEFORE patching a tool's preprocessor to see its current state.
-   - `patch_tool_code`: to edit a tool's **input preprocessor** (find-and-replace on the preprocessor source). \
-The preprocessor is a Python function `preprocess(kwargs) -> kwargs` that runs BEFORE the tool executes. \
-Use it to add input coercion, validation, or normalization. For example, if the agent keeps passing \
-reservation IDs like "W2341" instead of "#W2341", you can add `kwargs['reservation_id'] = '#' + kwargs['reservation_id']`. \
-The preprocessor can ONLY modify inputs — it cannot change the tool's output. \
-Available in the preprocessor: `str`, `int`, `float`, `bool`, `list`, `dict`, `re` (regex module), \
-and standard builtins. No imports allowed.
+   - `read_tool_code`: to inspect a tool's parameter details, types, and exceptions. \
+Use this to understand what a tool expects before writing prompt rules about it.
 
    You may call these tools multiple times across multiple rounds. After each round of tool calls, \
 you will receive a result indicating whether each patch was applied successfully or failed (with the reason). \
@@ -37,10 +30,9 @@ Take your time — think deeply about ALL the ways the agent could fail on this 
 and address each one. Only stop calling tools when you are fully satisfied that your patches \
 comprehensively fix the issue. Do not rush; thoroughness is more important than brevity.
 
-**Strategy guidance**: Use `patch_prompt` and `patch_tool` to fix the agent's reasoning and understanding. \
-Use `patch_tool_code` to add defensive input coercion that catches common LLM mistakes \
-(wrong ID formats, type mismatches, missing prefixes, etc.) — these are guardrails that \
-protect against mistakes the agent might still make even with better instructions.
+**Strategy guidance**: Focus on fixing the agent's reasoning and understanding through `patch_prompt` \
+and `patch_tool`. Write concrete, specific rules that teach the agent the correct behavior. \
+The goal is to make the agent *learn* to do the right thing, not to silently fix its mistakes.
 
 ---
 
@@ -95,4 +87,41 @@ Please analyse what went wrong with your previous patches and try again. \
 Use the patch tools to make further edits to the prompt, tool schemas, or tool preprocessors. \
 Remember: the patches you made earlier are already applied — build on top of them or undo them if they were counterproductive. \
 The current prompt, tool schemas, and preprocessors above reflect your changes so far — use them to write accurate old_text values.
+"""
+
+ESCALATION_PROMPT = """\
+Your prompt and schema patches were NOT sufficient. The agent was re-run but still fails \
+despite your instructions — the agent's reasoning capacity is insufficient to follow them correctly.
+
+- Baseline reward: {baseline_reward:.2f}
+- Reward after your prompt/schema patches: {patched_reward:.2f}
+
+Here is the conversation trace after applying your patches:
+
+{new_trace}
+
+And the reward breakdown:
+
+{new_reward}
+
+## Current Agent System Prompt (with your patches applied)
+
+{current_prompt}
+
+## Current Tool Schemas (with your patches applied)
+
+{current_tools}
+
+## Current Tool Preprocessors (with your patches applied)
+
+{current_preprocessors}
+
+You now have access to `patch_tool_code` — a tool that lets you edit input preprocessors \
+on tools. Preprocessors are Python functions `preprocess(kwargs) -> kwargs` that transform \
+tool inputs BEFORE the tool executes. Use them to add defensive guardrails: input coercion, \
+format normalization, or validation that catches mistakes the agent keeps making despite \
+clear instructions.
+
+Keep your existing prompt/schema patches — they may still help. Layer the preprocessor \
+on top as a safety net for the specific mistake the agent cannot learn to avoid.
 """

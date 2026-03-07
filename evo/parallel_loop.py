@@ -23,6 +23,40 @@ from evo.session_log import save_student_sessions
 log = logging.getLogger(__name__)
 
 
+def _validate_patches(
+    session: TeacherSession,
+    task_id: str,
+    domain: str,
+    seed: int,
+    attempt: int,
+    student_model: Optional[str],
+    parallelism: int,
+    on_status: Callable[[str], None],
+    on_session: Optional[Callable],
+):
+    """Run the student with the session's current patched state. Returns (val_sim, reward)."""
+    on_status(f"[{task_id}] Validating...")
+    val_results = run_baseline(
+        domain=domain,
+        task_ids=[task_id],
+        seed=seed,
+        system_prompt=session.current_prompt,
+        tool_schemas=session.current_tool_schemas,
+        tool_code=session.current_tool_code or None,
+        save_name=f"fix_{task_id}_a{attempt}",
+        student_model=student_model,
+        parallelism=parallelism,
+    )
+    save_student_sessions(
+        val_results,
+        context=f"fix_{task_id}_a{attempt}",
+        model=student_model or "",
+        on_session=on_session,
+    )
+    val_sim = val_results.simulations[0]
+    return val_sim, val_sim.reward_info.reward
+
+
 def _fix_single_failure(
     sim,
     task,
@@ -40,7 +74,16 @@ def _fix_single_failure(
     student_model: Optional[str] = None,
     parallelism: int = DEFAULT_PARALLELISM,
 ) -> FixResult:
-    """Run teacher loop on one failure. Returns FixResult."""
+    """Run teacher loop on one failure with two-phase escalation.
+
+    Phase 1 (teaching): teacher can only use patch_prompt + patch_tool.
+    Phase 2 (guardrails): if Phase 1 fails, unlock patch_tool_code and retry.
+
+    The fix_tier field records which phase produced the fix:
+    - "prompt": fixed by prompt/schema patches alone
+    - "code": required tool code (preprocessor) patches
+    - "none": not fixed
+    """
     task_id = sim.task_id
     baseline_reward = sim.reward_info.reward
 
@@ -59,11 +102,19 @@ def _fix_single_failure(
     all_patches: list[Patch] = []
     all_diagnoses: list[str] = []
     fixed = False
+    fix_tier = "none"
     patched_reward = baseline_reward
+    val_sim = None  # last validation sim, needed for escalation/retry
     attempt = 0
 
-    for attempt in range(1 + max_retries):
-        label = f"attempt {attempt + 1}/{1 + max_retries}"
+    # -- Phase 1: Teaching (prompt + schema only) --
+    # Use ceil(total_attempts / 2) for Phase 1, rest for Phase 2.
+    total_attempts = 1 + max_retries
+    phase1_attempts = max(1, (total_attempts + 1) // 2)
+    phase2_attempts = total_attempts - phase1_attempts
+
+    for attempt in range(phase1_attempts):
+        label = f"attempt {attempt + 1}/{total_attempts} [teaching]"
         on_status(f"[{task_id}] Teacher {label}...")
 
         patches, diagnosis = session.reflect()
@@ -76,41 +127,21 @@ def _fix_single_failure(
             on_status(f"[{task_id}] Teacher returned no patches.")
             break
 
-        on_status(f"[{task_id}] Got {len(patches)} patch(es).")
+        on_status(f"[{task_id}] Got {len(patches)} patch(es) [teaching].")
         all_patches.extend(patches)
 
         if on_fix_attempt:
             on_fix_attempt(task_id, attempt, list(all_patches), diagnosis, "reflecting")
 
-        # Use the session's live-patched state for validation.
-        on_status(f"[{task_id}] Validating...")
-        val_results = run_baseline(
-            domain=domain,
-            task_ids=[task_id],
-            seed=seed,
-            system_prompt=session.current_prompt,
-            tool_schemas=session.current_tool_schemas,
-            tool_code=session.current_tool_code or None,
-            save_name=f"fix_{task_id}_a{attempt}",
-            student_model=student_model,
-            parallelism=parallelism,
+        val_sim, patched_reward = _validate_patches(
+            session, task_id, domain, seed, attempt,
+            student_model, parallelism, on_status, on_session,
         )
-
-        # Log validation student session.
-        save_student_sessions(
-            val_results,
-            context=f"fix_{task_id}_a{attempt}",
-            model=student_model or "",
-            on_session=on_session,
-        )
-
-        val_sim = val_results.simulations[0]
-        patched_reward = val_sim.reward_info.reward
         fixed = patched_reward > baseline_reward
 
         on_status(
             f"[{task_id}] {baseline_reward:.2f} -> {patched_reward:.2f} "
-            f"({'FIXED' if fixed else 'NOT FIXED'})"
+            f"({'FIXED [teaching]' if fixed else 'NOT FIXED'})"
         )
 
         if on_fix_attempt:
@@ -118,14 +149,71 @@ def _fix_single_failure(
                            "fixed" if fixed else "validating")
 
         if fixed:
+            fix_tier = "prompt"
             break
 
-        if attempt < max_retries:
+        if attempt < phase1_attempts - 1:
             session.report_failure(
                 baseline_reward=baseline_reward,
                 patched_reward=patched_reward,
                 new_sim=val_sim,
             )
+
+    # -- Phase 2: Guardrails (unlock tool code) --
+    if not fixed and phase2_attempts > 0 and val_sim is not None:
+        on_status(f"[{task_id}] Escalating: unlocking tool code patches...")
+        session.escalate(
+            baseline_reward=baseline_reward,
+            patched_reward=patched_reward,
+            new_sim=val_sim,
+        )
+
+        for phase2_idx in range(phase2_attempts):
+            attempt = phase1_attempts + phase2_idx
+            label = f"attempt {attempt + 1}/{total_attempts} [guardrails]"
+            on_status(f"[{task_id}] Teacher {label}...")
+
+            patches, diagnosis = session.reflect()
+            all_diagnoses.append(diagnosis)
+
+            if diagnosis:
+                on_status(f"[{task_id}] Diagnosis: {diagnosis[:200]}")
+
+            if not patches:
+                on_status(f"[{task_id}] Teacher returned no patches.")
+                break
+
+            on_status(f"[{task_id}] Got {len(patches)} patch(es) [guardrails].")
+            all_patches.extend(patches)
+
+            if on_fix_attempt:
+                on_fix_attempt(task_id, attempt, list(all_patches), diagnosis, "reflecting")
+
+            val_sim, patched_reward = _validate_patches(
+                session, task_id, domain, seed, attempt,
+                student_model, parallelism, on_status, on_session,
+            )
+            fixed = patched_reward > baseline_reward
+
+            on_status(
+                f"[{task_id}] {baseline_reward:.2f} -> {patched_reward:.2f} "
+                f"({'FIXED [guardrails]' if fixed else 'NOT FIXED'})"
+            )
+
+            if on_fix_attempt:
+                on_fix_attempt(task_id, attempt, list(all_patches), diagnosis,
+                               "fixed" if fixed else "validating")
+
+            if fixed:
+                fix_tier = "code"
+                break
+
+            if phase2_idx < phase2_attempts - 1:
+                session.report_failure(
+                    baseline_reward=baseline_reward,
+                    patched_reward=patched_reward,
+                    new_sim=val_sim,
+                )
 
     return FixResult(
         task_id=task_id,
@@ -135,6 +223,7 @@ def _fix_single_failure(
         patches=all_patches if fixed else [],
         retries=attempt,
         fixed=fixed,
+        fix_tier=fix_tier,
     )
 
 

@@ -276,6 +276,50 @@ def chart_task_heatmap(fixes: list[FixResult]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Chart 6: Fix tier breakdown (prompt vs guardrail vs unfixed)
+# ---------------------------------------------------------------------------
+
+def chart_fix_tiers(fixes: list[FixResult]) -> dict:
+    """Pie/bar chart showing how fixes break down by escalation tier."""
+    if not fixes:
+        return _empty_figure("Fix Tiers", "No data yet.")
+
+    prompt_fixes = sum(1 for f in fixes if f.fix_tier == "prompt")
+    code_fixes = sum(1 for f in fixes if f.fix_tier == "code")
+    unfixed = sum(1 for f in fixes if not f.fixed)
+
+    labels = []
+    values = []
+    colors = []
+    for label, count, color in [
+        ("Prompt/Schema", prompt_fixes, "#a855f7"),
+        ("Guardrail (code)", code_fixes, "#f59e0b"),
+        ("Unfixed", unfixed, COLORS["not_fixed"]),
+    ]:
+        if count > 0:
+            labels.append(label)
+            values.append(count)
+            colors.append(color)
+
+    if not values:
+        return _empty_figure("Fix Tiers", "No data yet.")
+
+    fig = go.Figure(go.Pie(
+        labels=labels, values=values,
+        marker=dict(colors=colors),
+        textinfo="label+value",
+        hole=0.4,
+    ))
+    fig.update_layout(
+        **DARK_LAYOUT,
+        title="Fix Tiers: Teaching vs Guardrails",
+        height=350,
+        showlegend=True,
+    )
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
 # Aggregate: all charts from fix results
 # ---------------------------------------------------------------------------
 
@@ -350,6 +394,7 @@ def all_charts_from_state(state: LoopState) -> dict[str, dict]:
             "comparison_bar": chart_comparison_bar_from_fixes(fixes),
             "failure_types": chart_failure_types_from_fixes(fixes),
             "task_heatmap": chart_task_heatmap(fixes),
+            "fix_tiers": chart_fix_tiers(fixes),
         }
 
     # No fixes — show eval-based charts
@@ -367,6 +412,7 @@ def all_charts_from_state(state: LoopState) -> dict[str, dict]:
         "comparison_bar": chart_comparison_bar(baseline_pass_rate=pass_rate),
         "failure_types": _empty_figure("Failure Types", "No failures to analyse."),
         "task_heatmap": _empty_figure("Task Heatmap", "All tasks passed — no fix comparison."),
+        "fix_tiers": _empty_figure("Fix Tiers", "No fixes needed."),
     }
 
 
@@ -378,6 +424,7 @@ def all_charts(fixes: list[FixResult]) -> dict[str, dict]:
         "comparison_bar": chart_comparison_bar_from_fixes(fixes),
         "failure_types": chart_failure_types_from_fixes(fixes),
         "task_heatmap": chart_task_heatmap(fixes),
+        "fix_tiers": chart_fix_tiers(fixes),
     }
 
 

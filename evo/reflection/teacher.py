@@ -34,9 +34,9 @@ from evo.reflection.formatting import (
 )
 from evo.reflection.patches import apply_one_patch, apply_patches
 from evo.reflection.preprocessor import DEFAULT_PREPROCESSOR, format_tool_info
-from evo.reflection.prompts import REFLECTION_PROMPT, RETRY_PROMPT
+from evo.reflection.prompts import ESCALATION_PROMPT, REFLECTION_PROMPT, RETRY_PROMPT
 from evo.reflection.tools import (
-    TEACHER_TOOLS, TOOL_MODELS,
+    TEACHING_TOOLS, TEACHER_TOOLS, TOOL_MODELS,
     PatchPrompt, PatchTool, PatchToolCode, ReadToolCode,
 )
 
@@ -92,6 +92,8 @@ class TeacherSession:
             (t.name if hasattr(t, "name") else ""): t for t in tools
         }
         self._errors: list[ErrorRecord] = []
+        self._active_tools = TEACHING_TOOLS  # Start with teaching-only tools
+        self.escalated = False
 
         task_requirements = ""
         if hasattr(task, "evaluation_criteria") and task.evaluation_criteria:
@@ -168,7 +170,7 @@ class TeacherSession:
                 response = client.chat.completions.create(
                     model=self.model,
                     messages=self._history,
-                    tools=TEACHER_TOOLS,
+                    tools=self._active_tools,
                     temperature=0.3,
                 )
                 msg = response.choices[0].message
@@ -387,3 +389,34 @@ class TeacherSession:
         )
         self._history.append({"role": "user", "content": retry_content})
         self._log_message(SessionMessage(role="user", content=retry_content))
+
+    def escalate(
+        self,
+        baseline_reward: float,
+        patched_reward: float,
+        new_sim,
+    ) -> None:
+        """Unlock tool code patches after prompt-only fixes failed.
+
+        Switches active tools from TEACHING_TOOLS to TEACHER_TOOLS (full set)
+        and appends a special escalation prompt explaining the new capability.
+        """
+        self.escalated = True
+        self.status = "escalated"
+        self._active_tools = TEACHER_TOOLS
+
+        current_tools_str = json.dumps(
+            list(self._current_tool_schemas.values()), indent=SCHEMA_INDENT,
+        )
+        preprocessors_str = format_preprocessors(self._current_tool_code)
+        escalation_content = ESCALATION_PROMPT.format(
+            baseline_reward=baseline_reward,
+            patched_reward=patched_reward,
+            new_trace=format_messages(new_sim.messages),
+            new_reward=format_reward(new_sim.reward_info),
+            current_prompt=self._current_prompt,
+            current_tools=current_tools_str,
+            current_preprocessors=preprocessors_str,
+        )
+        self._history.append({"role": "user", "content": escalation_content})
+        self._log_message(SessionMessage(role="user", content=escalation_content))

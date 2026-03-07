@@ -52,6 +52,15 @@ class PatchToolCode(BaseModel):
     new_text: str = Field(description="Replacement text.")
 
 
+# Teaching-only tools: prompt and schema edits + read-only tool inspection.
+# Used in Phase 1 (escalation tier) to force the teacher to fix agent behavior first.
+TEACHING_TOOLS = [
+    pydantic_function_tool(PatchPrompt, name="patch_prompt"),
+    pydantic_function_tool(PatchTool, name="patch_tool"),
+    pydantic_function_tool(ReadToolCode, name="read_tool_code"),
+]
+
+# Full tool set including preprocessor editing. Unlocked in Phase 2 after prompt-only fixes fail.
 TEACHER_TOOLS = [
     pydantic_function_tool(PatchPrompt, name="patch_prompt"),
     pydantic_function_tool(PatchTool, name="patch_tool"),

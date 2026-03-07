@@ -40,6 +40,7 @@ class FixResult:
     patches: list[Patch]
     retries: int
     fixed: bool
+    fix_tier: str = "none"  # "prompt" | "code" | "none"
 
     @property
     def delta(self) -> float:
@@ -110,6 +111,7 @@ class LoopState:
                     diagnosis=f.get("diagnosis", ""),
                     retries=f.get("retries", 0),
                     fixed=f["fixed"],
+                    fix_tier=f.get("fix_tier", "none"),
                 )
                 for f in h.get("fixes", [])
             ]

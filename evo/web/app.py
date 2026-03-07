@@ -184,6 +184,8 @@ async def index(request: Request):
     fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
+    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
+    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
     return templates.TemplateResponse("index.html", {
         "request": request,
         "domains": cfg.DOMAINS,
@@ -204,6 +206,8 @@ async def index(request: Request):
         "viewed_run_id": _viewed_run_id,
         "total": total,
         "fixed": fixed,
+        "fixed_prompt": fixed_prompt,
+        "fixed_code": fixed_code,
         "not_fixed": total - fixed,
         "rate": int(fixed / total * 100) if total else 0,
     })
@@ -315,9 +319,11 @@ async def run(request: Request):
                 _save_run(_active_state)
             _log_queue.put(f"\nERROR: {e}")
         finally:
-            # Snapshot: if user is still viewing this run, switch to disk copy
+            # Snapshot: if user is still viewing this run, copy final state
             # so _active_state is no longer the source of truth.
             if _viewed_run_id == _active_run_id and _active_state:
+                with _run_session_ids_lock:
+                    _active_state.session_ids = sorted(_run_session_ids)
                 _viewed_state = _active_state
             _running = False
             _active_run_id = None
@@ -376,11 +382,15 @@ async def results(request: Request):
     fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
+    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
+    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
     return templates.TemplateResponse("_results.html", {
         "request": request,
         "results": _build_results(),
         "total": total,
         "fixed": fixed,
+        "fixed_prompt": fixed_prompt,
+        "fixed_code": fixed_code,
         "not_fixed": total - fixed,
         "rate": int(fixed / total * 100) if total else 0,
     })
@@ -392,6 +402,8 @@ async def summary(request: Request):
     fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
+    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
+    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
 
     # If no fixes but we have eval data, show eval-based pass rate
     eval_total = 0
@@ -405,6 +417,8 @@ async def summary(request: Request):
         "request": request,
         "total": total,
         "fixed": fixed,
+        "fixed_prompt": fixed_prompt,
+        "fixed_code": fixed_code,
         "not_fixed": total - fixed,
         "rate": int(fixed / total * 100) if total else (
             int(eval_passed / eval_total * 100) if eval_total else 0
@@ -464,17 +478,18 @@ async def api_sessions(type: Optional[str] = None):
     active: dict[str, slog.SessionSummary] = {}
     if _viewing_active():
         with _teacher_sessions_lock:
-            active = {
-                sid: s.get_log_snapshot() for sid, s in _teacher_sessions.items()
-                if sid in allowed
-            }
+            for sid, s in _teacher_sessions.items():
+                if sid in allowed:
+                    try:
+                        active[sid] = s.get_log_snapshot()
+                    except Exception:
+                        pass
 
-    disk = slog.list_sessions(session_type=type)
+    disk = slog.list_sessions(session_type=type, only_ids=allowed)
 
     merged: dict[str, slog.SessionSummary] = {}
     for s in disk:
-        if s.session_id in allowed:
-            merged[s.session_id] = s
+        merged[s.session_id] = s
     if type is None or type == "teacher":
         for sid, s in active.items():
             merged[sid] = s
@@ -542,11 +557,15 @@ async def load_run_endpoint(run_id: str, request: Request):
     fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
+    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
+    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
     return templates.TemplateResponse("_results.html", {
         "request": request,
         "results": _build_results(),
         "total": total,
         "fixed": fixed,
+        "fixed_prompt": fixed_prompt,
+        "fixed_code": fixed_code,
         "not_fixed": total - fixed,
         "rate": int(fixed / total * 100) if total else 0,
     })
@@ -584,6 +603,7 @@ def _build_results() -> list[dict]:
                 "delta": f"{fix.delta:+.2f}",
                 "retries": fix.retries,
                 "status": "FIXED" if fix.fixed else "NOT FIXED",
+                "fix_tier": fix.fix_tier,
                 "diagnosis": (fix.diagnosis or "")[:120],
                 "patches": fix.patches,
             })

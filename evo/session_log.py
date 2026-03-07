@@ -134,11 +134,20 @@ def load_session(session_id: str) -> Optional[SessionData]:
         return None
 
 
-def list_sessions(session_type: Optional[str] = None) -> list[SessionSummary]:
-    """List session summaries from disk, newest first."""
+def list_sessions(
+    session_type: Optional[str] = None,
+    only_ids: Optional[set[str]] = None,
+) -> list[SessionSummary]:
+    """List session summaries from disk, newest first.
+
+    If *only_ids* is given, skip files whose session_id is not in the set.
+    """
     sessions: list[SessionSummary] = []
     for p in SESSION_LOGS_DIR.glob("*.json"):
         try:
+            sid = p.stem
+            if only_ids is not None and sid not in only_ids:
+                continue
             raw = json.loads(p.read_text())
             if session_type and raw.get("session_type") != session_type:
                 continue
