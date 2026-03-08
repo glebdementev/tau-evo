@@ -1,3 +1,7 @@
+% Force a page break after the table of contents
+\AtBeginDocument{\let\oldtableofcontents\tableofcontents
+\renewcommand{\tableofcontents}{\oldtableofcontents\newpage}}
+
 % Prevent figures from floating past section boundaries
 \usepackage[section]{placeins}
 

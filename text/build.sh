@@ -14,6 +14,7 @@ pandoc \
   ch1_introduction.md \
   ch2_literature_review.md \
   ch3_methodology.md \
+  ch4_results.md \
   ch5_conclusion.md \
   -o full_thesis.pdf
 
