@@ -327,6 +327,7 @@ class MergerSession:
                     messages=self._history,
                     tools=MERGER_TOOLS,
                     temperature=0.2,
+                    timeout=60,
                 )
                 return response.choices[0].message, response
             except RateLimitError as e:

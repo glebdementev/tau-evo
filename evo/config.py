@@ -42,7 +42,7 @@ TEACHER_MODEL = "moonshotai/kimi-k2.5"
 USER_SIM_MODEL = "qwen/qwen3-30b-a3b"
 
 # Disable reasoning/thinking tokens via OpenRouter.
-NO_THINK_ARGS: dict = {"extra_body": {"reasoning": {"effort": "none"}}}
+NO_THINK_ARGS: dict = {"extra_body": {"reasoning": {"effort": "none"}}, "timeout": 60}
 
 # ── Domains ──────────────────────────────────────────────────────────────
 DOMAINS = ["airline", "retail", "telecom"]

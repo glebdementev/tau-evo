@@ -191,6 +191,7 @@ class TeacherSession:
                     messages=self._history,
                     tools=self._active_tools,
                     temperature=0.3,
+                    timeout=60,
                 )
                 msg = response.choices[0].message
                 if log.isEnabledFor(logging.DEBUG):

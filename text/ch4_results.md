@@ -11,8 +11,8 @@ The three experiments differ only in the number of tasks drawn from the airline 
 | Experiment | Tasks | Task IDs | Status |
 |------------|-------|----------|--------|
 | 1 | 5 | 0, 1, 3, 4, 5 | Complete |
-| 2 | 10 | TBD | In progress |
-| 3 | 20 | TBD | Planned |
+| 2 | 10 | 0, 1, 3, 4, 5, 7, 9, 10, 11, 12 | Complete |
+| 3 | 20 | TBD | In progress |
 
 : Experimental conditions. All other parameters are identical across experiments.
 
@@ -108,41 +108,108 @@ Experiment 1 demonstrates that teacher-driven prompt evolution can improve a wea
 
 ## 4.3 Experiment 2: Ten-Task Evolution
 
-<!-- TEMPLATE: To be filled when 10-task run completes -->
+Experiment 2 doubles the task set from five to ten, introducing five additional tasks (7, 9, 10, 11, 12) alongside the original five. This tests whether the evolution framework's gains persist when the evaluation surface grows and the teacher must manage a larger and more diverse set of failure modes.
 
 ### 4.3.1 Baseline Performance
 
-| Sweep | Trial pass rate | Majority-vote pass rate |
-|-------|-----------------|-------------------------|
-| 1 (baseline) | —/30 (—%) | —/10 (—%) |
-| 2 | —/30 (—%) | —/10 (—%) |
-| 3 | —/30 (—%) | —/10 (—%) |
+The baseline evaluates the unmodified student on ten airline tasks. @Tbl:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
 
-: Per-sweep pass rates for Experiment 2 (10 tasks, airline domain). {#tbl:exp2-passrate}
+| Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Task 7 | Task 9 | Task 10 | Task 11 | Task 12 | Trial pass rate | Majority-vote pass rate |
+|-------|--------|--------|--------|--------|--------|--------|--------|---------|---------|---------|-----------------|-------------------------|
+| 1 (baseline) | 0/3 | 2/3 | 0/3 | 3/3 | 2/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 8/30 (27%) | 3/10 (30%) |
+| 2 (after sweep 1 patches) | 1/3 | 2/3 | 0/3 | 3/3 | 2/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 9/30 (30%) | 3/10 (30%) |
+| 3 (after sweep 2 patches) | 3/3 | 3/3 | 2/3 | 3/3 | 3/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 15/30 (50%) | 5/10 (50%) |
+
+: Per-sweep evaluation results for Experiment 2 (10 tasks, airline domain). Each cell shows trial passes out of three. Majority-vote pass rate treats a task as passing if it passes in at least two of three trials. {#tbl:exp2-passrate}
+
+@Fig:exp2-heatmap visualises the same data. Compared to the five-task heatmap (@fig:exp1-heatmap), the ten-task version makes the bifurcation between fixable and resistant tasks immediately visible: a cluster of tasks (0, 1, 3, 4, 5) greens progressively across sweeps, while a second cluster (7, 9, 11, 12) remains solidly red throughout. Task 10 occupies a middle ground---it was fixed during sweep 1's evolution but never passed more than 1/3 trials in re-evaluation, suggesting a fragile fix.
+
+![Per-task, per-trial pass/fail heatmap for Experiment 2 across three sweeps. The ten-task surface reveals a clear split between fixable tasks (left half) and resistant tasks (right half) that no amount of prompt evolution can repair.](figures/fig_r04_sweep_heatmap.svg){#fig:exp2-heatmap}
+
+The baseline is substantially weaker than in Experiment 1: only 27% of trials pass (8/30), versus 53% (8/15) in the five-task setting. By majority vote, 3 of 10 tasks pass (30%), versus 3 of 5 (60%). This lower starting point reflects the inclusion of harder tasks---Tasks 7, 9, 11, and 12 all score 0/3 in the baseline and, as the results will show, resist all patching attempts. The five tasks shared with Experiment 1 (0, 1, 3, 4, 5) exhibit identical baseline performance to their Experiment 1 counterparts, confirming that the seed and configuration reproduce consistently.
 
 ### 4.3.2 Evolution Trajectory
 
+The evolution loop ran three sweeps. @Tbl:exp2-outcomes shows the per-sweep breakdown of task outcomes during the evolution process.
+
 | Sweep | Already passing | Fixed (instruction) | Fixed (guardrail) | Unfixed |
 |-------|----------------|--------------------|--------------------|---------|
-| 1 | — | — | — | — |
-| 2 | — | — | — | — |
-| 3 | — | — | — | — |
+| 1 | 1 | 4 | 1 | 4 |
+| 2 | 1 | 1 | 1 | 7 |
+| 3 | 4 | 0 | 0 | 6 |
 
-: Per-sweep task outcomes for Experiment 2. {#tbl:exp2-outcomes}
+: Per-sweep task outcomes during the evolution loop for Experiment 2. "Already passing" counts tasks that passed all three trials before the teacher intervened; "Unfixed" means all retry attempts were exhausted without success. {#tbl:exp2-outcomes}
+
+@Fig:exp2-outcomes visualises the same data. The persistent red "Unfixed" segment, absent in Experiment 1's sweeps 1 and 2, dominates the chart---reflecting a hard core of tasks that resist prompt-level repair.
+
+![Stacked bar chart of per-sweep task outcomes for Experiment 2. Each bar represents one sweep; segments show how many tasks were already passing (green), fixed by instruction patches (orange), fixed by guardrail patches (yellow), or remained unfixed (red). Unlike Experiment 1, a large unfixed segment persists across all sweeps.](figures/fig_r05_sweep_outcomes.svg){#fig:exp2-outcomes}
+
+The trajectory differs markedly from Experiment 1. In Experiment 1, sweep 1 achieved a 100% fix rate on failing tasks; here, sweep 1 fixes only 5 of 9 failing tasks (56%). The four unfixed tasks (7, 9, 11, 12) consumed substantial teacher effort---a combined 150 messages, 61 tool calls, and 36 minutes of wall-clock time---without producing a single viable patch. These tasks appear to require capabilities that neither prompt refinement nor guardrail insertion can provide.
+
+A second notable difference is the delayed improvement in evaluation metrics. Sweep 2's re-evaluation shows essentially no change from baseline (9/30 trials, 30% majority), despite sweep 1 having fixed five tasks during the evolution loop. This means that several of sweep 1's fixes did not persist through re-evaluation---Tasks 0, 3, and 10 all regressed. The fixes for Tasks 0 and 1 were fast and cheap (under a minute each), suggesting the teacher identified the correct failure mode but the resulting patch was too fragile to survive stochastic variation. The full improvement materialises only in sweep 3 (15/30 trials, 50% majority), after sweep 2's fixes had a chance to reinforce the earlier patches.
+
+@Tbl:exp2-fixes details the individual fix attempts, including both successes and failures.
+
+| Sweep | Task | Base → Patch | Tier | Attempt | Teacher msgs | Tool calls | Duration |
+|-------|------|-------------|------|---------|-------------|------------|----------|
+| 1 | 0 | Fail → Pass | instruction | 1 | 10 | 4 | 51s |
+| 1 | 1 | Fail → Pass | instruction | 1 | 4 | 1 | 21s |
+| 1 | 5 | Fail → Pass | instruction | 2 | 16 | 6 | 5m 11s |
+| 1 | 3 | Fail → Pass | guardrail | 3 | 36 | 15 | 5m 54s |
+| 1 | 10 | Fail → Pass | instruction | 2 | 35 | 14 | 6m 59s |
+| 1 | 12 | Fail → Fail | --- | --- | 36 | 15 | 8m 37s |
+| 1 | 9 | Fail → Fail | --- | --- | 37 | 14 | 12m 36s |
+| 1 | 11 | Fail → Fail | --- | --- | 38 | 16 | 6m 21s |
+| 1 | 7 | Fail → Fail | --- | --- | 39 | 16 | 8m 40s |
+| 2 | 1 | Fail → Pass | instruction | 2 | 12 | 4 | 3m 42s |
+| 2 | 5 | Fail → Pass | guardrail | 3 | 59 | 26 | 11m 49s |
+| 2 | 3 | Fail → Fail | --- | --- | 26 | 10 | 3m 33s |
+| 2 | 0 | Fail → Fail | --- | --- | 35 | 12 | 5m 9s |
+| 2 | 12 | Fail → Fail | --- | --- | 46 | 19 | 7m 50s |
+| 2 | 11 | Fail → Fail | --- | --- | 37 | 15 | 8m 45s |
+| 2 | 7 | Fail → Fail | --- | --- | 22 | 8 | 7m 22s |
+| 2 | 9 | Fail → Fail | --- | --- | 39 | 17 | 10m 0s |
+| 2 | 10 | Fail → Fail | --- | --- | 38 | 16 | 19m 0s |
+
+: Individual fix attempts across sweeps in Experiment 2. Rows without a tier and attempt indicate that all three retry attempts were exhausted without success. {#tbl:exp2-fixes}
 
 ### 4.3.3 Fix Type Analysis
 
-<!-- Compare instruction vs guardrail ratio to Experiment 1. Does the ratio shift with more tasks? -->
+@Fig:exp2-fix-attempts shows the number of tasks fixed per attempt and tier across sweeps.
+
+![Fix attempts by tier and sweep for Experiment 2. Sweep 1 is productive; sweep 2 manages only two fixes; sweep 3 produces none.](figures/fig_r06_fix_attempts.svg){#fig:exp2-fix-attempts}
+
+Across sweeps 1 and 2, seven successful fixes were applied: five instruction-tier (71%) and two guardrail-tier (29%). This ratio is identical to Experiment 1's, suggesting that the instruction-guardrail balance is a stable property of the framework rather than an artefact of the specific task set.
+
+The cost distribution, however, shifts substantially. In Experiment 1, the teacher encountered no unfixable tasks until sweep 3; every attempt in sweeps 1 and 2 eventually succeeded. In Experiment 2, the teacher exhausted all retries on four tasks in sweep 1 and seven tasks in sweep 2, burning a combined 393 messages, 162 tool calls, and over 107 minutes of wall-clock time on failed attempts. The most expensive single failed attempt was Task 10 in sweep 2: 38 messages, 16 tool calls, and 19 minutes---all for no result. This wasted effort is a direct cost of scaling the task set: with more tasks to fix, the teacher spends proportionally more time on tasks it ultimately cannot repair.
+
+| | Experiment 1 | Experiment 2 |
+|------|-------------|-------------|
+| Successful fixes | 7 | 7 |
+| Instruction-tier | 5 (71%) | 5 (71%) |
+| Guardrail-tier | 2 (29%) | 2 (29%) |
+| Failed fix attempts (sweeps 1--2) | 0 | 11 |
+| Median successful fix: msgs | 14 | 12 |
+| Median successful fix: duration | 2m 33s | 3m 42s |
+| Total wasted effort (failed attempts) | --- | 393 msgs, 107 min |
+
+: Fix type comparison between Experiments 1 and 2. The success counts and tier ratios are identical; the difference lies in the volume of wasted effort on unfixable tasks. {#tbl:exp2-fix-comparison}
 
 ### 4.3.4 Scaling Observations
 
-<!-- Key question: does the per-task improvement rate hold, diminish, or improve with 2x tasks?
-     - If improvement is purely task-specific, expect ~same absolute gains but lower percentage improvement
-     - If patches transfer across tasks, expect percentage improvement to hold or even improve -->
+The ten-task experiment reveals several scaling dynamics that were invisible in the five-task setting.
+
+**A hard core of resistant tasks emerges.** Tasks 7, 9, 11, and 12 resisted every fix attempt across both sweeps---a total of eight full three-attempt cycles, consuming over 70 minutes of teacher time. This hard core was absent in Experiment 1, where all failing tasks were eventually fixable. The implication is that the task pool contains a mixture of fixable tasks (addressable through prompt or guardrail patches) and structurally resistant tasks that require interventions beyond the input space---possibly stronger models, multi-agent decomposition, or fine-tuning.
+
+**Improvement is delayed but comparable in magnitude.** Experiment 1 showed its largest gain between sweeps 1 and 2 (+20pp in trial rate). Experiment 2 shows no measurable gain between sweeps 1 and 2 (27% → 30%), with the full improvement materialising between sweeps 2 and 3 (30% → 50%, a +20pp jump). The delay occurs because several of sweep 1's fixes were fragile and regressed during sweep 2's re-evaluation, only to be re-fixed or reinforced during sweep 2's evolution loop. The eventual magnitude of improvement (+23pp in trial rate, from 27% to 50%) is comparable to Experiment 1's +20pp, suggesting that the absolute gain from fixable tasks is roughly constant across task-set sizes.
+
+**The fix success rate declines with scale.** In Experiment 1, 4 of 4 unique failing tasks were fixed at least once (100%). In Experiment 2, 5 of 9 unique failing tasks were fixed (56%). The five fixable tasks (0, 1, 3, 5, 10) overlap substantially with the Experiment 1 task set; the four resistant tasks (7, 9, 11, 12) are all newcomers. This suggests that adding more tasks does not expand the space of fixable failures---it primarily adds resistant ones, diluting the framework's overall effectiveness.
+
+**Patch fragility is more pronounced.** Several tasks that were fixed in one sweep failed again in the next. Task 0 was fixed in sweep 1 (instruction, attempt 1) but failed in sweep 2's re-evaluation and resisted re-fixing. Task 3 was similarly fixed in sweep 1 (guardrail, attempt 3) but could not be re-fixed in sweep 2. By contrast, in Experiment 1, tasks that were fixed generally held or were easily re-fixed. The larger patch accumulation in the ten-task setting may increase interference, making individual fixes less durable.
 
 ### 4.3.5 Summary
 
-<!-- Fill after run completes -->
+Experiment 2 demonstrates that the evolution framework produces meaningful improvement at the ten-task scale: the trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-percentage-point gain comparable to Experiment 1's 20pp. The instruction-guardrail ratio (71%/29%) is identical across both experiments. However, the ten-task setting reveals a structural limitation: four of nine failing tasks resist all fix attempts, forming a hard core that prompt-level evolution cannot penetrate. The teacher produces the same number of successful fixes as in Experiment 1 (seven), but at substantially higher cost due to wasted effort on unfixable tasks. The improvement is also delayed by one sweep relative to Experiment 1, reflecting increased patch fragility in a larger task-set context. Experiment 3 (20 tasks) will test whether these trends continue as the task pool doubles again.
 
 ## 4.4 Experiment 3: Twenty-Task Evolution
 
@@ -182,37 +249,54 @@ Experiment 1 demonstrates that teacher-driven prompt evolution can improve a wea
 
 ## 4.5 Cross-Experiment Comparison
 
-<!-- TEMPLATE: To be filled once Experiments 2 and 3 have data -->
+With two of three experiments complete, preliminary cross-experiment patterns can be identified. This section will be extended once Experiment 3 (20 tasks) concludes.
 
 ### 4.5.1 Scaling Curve
 
-<!-- Plot: x-axis = number of tasks, y-axis = improvement in pass rate (percentage points).
-     Expected pattern: improvement decreases as task count increases, confirming limited generalisation.
-     Alternative pattern: improvement holds, suggesting transferable rules. -->
+@Tbl:cross-experiment summarises the key metrics across experiments.
 
-| Experiment | Tasks | Baseline pass rate | Final pass rate | Improvement (pp) | Fix success rate |
-|------------|-------|--------------------|-----------------|-------------------|------------------|
-| 1 | 5 | 53% | 73% | +20 | 100% (sweep 1--2) |
-| 2 | 10 | —% | —% | — | — |
-| 3 | 20 | —% | —% | — | — |
+| Experiment | Tasks | Baseline trial rate | Final trial rate | Improvement (pp) | Failing tasks | Fixed | Fix rate |
+|------------|-------|---------------------|------------------|-------------------|---------------|-------|----------|
+| 1 | 5 | 53% (8/15) | 73% (11/15) | +20 | 4 | 4 | 100% |
+| 2 | 10 | 27% (8/30) | 50% (15/30) | +23 | 9 | 5 | 56% |
+| 3 | 20 | —% | —% | — | — | — | — |
 
-: Cross-experiment summary. Improvement is measured in percentage points of trial pass rate. {#tbl:cross-experiment}
+: Cross-experiment summary. Improvement is measured in percentage points of trial pass rate. Fix rate is the fraction of unique failing tasks that were successfully fixed at least once across sweeps 1--2. {#tbl:cross-experiment}
+
+The absolute improvement is remarkably stable: +20pp for 5 tasks, +23pp for 10 tasks. This near-constant gain despite doubling the task set suggests that the framework fixes a roughly fixed number of tasks (around five) regardless of pool size, and those fixes produce a consistent absolute lift. However, because the baseline is lower with more tasks, the percentage-point gain translates to a smaller relative improvement (a 38% relative lift for Experiment 1 versus an 85% relative lift for Experiment 2, measured as improvement divided by baseline).
+
+The fix rate tells the scaling story more starkly: from 100% at 5 tasks to 56% at 10 tasks. The five additional tasks were all unfixable. If this pattern continues at 20 tasks, we would expect the fix rate to decline further as harder tasks dilute the pool.
 
 ### 4.5.2 Instruction vs Guardrail Ratio Across Scales
 
-<!-- Does the dominance of instruction patches hold at larger scales, or do more diverse failures require more guardrails? -->
+| | Experiment 1 | Experiment 2 |
+|------|-------------|-------------|
+| Total successful fixes | 7 | 7 |
+| Instruction-tier | 5 (71%) | 5 (71%) |
+| Guardrail-tier | 2 (29%) | 2 (29%) |
+
+: Instruction vs guardrail ratio across experiments. {#tbl:cross-tier}
+
+The ratio is identical---71% instruction, 29% guardrail---across both experiments. This stability suggests that the two-phase escalation design reliably partitions failures into prompt-addressable and code-addressable categories, and that the partition does not shift with task-set size. Experiment 3 will test whether this holds at 20 tasks or whether a larger failure surface forces more reliance on guardrails.
 
 ### 4.5.3 Saturation Analysis
 
-<!-- At what sweep does each experiment saturate? If saturation occurs later with more tasks, the teacher benefits from richer failure signals. -->
+Both experiments saturate by sweep 3 (zero new fixes). However, the improvement timeline differs:
+
+- **Experiment 1**: improvement materialises immediately (sweep 1 → sweep 2: +20pp). Sweep 3 shows no further gain and mild regression.
+- **Experiment 2**: improvement is delayed (sweep 1 → sweep 2: +3pp; sweep 2 → sweep 3: +20pp). The delay reflects patch fragility at larger scale---fixes applied in sweep 1 regress during sweep 2's re-evaluation, requiring a second round of patching before gains persist.
+
+In both cases, three sweeps are sufficient to exhaust the framework's capacity. The practical implication is that additional sweeps beyond three are unlikely to yield further gains for task sets of this size, and the evolution loop can be configured to terminate early if no new fixes are produced in a sweep.
+
+<!-- Experiment 3 observations will be added here once the 20-task run completes. -->
 
 ## 4.6 Discussion
 
 ### 4.6.1 Summary of Principal Findings
 
-This thesis set out to investigate whether a lightweight, input-space-only evolution framework---one that modifies prompts and tool schemas rather than model weights---can measurably improve the performance of a weaker, non-thinking LLM agent on the τ²-bench benchmark. The results of the five-task airline experiment provide a clear affirmative answer, but one bounded by important caveats. Beginning from a baseline pass rate of 53% (8 of 15 task-trial pairs), the evolution procedure lifted performance to 73% (11 of 15) after a single sweep and maintained that level through sweep 2, before exhausting further gains in sweep 3. In aggregate, seven successful fixes were applied across the first two sweeps: five through instruction-level patching and two through guardrail insertions. These findings directly address the central research question by demonstrating that evaluation signals drawn from human-in-the-loop action traces can be converted into structured prompt edits that yield repeatable benchmark improvement.
+This thesis set out to investigate whether a lightweight, input-space-only evolution framework---one that modifies prompts and tool schemas rather than model weights---can measurably improve the performance of a weaker, non-thinking LLM agent on the τ²-bench benchmark. The results of both the five-task and ten-task airline experiments provide a clear affirmative answer, but one bounded by important caveats. In Experiment 1, beginning from a baseline pass rate of 53% (8 of 15 task-trial pairs), the evolution procedure lifted performance to 73% (11 of 15) after a single sweep. In Experiment 2, the baseline of 27% (8 of 30) rose to 50% (15 of 30) after two sweeps---a comparable +23pp gain. In both experiments, seven successful fixes were applied across the first two sweeps: five through instruction-level patching and two through guardrail insertions. These findings directly address the central research question by demonstrating that evaluation signals drawn from human-in-the-loop action traces can be converted into structured prompt edits that yield repeatable benchmark improvement.
 
-Three principal conclusions emerge from this experiment. First, a weaker non-thinking model (Qwen3 30B-A3B) can be taught to perform better on agentic tasks through input modifications generated by a stronger teacher model (Kimi K2.5), without any weight updates. Second, the dominant lever for improvement is instruction-level patching---five of seven fixes (71%) targeted the instruction section of the system prompt, while guardrail-type fixes served only as a fallback mechanism. Third, the framework's gains are concentrated on small task pools and exhibit diminishing returns as the number of tasks grows, suggesting limited generalisation capacity in the student model when improvements are confined to the input space.
+Four principal conclusions emerge from these experiments. First, a weaker non-thinking model (Qwen3 30B-A3B) can be taught to perform better on agentic tasks through input modifications generated by a stronger teacher model (Kimi K2.5), without any weight updates. Second, the dominant lever for improvement is instruction-level patching---five of seven fixes (71%) targeted the instruction section of the system prompt in both experiments, while guardrail-type fixes served only as a fallback mechanism. Third, the absolute improvement is remarkably stable across task-set sizes (+20pp and +23pp), but a hard core of structurally resistant tasks emerges at larger scales, reducing the fix success rate from 100% (5 tasks) to 56% (10 tasks). Fourth, the framework's gains are bounded by a capacity ceiling: the same number of tasks are fixable regardless of pool size, and additional tasks primarily contribute unfixable failures that consume teacher effort without producing results.
 
 ### 4.6.2 Contextualising the Findings within Existing Literature
 
@@ -222,7 +306,7 @@ The central finding---that prompt-level patching can improve agent task success-
 
 Similarly, the DSPy framework [@khattab2023] and TextGrad [@yuksekgonul2024] have demonstrated that structured optimisation of prompt components can yield substantial performance gains. DSPy treats prompts as compilable programs, while TextGrad frames prompt improvement as automatic differentiation over text. Our framework occupies a middle ground: it does not require the formal program structure of DSPy, nor does it perform gradient-like back-propagation over textual losses. Instead, it relies on a teacher model to read a failed conversation trace alongside the corresponding human action trace and to propose a targeted patch---an approach that is arguably more transparent and interpretable to practitioners.
 
-The observed 53→73% improvement (a 20-percentage-point gain) is broadly consistent with the magnitude of gains reported in prompt optimisation literature. @pryzant2023 achieved comparable improvements with automatic prompt optimisation via beam search, and @yang2023 showed that LLMs used as optimisers can iteratively improve solution quality. The present results extend these findings to a specific operational context---multi-turn, tool-using customer service agents evaluated on τ²-bench---where the combination of conversational dynamics, tool calling, and policy compliance creates a substantially more complex optimisation surface than the classification or reasoning tasks typically studied in the prompt engineering literature.
+The observed improvements---53→73% (+20pp) at five tasks and 27→50% (+23pp) at ten tasks---are broadly consistent with the magnitude of gains reported in prompt optimisation literature. @pryzant2023 achieved comparable improvements with automatic prompt optimisation via beam search, and @yang2023 showed that LLMs used as optimisers can iteratively improve solution quality. The stability of the absolute gain across task-set sizes is particularly notable: doubling the task pool does not diminish the improvement, suggesting a fixed ceiling of fixable failures rather than a percentage-based decay. The present results extend these findings to a specific operational context---multi-turn, tool-using customer service agents evaluated on τ²-bench---where the combination of conversational dynamics, tool calling, and policy compliance creates a substantially more complex optimisation surface than the classification or reasoning tasks typically studied in the prompt engineering literature.
 
 #### Teacher--student dynamics without weight transfer
 
@@ -266,7 +350,7 @@ The practical relevance of this work lies in its alignment with how enterprises 
 
 However, the patch interference observed in sweep 3 (Task 5 regression) raises a cautionary note for production deployment. In an enterprise setting, where hundreds or thousands of patches might accumulate over time, some form of patch management will be essential. Possible strategies include periodic prompt consolidation (merging compatible patches into cleaner formulations), regression testing against a held-out task set, and automated rollback when performance degrades. These engineering concerns, while outside the scope of the current thesis, are critical for translating the framework from a research prototype into a production system.
 
-The thesis proposal framed the reliability gap between current AI agents and the four-nines threshold (99.99%) demanded by enterprises. The results of this pilot do not close that gap---moving from 53% to 73% is meaningful but remains far from 99.99%. This is consistent with the broader literature: even frontier models such as Claude Opus 4.5 achieve approximately 98% on τ²-bench telecom [@anthropic2025], and the reliability decay under repeated trials (pass^k^ metric) is exponential [@yao2024]. Input-space evolution is one contributing mechanism toward higher reliability, but reaching enterprise-grade thresholds will likely require a combination of prompt optimisation, stronger base models, and potentially multi-agent architectures that decompose complex tasks into more manageable sub-problems.
+The thesis proposal framed the reliability gap between current AI agents and the four-nines threshold (99.99%) demanded by enterprises. The results do not close that gap---moving from 53% to 73% (five tasks) or 27% to 50% (ten tasks) is meaningful but remains far from 99.99%. This is consistent with the broader literature: even frontier models such as Claude Opus 4.5 achieve approximately 98% on τ²-bench telecom [@anthropic2025], and the reliability decay under repeated trials (pass^k^ metric) is exponential [@yao2024]. Input-space evolution is one contributing mechanism toward higher reliability, but reaching enterprise-grade thresholds will likely require a combination of prompt optimisation, stronger base models, and potentially multi-agent architectures that decompose complex tasks into more manageable sub-problems.
 
 ### 4.6.5 Relation to Concurrent and Adjacent Work
 
@@ -278,7 +362,7 @@ What distinguishes the present work is the combination of three elements that, t
 
 ### 4.6.6 Limitations
 
-Several limitations qualify the conclusions drawn above. First, the experiment covers only one domain (airline) and five tasks, which restricts the generalisability of the findings. The original thesis plan called for evaluation across airline, retail, and telecom domains; the pending 10-task and possible 20-task experiments will partially address this, but cross-domain generalisation remains untested.
+Several limitations qualify the conclusions drawn above. First, the experiments cover only one domain (airline) with up to ten tasks, which restricts the generalisability of the findings. The original thesis plan called for evaluation across airline, retail, and telecom domains; the pending 20-task experiment will extend the scaling analysis, but cross-domain generalisation remains untested.
 
 Second, the human action traces used in this pilot were generated by the author, not by professional customer service agents. In a real enterprise setting, the quality and diversity of human demonstrations would differ, potentially affecting both the teacher model's diagnostic accuracy and the relevance of the resulting patches.
 
@@ -292,9 +376,9 @@ Finally, the choice of Kimi K2.5 as the teacher model is pragmatic (availability
 
 ### 4.6.7 Future Work
 
-The findings of this thesis motivate several directions for future investigation. The most immediate is extending the evaluation to the remaining τ²-bench domains (retail and telecom) and to larger task pools, which will test the scaling and generalisation hypotheses. The pending 10-task experiment is a step in this direction.
+The findings of this thesis motivate several directions for future investigation. The most immediate is extending the evaluation to the remaining τ²-bench domains (retail and telecom), which will test whether the observed patterns---including the hard core of resistant tasks---are domain-specific or universal. The pending 20-task experiment will further extend the scaling analysis within the airline domain.
 
-A second direction concerns the exploration of alternative student models. The current application already has configurations for Qwen3.5 Flash and GLM 4.7 Flash as alternative weak non-thinking models. Running the same evolution loop with these models would reveal whether the observed patterns---instruction dominance, rapid saturation, patch interference---are properties of the framework itself or idiosyncrasies of the Qwen3 30B-A3B student.
+A second direction concerns the exploration of alternative student models. Preliminary results with Qwen3.5 Flash as the student model are encouraging: on the same five-task airline configuration used in Experiment 1, the baseline evaluation achieves a perfect 5/5 majority-vote pass rate with no evolution intervention required. This suggests that Qwen3.5 Flash's stronger baseline capability may shift the evolution framework's value proposition---rather than fixing fundamental policy comprehension failures, the teacher would need to address only edge cases and stochastic reliability issues. A ten-task evaluation is currently in progress to determine whether this perfect baseline holds at larger task-set sizes. Running the full evolution loop with Qwen3.5 Flash and GLM 4.7 Flash as alternative weak non-thinking models would reveal whether the observed patterns---instruction dominance, rapid saturation, patch interference---are properties of the framework itself or idiosyncrasies of the Qwen3 30B-A3B student.
 
 Third, the finding that instruction-level guidance is the dominant lever motivates exploration of multi-agent decomposition architectures. If a single prompt cannot grow indefinitely without interference, it may be more effective to decompose complex tasks into sub-agents, each with a focused prompt and a narrow set of tools. This approach is supported by recent work on modular agent design [@hu2024] and would represent a natural evolution of the framework from single-agent prompt patching to multi-agent orchestration.
 
@@ -304,6 +388,6 @@ Finally, a comparison with the GEPA framework [@agrawal2025] on the same τ²-be
 
 ### 4.6.8 Concluding Remarks
 
-This discussion has situated the experimental results within the broader landscape of prompt optimisation, knowledge distillation, and agent reliability research. The core contribution---a supervised prompt evolution framework that converts human action traces into durable agent improvements---addresses a genuine gap in the literature, one where benchmark evaluation, human-in-the-loop correction, and agent deployment have remained disconnected activities. The five-task pilot provides proof-of-concept evidence that the gap can be bridged, while also revealing the limitations of input-space-only evolution: saturation, interference, and a capacity ceiling set by the student model's intrinsic capabilities.
+This discussion has situated the experimental results within the broader landscape of prompt optimisation, knowledge distillation, and agent reliability research. The core contribution---a supervised prompt evolution framework that converts human action traces into durable agent improvements---addresses a genuine gap in the literature, one where benchmark evaluation, human-in-the-loop correction, and agent deployment have remained disconnected activities. The five-task and ten-task experiments provide converging evidence that the gap can be bridged, while also revealing the limitations of input-space-only evolution: saturation, interference, a hard core of resistant tasks, and a capacity ceiling set by the student model's intrinsic capabilities.
 
 For enterprises, the practical takeaway is twofold. On the positive side, meaningful performance gains can be achieved without fine-tuning, weight access, or large-scale data collection---the framework is lightweight and operationally compatible with how human agents already work. On the cautionary side, prompt-level evolution is not a silver bullet: it works best for policy comprehension failures, saturates quickly on small task pools, and requires careful management to avoid regression. The path toward enterprise-grade AI agent reliability will likely require this kind of supervised evolution as one component within a larger system that also includes stronger models, modular architectures, and continuous evaluation.
