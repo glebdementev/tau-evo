@@ -4,7 +4,7 @@ This chapter presents the experimental results. Section 4.1 describes the shared
 
 ## 4.1 Experimental Setup
 
-All experiments use the airline domain of τ²-bench with the configuration described in Section 3.9. The student model is Qwen3 30B-A3B in non-thinking mode, the teacher is Kimi K2.5, and the user simulator is Qwen3 30B-A3B. Each experiment runs the evolution loop for up to three sweeps with up to two retries per failed task per sweep. Every task is evaluated with three trials to capture stochastic variation; a task is considered passing in a given sweep if it passes in at least two of three trials (majority vote). The seed is fixed at 42 throughout. Task IDs are locked after the first evaluation so that pass-rate changes between sweeps reflect the effect of accumulated patches, not sampling variation.
+All experiments use the airline domain of τ²-bench with the configuration described in Section 3.9. The student model is Qwen3 30B-A3B in non-thinking mode, the teacher is Kimi K2.5, and the user simulator is Qwen3 30B-A3B. Each experiment runs the evolution loop for up to three sweeps with up to two retries per failed task per sweep. Every task is evaluated with three trials to capture stochastic variation; a task is considered passing in a given sweep if it passes in at least two of three trials (majority vote, i.e., task $i$ passes iff $\sum_{t=1}^{3} \mathbb{1}[r_i^{(t)} = 1.0] \geq 2$). The seed is fixed at 42 throughout. Task IDs are locked after the first evaluation so that pass-rate changes between sweeps reflect the effect of accumulated patches, not sampling variation.
 
 The three experiments differ only in the number of tasks drawn from the airline domain:
 
@@ -22,7 +22,7 @@ The scaling sequence is deliberate. If the evolution framework captures task-spe
 
 ### 4.2.1 Baseline Performance
 
-The baseline (Condition B) evaluates the unmodified student on five airline tasks with three trials each. @Tbl:exp1-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp1-passrate summarises pass rates.
+The baseline (Condition B) evaluates the unmodified student on five airline tasks with three trials each. @Fig:exp1-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp1-passrate summarises pass rates.
 
 | Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Trial pass rate | Majority-vote pass rate |
 |-------|--------|--------|--------|--------|--------|-----------------|-------------------------|
@@ -112,7 +112,7 @@ Experiment 2 doubles the task set from five to ten, introducing five additional 
 
 ### 4.3.1 Baseline Performance
 
-The baseline evaluates the unmodified student on ten airline tasks. @Tbl:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
+The baseline evaluates the unmodified student on ten airline tasks. @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
 
 | Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Task 7 | Task 9 | Task 10 | Task 11 | Task 12 | Trial pass rate | Majority-vote pass rate |
 |-------|--------|--------|--------|--------|--------|--------|--------|---------|---------|---------|-----------------|-------------------------|
@@ -263,9 +263,9 @@ With two of three experiments complete, preliminary cross-experiment patterns ca
 
 : Cross-experiment summary. Improvement is measured in percentage points of trial pass rate. Fix rate is the fraction of unique failing tasks that were successfully fixed at least once across sweeps 1--2. {#tbl:cross-experiment}
 
-The absolute improvement is remarkably stable: +20pp for 5 tasks, +23pp for 10 tasks. This near-constant gain despite doubling the task set suggests that the framework fixes a roughly fixed number of tasks (around five) regardless of pool size, and those fixes produce a consistent absolute lift. However, because the baseline is lower with more tasks, the percentage-point gain translates to a smaller relative improvement (a 38% relative lift for Experiment 1 versus an 85% relative lift for Experiment 2, measured as improvement divided by baseline).
+The absolute improvement is remarkably stable: +20pp for 5 tasks, +23pp for 10 tasks. This near-constant gain despite doubling the task set suggests that the framework fixes a roughly fixed number of tasks (around five) regardless of pool size, and those fixes produce a consistent absolute lift. However, because the baseline is lower with more tasks, the percentage-point gain translates to a different relative improvement. Defining relative lift as $\Delta_{\text{rel}} = (R_{\text{final}} - R_{\text{base}}) / R_{\text{base}}$, Experiment 1 yields $\Delta_{\text{rel}} = (0.73 - 0.53)/0.53 = 38\%$, while Experiment 2 yields $\Delta_{\text{rel}} = (0.50 - 0.27)/0.27 = 85\%$.
 
-The fix rate tells the scaling story more starkly: from 100% at 5 tasks to 56% at 10 tasks. The five additional tasks were all unfixable. If this pattern continues at 20 tasks, we would expect the fix rate to decline further as harder tasks dilute the pool.
+The fix rate tells the scaling story more starkly: $\text{FSR}_5 = 4/4 = 100\%$ versus $\text{FSR}_{10} = 5/9 \approx 56\%$. The five additional tasks were all unfixable. If this pattern continues at 20 tasks, we would expect the fix rate to decline further as harder tasks dilute the pool.
 
 ### 4.5.2 Instruction vs Guardrail Ratio Across Scales
 

@@ -7,7 +7,10 @@
       "WebFetch(domain:www.vellum.ai)",
       "WebFetch(domain:www.leanware.co)",
       "WebFetch(domain:taubench.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(cd /home/gleb/dev/thesis/text && bash build.sh)",
+      "Bash(sudo apt-get install -y librsvg2-bin 2>&1 | tail -5)",
+      "Bash(bash build.sh)"
     ]
   }
 }

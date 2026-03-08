@@ -120,7 +120,7 @@ The parallel fix phase uses a thread pool to process multiple failures concurren
 
 ### 3.5.3 The Inner Loop: Per-Failure Fix Attempts
 
-For each failed task, a teacher session is created with deep copies of the current global state. The total attempt budget (1 + *max_retries*) is split between two phases: Phase 1 (teaching) receives roughly half, and Phase 2 (guardrails) receives the remainder. The session enters a reflect-validate loop, as shown in @fig:inner-loop. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted to their pre-patch state and the teacher receives the new conversation trace, the new reward breakdown, and the reverted state, and is asked to try again from scratch.
+For each failed task, a teacher session is created with deep copies of the current global state. The total attempt budget $A = 1 + \textit{max\_retries}$ is split between two phases: Phase 1 (teaching) receives $\lceil A/2 \rceil$ attempts, and Phase 2 (guardrails) receives the remainder $A - \lceil A/2 \rceil$. The session enters a reflect-validate loop, as shown in @fig:inner-loop. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted to their pre-patch state and the teacher receives the new conversation trace, the new reward breakdown, and the reverted state, and is asked to try again from scratch.
 
 ![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the task does not pass all trials, patches are reverted and the teacher retries with feedback until attempts are exhausted.](figures/fig_02_inner_loop.png){#fig:inner-loop}
 
@@ -187,7 +187,11 @@ The taxonomy enables per-category analysis of which failure types are most respo
 
 ### 3.8.1 Primary Metric: pass^1^
 
-The primary metric is pass^1^---the fraction of tasks achieving a perfect reward of 1.0. This is the standard metric in τ-bench publications [@yao2024; @barres2025]. Any reward below 1.0 constitutes failure. The strictness is intentional: @rabanser2025 argue that enterprise autonomous operation requires three to five nines of reliability (99.9--99.999 percent) and that current LLM agents are not on track to reach this threshold through scaling alone, with accuracy improving faster than reliability across 14 models spanning 18 months of releases. Under such a standard, partial credit is meaningless.
+The primary metric is pass^1^---the fraction of tasks achieving a perfect reward of 1.0. Formally, given a set of $N$ tasks and a reward function $r_i \in [0, 1]$ for task $i$:
+
+$$\text{pass}^1 = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[r_i = 1.0]$$
+
+This is the standard metric in τ-bench publications [@yao2024; @barres2025]. Any reward below 1.0 constitutes failure. The strictness is intentional: @rabanser2025 argue that enterprise autonomous operation requires three to five nines of reliability (99.9--99.999 percent) and that current LLM agents are not on track to reach this threshold through scaling alone, with accuracy improving faster than reliability across 14 models spanning 18 months of releases. Under such a standard, partial credit is meaningless.
 
 ### 3.8.2 Reward Breakdown
 
@@ -197,13 +201,21 @@ The primary metric is pass^1^---the fraction of tasks achieving a perfect reward
 
 ### 3.8.3 Gap Closure
 
-To normalize for domain difficulty, gap closure is computed as: (K − B) / (F − B) × 100%, where K is the evolved pass rate, B the baseline, and F the frontier. A gap closure of 50 percent means the evolved prompt captured half the teacher's advantage through prompt and tool-schema patching alone. The metric is defined only when F > B. @Fig:gap-closure provides a visual illustration.
+To normalize for domain difficulty, gap closure is defined as:
+
+$$G = \frac{K - B}{F - B} \times 100\%$$
+
+where $K$ is the evolved pass rate, $B$ the baseline, and $F$ the frontier ceiling. A gap closure of $G = 50\%$ means the evolved prompt captured half the teacher's advantage through prompt and tool-schema patching alone. The metric is defined only when $F > B$. @Fig:gap-closure provides a visual illustration.
 
 ![Gap closure metric: the blue region shows the portion of the baseline-to-frontier gap closed by the evolved condition. Example values are illustrative.](figures/fig_13_gap_closure.png){#fig:gap-closure}
 
 ### 3.8.4 Fix Success Rate
 
-A fix succeeds when the patched student passes the task unanimously---all trials achieve a perfect reward of 1.0. The fix success rate---the fraction of attempted fixes that succeed---measures the evolution process's efficiency.
+A fix succeeds when the patched student passes the task unanimously---all $T$ trials achieve a perfect reward of 1.0. Formally, a fix for task $i$ succeeds if and only if $\forall\, t \in \{1, \ldots, T\}: r_i^{(t)} = 1.0$. The fix success rate over $M$ attempted fixes is:
+
+$$\text{FSR} = \frac{|\{i : \text{fix}_i \text{ succeeds}\}|}{M}$$
+
+This measures the evolution process's efficiency.
 
 ## 3.9 Reproducibility
 
