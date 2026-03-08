@@ -68,4 +68,4 @@ def quiet_deps() -> None:
     litellm.suppress_debug_info = True
     from loguru import logger
     logger.disable("tau2")
-    logger.enable("tau2.orchestrator")  # keep message-level logs visible
+    logger.enable("tau2.orchestrator")  # step-level logs (INFO) visible

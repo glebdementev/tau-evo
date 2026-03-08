@@ -282,30 +282,32 @@ def _run_test_evaluation(
     on_status: Callable[[str], None],
     on_session: Optional[Callable] = None,
 ) -> TestResults:
-    """Run baseline, evolved, and prompt-only conditions on the held-out test split."""
+    """Run baseline and only the relevant evolved conditions on the held-out test split."""
     on_status("\n" + "=" * 60)
     on_status("TEST EVALUATION (held-out test split)")
     on_status("=" * 60)
 
-    conditions = {
-        "baseline": dict(
-            domain=domain, task_ids=test_ids, seed=seed,
-            save_name="test_baseline", student_model=student_model,
-            parallelism=parallelism,
-        ),
-        "evolved": dict(
-            domain=domain, task_ids=test_ids, seed=seed,
-            system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
-            tool_code=evolved_code, save_name="test_evolved",
-            student_model=student_model, parallelism=parallelism,
-        ),
-        "prompt_only": dict(
-            domain=domain, task_ids=test_ids, seed=seed,
-            system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
-            tool_code=None, save_name="test_prompt_only",
-            student_model=student_model, parallelism=parallelism,
-        ),
+    has_prompt_patches = evolved_prompt is not None or evolved_schemas is not None
+    has_code_patches = bool(evolved_code)
+
+    common = dict(
+        domain=domain, task_ids=test_ids, seed=seed,
+        student_model=student_model, parallelism=parallelism,
+    )
+    conditions: dict[str, dict] = {
+        "baseline": dict(**common, save_name="test_baseline"),
     }
+    if has_prompt_patches:
+        conditions["prompt_only"] = dict(
+            **common, save_name="test_prompt_only",
+            system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
+        )
+    if has_code_patches:
+        conditions["evolved"] = dict(
+            **common, save_name="test_evolved",
+            system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
+            tool_code=evolved_code,
+        )
 
     on_status(f"[test] Running {len(conditions)} conditions in parallel ({len(test_ids)} tasks each)...")
     results: dict[str, dict[str, float]] = {}
@@ -323,8 +325,8 @@ def _run_test_evaluation(
 
     return TestResults(
         baseline_rewards=results["baseline"],
-        evolved_rewards=results["evolved"],
-        prompt_only_rewards=results["prompt_only"],
+        evolved_rewards=results.get("evolved", {}),
+        prompt_only_rewards=results.get("prompt_only", {}),
     )
 
 
@@ -379,7 +381,10 @@ def run_loop(
                 train_ids = splits["train"]
                 test_ids = splits["test"]
                 task_ids = train_ids[:num_tasks] if num_tasks < len(train_ids) else train_ids
-                status(f"Using canonical split: {len(train_ids)} train, {len(test_ids)} test")
+                # Cap test split so it never exceeds the number of train tasks used.
+                if len(test_ids) > len(task_ids):
+                    test_ids = test_ids[:len(task_ids)]
+                status(f"Using canonical split: {len(task_ids)} train, {len(test_ids)} test")
                 status(f"Evolving on {len(task_ids)} train task(s)")
             else:
                 status(f"No canonical splits for {domain}, using all tasks")
@@ -422,6 +427,7 @@ def run_loop(
 
     stopped = False
     end_sweep = start_sweep + max_sweeps - 1
+    sweep = start_sweep - 1  # default if loop body never runs
 
     for sweep in range(start_sweep, end_sweep + 1):
         if _stopped():
@@ -429,9 +435,7 @@ def run_loop(
             stopped = True
             break
 
-        status(f"\n{'='*60}")
-        status(f"SWEEP {sweep}/{end_sweep}")
-        status(f"{'='*60}")
+        status(f"Sweep {sweep}/{end_sweep}")
 
         # ── PHASE 1: SWEEP ────────────────────────────────────────────────
         phase(sweep, PHASE_SWEEP, PHASE_RUNNING)
@@ -610,6 +614,16 @@ def run_loop(
             status("\nStop requested. Saving state after merge...")
             stopped = True
             break
+
+    # -- Mark remaining sweeps as skipped ------------------------------------
+    # When we break early (all pass, stop, or last-sweep eval-only), sweeps
+    # after the last one entered were never reached.  Emit skipped so the
+    # timeline UI shows them correctly.
+    for remaining in range(sweep + 1, end_sweep + 1):
+        phase(remaining, PHASE_SWEEP, PHASE_SKIPPED)
+        if remaining < end_sweep:
+            phase(remaining, PHASE_FIX, PHASE_SKIPPED)
+            phase(remaining, PHASE_MERGE, PHASE_SKIPPED)
 
     # -- Store split info ----------------------------------------------------
     state.train_task_ids = train_ids or task_ids or []

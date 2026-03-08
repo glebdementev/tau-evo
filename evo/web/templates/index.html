@@ -49,18 +49,14 @@
 <body class="bg-surface-900 text-gray-200 h-screen overflow-hidden font-sans">
 
   <!-- Header -->
-  <header class="bg-surface-800 border-b border-surface-600 px-4 py-2 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <span class="text-sm font-bold tracking-tight text-white">tau-evo</span>
-      <span class="text-[11px] text-gray-500 font-medium">self-evolving LLM agents</span>
+  <header class="bg-surface-800 border-b border-surface-600 px-4 py-2 flex items-center gap-3">
+    <span class="text-sm font-bold tracking-tight text-white shrink-0">tau-evo</span>
+    <div id="timeline" class="hidden">
+      <div id="timeline-steps" class="flex items-center gap-0 text-[11px] font-medium overflow-x-auto"></div>
     </div>
-    <div id="status" class="text-xs text-gray-500"></div>
+    <span id="no-timeline-subtitle" class="text-[11px] text-gray-500 font-medium">self-evolving LLM agents</span>
+    <div id="status" class="text-xs text-gray-500 ml-auto shrink-0"></div>
   </header>
-
-  <!-- Timeline -->
-  <div id="timeline" class="hidden bg-surface-800 border-b border-surface-600 px-4 py-1.5">
-    <div id="timeline-steps" class="flex items-center gap-0 text-[11px] font-medium overflow-x-auto"></div>
-  </div>
 
   <div class="flex gap-0" style="height: calc(100vh - 41px)" id="main-layout">
 
@@ -896,11 +892,10 @@
     function renderTimeline() {
       const container = document.getElementById('timeline');
       const steps = document.getElementById('timeline-steps');
-      if (!_timelineSteps.length) { container.classList.add('hidden'); return; }
+      const subtitle = document.getElementById('no-timeline-subtitle');
+      if (!_timelineSteps.length) { container.classList.add('hidden'); subtitle.classList.remove('hidden'); return; }
       container.classList.remove('hidden');
-
-      // Adjust main layout height
-      document.getElementById('main-layout').style.height = 'calc(100vh - 41px - 33px)';
+      subtitle.classList.add('hidden');
 
       steps.innerHTML = _timelineSteps.map((s, i) => {
         const colors = {
@@ -921,7 +916,7 @@
     function hideTimeline() {
       _timelineSteps = [];
       document.getElementById('timeline').classList.add('hidden');
-      document.getElementById('main-layout').style.height = 'calc(100vh - 41px)';
+      document.getElementById('no-timeline-subtitle').classList.remove('hidden');
     }
 
     // ── Cleanup on page unload ────────────────────────────────────────
@@ -933,6 +928,7 @@
     });
 
     // ── Init ─────────────────────────────────────────────────────────
+    updateTaskMax();
     refreshSessionList();
     {% if running %}startSSE(false);{% endif %}
   </script>

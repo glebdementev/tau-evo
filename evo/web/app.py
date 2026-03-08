@@ -85,19 +85,17 @@ _events = EventBuffer()
 from loguru import logger as _loguru
 
 def _loguru_sink(message):
-    """Forward loguru records from tau2.orchestrator to the web SSE queue.
+    """Forward loguru INFO records from tau2.orchestrator to the web SSE queue.
 
-    Only forward step-transition lines (e.g. "Step 6: agent -> user"),
-    not the full message content which can be very large.
+    Message content is logged at DEBUG and filtered out by level="INFO".
+    Only step-transition lines (e.g. "Step 6: agent -> user") reach here.
     """
     if not _running:
         return
     text = str(message).rstrip()
     if " - " in text:
         text = text.split(" - ", 1)[1]
-    # Only forward concise step markers, skip verbose message content
-    if text.startswith("Step ") or text.startswith("[") or text.startswith("Task "):
-        _events.put(text)
+    _events.put(text)
 
 _loguru.add(_loguru_sink, filter="tau2.orchestrator", level="INFO")
 
@@ -600,6 +598,46 @@ async def api_session_messages(session_id: str, after: int = 0):
     })
 
 
+@app.get("/api/sessions/teacher-summary")
+async def api_teacher_summary():
+    """Download all teacher session summaries for the viewed run as JSON."""
+    from fastapi.responses import Response
+
+    allowed = _get_viewed_session_ids()
+    if not allowed:
+        return JSONResponse([])
+
+    active: dict[str, slog.SessionSummary] = {}
+    if _viewing_active():
+        with _teacher_sessions_lock:
+            for sid, s in _teacher_sessions.items():
+                if sid in allowed:
+                    try:
+                        active[sid] = s.get_log_snapshot()
+                    except Exception:
+                        pass
+
+    disk = slog.list_sessions(session_type="teacher", only_ids=allowed)
+
+    merged: dict[str, slog.SessionSummary] = {}
+    for s in disk:
+        merged[s.session_id] = s
+    for sid, s in active.items():
+        merged[sid] = s
+
+    result = sorted(merged.values(), key=lambda s: s.started_at, reverse=True)
+    data = [s.model_dump(**_DUMP) for s in result]
+
+    run_id = _viewed_run_id or _active_run_id or "unknown"
+    filename = f"teacher_sessions_{run_id}.json"
+
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Run history endpoints
 # ---------------------------------------------------------------------------
@@ -810,8 +848,8 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
         "sweep_passed": sweep_passed,
         "test_results": tr is not None,
         "test_baseline_rate": int(tr.baseline_pass_rate * 100) if tr else 0,
-        "test_evolved_rate": int(tr.evolved_pass_rate * 100) if tr else 0,
-        "test_prompt_only_rate": int(tr.prompt_only_pass_rate * 100) if tr else 0,
+        "test_evolved_rate": int(tr.evolved_pass_rate * 100) if tr and tr.evolved_rewards else None,
+        "test_prompt_only_rate": int(tr.prompt_only_pass_rate * 100) if tr and tr.prompt_only_rewards else None,
     }
 
 

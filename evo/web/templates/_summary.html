@@ -48,8 +48,8 @@
     <div class="h-6 w-px bg-surface-600"></div>
     <div class="flex items-center gap-5 text-xs">
       <div><span class="text-sm font-semibold text-gray-400">{{ test_baseline_rate }}%</span> <span class="text-gray-500">baseline</span></div>
-      <div><span class="text-sm font-semibold text-purple-400">{{ test_prompt_only_rate }}%</span> <span class="text-gray-500">prompt-only</span></div>
-      <div><span class="text-sm font-semibold text-accent">{{ test_evolved_rate }}%</span> <span class="text-gray-500">evolved</span></div>
+      {% if test_prompt_only_rate is not none %}<div><span class="text-sm font-semibold text-purple-400">{{ test_prompt_only_rate }}%</span> <span class="text-gray-500">prompt-only</span></div>{% endif %}
+      {% if test_evolved_rate is not none %}<div><span class="text-sm font-semibold text-accent">{{ test_evolved_rate }}%</span> <span class="text-gray-500">evolved</span></div>{% endif %}
     </div>
   </div>
 </div>
