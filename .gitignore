@@ -9,3 +9,7 @@ dist/
 .python-version
 uv.lock
 node_modules/
+*.deb
+*.tar.xz
+pandoc-crossref.1
+.~lock.*

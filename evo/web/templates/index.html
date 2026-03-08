@@ -134,7 +134,10 @@
 
       <!-- Log -->
       <div class="flex-1 min-h-0 flex flex-col p-3 pt-2">
-        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Log</h2>
+        <div class="flex items-center justify-between mb-1.5">
+          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Log</h2>
+          <span id="log-timer" class="text-[10px] text-gray-600 font-mono"></span>
+        </div>
         <pre id="log" class="bg-surface-900 rounded p-2 text-[11px] text-gray-400 font-mono flex-1 overflow-y-auto whitespace-pre-wrap min-h-0 leading-relaxed border border-surface-700"></pre>
       </div>
     </aside>
@@ -229,6 +232,29 @@
   </div>
 
   <script>
+    // ── Log Timer ──────────────────────────────────────────────────────
+    let _lastLogTime = null;
+    let _logTimerInterval = null;
+
+    function updateLogTimer() {
+      const el = document.getElementById('log-timer');
+      if (!_lastLogTime) { el.textContent = ''; return; }
+      const ago = Math.round((Date.now() - _lastLogTime) / 1000);
+      if (ago < 5) el.textContent = 'just now';
+      else if (ago < 60) el.textContent = `${ago}s ago`;
+      else { const m = Math.floor(ago / 60); el.textContent = `${m}m ${ago % 60}s ago`; }
+    }
+
+    function startLogTimer() {
+      if (!_logTimerInterval) _logTimerInterval = setInterval(updateLogTimer, 1000);
+    }
+
+    function stopLogTimer() {
+      if (_logTimerInterval) { clearInterval(_logTimerInterval); _logTimerInterval = null; }
+      _lastLogTime = null;
+      document.getElementById('log-timer').textContent = '';
+    }
+
     // ── Tabs ──────────────────────────────────────────────────────────
     function switchTab(name, btn) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -337,15 +363,36 @@
       document.getElementById('session-meta').classList.add('hidden');
     }
 
-    // ── SSE ──────────────────────────────────────────────────────────
+    // ── SSE with native auto-reconnect ─────────────────────────────
+    // The browser's EventSource natively reconnects on network errors
+    // and sends Last-Event-ID so the server can replay missed events.
+    // We only close the source explicitly on 'done'.
+    let _sseSource = null;
+    let _sseDone = false;
+
     function startSSE(isNewRun) {
+      if (_sseSource) { _sseSource.close(); _sseSource = null; }
       const log = document.getElementById('log');
       if (isNewRun) { log.textContent = ''; resetForNewRun(); }
+      _sseDone = false;
+
       const src = new EventSource('/logs');
+      _sseSource = src;
+
+      src.onopen = () => {
+        if (!_sseDone) {
+          document.getElementById('status').innerHTML =
+            '<span class="text-green-400 font-medium">Connected</span>';
+        }
+      };
 
       src.addEventListener('log', (e) => {
+        const log = document.getElementById('log');
         log.textContent += e.data + '\n';
         log.scrollTop = log.scrollHeight;
+        _lastLogTime = Date.now();
+        updateLogTimer();
+        startLogTimer();
       });
 
       src.addEventListener('charts', () => {
@@ -388,19 +435,30 @@
       });
 
       src.addEventListener('done', () => {
+        _sseDone = true;
         src.close();
-        document.getElementById('status').innerHTML =
-          '<span class="text-emerald-400 font-medium">Finished</span>';
+        _sseSource = null;
+        stopLogTimer();
+        fetch('/api/state').then(r => r.json()).then(s => {
+          if (!s.running) {
+            const statusEl = document.getElementById('status');
+            if (!statusEl.textContent.includes('Stopp')) {
+              statusEl.innerHTML = '<span class="text-emerald-400 font-medium">Finished</span>';
+            }
+          }
+        }).catch(() => {});
         const lf = document.getElementById('live-fixes');
         if (lf) lf.classList.add('hidden');
         refreshDashboard();
         refreshHistory();
       });
 
+      // Don't close on error — let the browser auto-reconnect.
+      // It will send Last-Event-ID so the server replays missed events.
       src.onerror = () => {
-        src.close();
+        if (_sseDone) return;
         document.getElementById('status').innerHTML =
-          '<span class="text-red-400">Connection lost</span>';
+          '<span class="text-amber-400">Reconnecting\u2026</span>';
       };
     }
 
@@ -723,6 +781,18 @@
       Plotly.downloadImage(el, {
         format: 'svg', width: 900, height: 500, filename: chartId,
       });
+
+      // Download chart data as JSON
+      const jsonBlob = new Blob(
+        [JSON.stringify({ data: el.data, layout: el.layout }, null, 2)],
+        { type: 'application/json' }
+      );
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonLink = document.createElement('a');
+      jsonLink.href = jsonUrl;
+      jsonLink.download = chartId + '.json';
+      jsonLink.click();
+      URL.revokeObjectURL(jsonUrl);
 
       const clone = document.createElement('div');
       clone.style.cssText = 'position:absolute;left:-9999px';

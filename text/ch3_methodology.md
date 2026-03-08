@@ -32,7 +32,9 @@ Each task defines a user scenario (visible only to the simulated customer), expe
 
 ### 3.2.3 Conversation Mechanics
 
-During evaluation, a simulated orchestrator manages a turn-by-turn conversation between the agent and a user simulator. On each turn the agent may either send a text message or invoke a tool; it cannot do both. Tool calls are executed against a simulated database, and the result is returned. The conversation ends when the user simulator signals completion or a maximum step count is reached. Each completed conversation is evaluated against the task's criteria, producing a reward between 0.0 and 1.0. The full trace---user messages, agent messages, tool calls, tool results---is preserved for analysis by the teacher model.
+During evaluation, a simulated orchestrator manages a turn-by-turn conversation between the agent and a user simulator. On each turn the agent may either send a text message or invoke a tool; it cannot do both. Tool calls are executed against a simulated database, and the result is returned. The conversation ends when the user simulator signals completion or a maximum step count is reached. Each completed conversation is evaluated against the task's criteria, producing a reward between 0.0 and 1.0. The full trace---user messages, agent messages, tool calls, tool results---is preserved for analysis by the teacher model. @Fig:conversation-mechanics illustrates this turn-by-turn flow.
+
+![Conversation mechanics in τ²-bench: the orchestrator mediates turn-by-turn interaction between the agent and user simulator, with the agent choosing between text responses and tool calls on each turn.](figures/fig_07_conversation_mechanics.png){#fig:conversation-mechanics}
 
 ### 3.2.4 Integration
 
@@ -53,6 +55,10 @@ The student model runs with an evolved prompt and tool configuration produced by
 ### 3.3.3 Condition F: Frontier Ceiling
 
 The teacher model (Kimi K2.5) runs as the agent directly, using the default, unmodified τ²-bench prompt and tools. This measures the upper bound---how well the strongest available model performs without any evolution---and provides a normalization denominator for the gap-closure metric (Section 3.8).
+
+@Fig:three-conditions illustrates the three-condition design and the gap closure metric.
+
+![Experimental conditions: the baseline (B) establishes the performance floor, the evolved condition (K) measures the intervention effect, and the frontier (F) provides the ceiling. Gap closure quantifies how much of the teacher's advantage is captured.](figures/fig_05_three_conditions.png){#fig:three-conditions}
 
 ### 3.3.4 Three-Way Comparison Logic
 
@@ -94,7 +100,9 @@ The user simulator uses the same model as the student (Qwen3 30B-A3B). τ²-benc
 
 ### 3.5.1 Architecture Overview
 
-The evolution framework implements a diagnose-patch-validate loop. A weaker student model runs on benchmark tasks and fails on some. A stronger teacher model analyzes each failure, proposes modifications to the student's prompt and tool configuration, and those modifications are validated by re-running the student on the failed task. Successful patches are merged into a progressively improved agent configuration. The architecture operates at two levels: an outer loop iterates over the full task set, and an inner loop handles individual failure repair.
+The evolution framework implements a diagnose-patch-validate loop. A weaker student model runs on benchmark tasks and fails on some. A stronger teacher model analyzes each failure, proposes modifications to the student's prompt and tool configuration, and those modifications are validated by re-running the student on the failed task. Successful patches are merged into a progressively improved agent configuration. The architecture operates at two levels: an outer loop iterates over the full task set, and an inner loop handles individual failure repair. @Fig:system-architecture provides a high-level view of the system components and data flow.
+
+![System architecture: the τ²-bench orchestrator mediates between the student agent and user simulator, while the teacher model analyzes failed traces and patches the evolved state (prompt, tool schemas, and preprocessors).](figures/fig_03_system_architecture.png){#fig:system-architecture}
 
 In the automated prompt optimization literature, this is a teacher-driven variant of reflective prompt evolution. The closest precedent is GEPA [@agrawal2025], a Genetic-Pareto prompt optimizer accepted as an oral at ICLR 2026, which uses natural language reflection from a stronger model to diagnose failures from execution traces and propose targeted mutations for a weaker task model, outperforming reinforcement learning baselines by up to 20 percent while using 35x fewer rollouts. The present framework shares GEPA's core mechanism---a strong reflection model inspecting the weaker model's failures and proposing prompt edits---but departs from it in three respects. First, the patches target prompt text, tool schemas, and sandboxed input preprocessors---three distinct surfaces. Second, every proposed patch is validated by re-running the student on the specific failed task before merging, so only verified improvements enter the production prompt. Third, the evaluation target is a structured tool-agent-user benchmark (τ²-bench) instead of reasoning or classification tasks. As noted in the literature review, automated prompt optimization methods have not been tested on multi-turn tool-calling benchmarks.
 
@@ -102,23 +110,39 @@ DSPy [@khattab2023] compiles declarative modules against a target metric through
 
 ### 3.5.2 The Outer Loop
 
-The outer loop proceeds as follows for each iteration. First, the student is evaluated on all benchmark tasks (excluding previously dropped tasks) with the current evolved state, and results are saved. Second, tasks with reward strictly less than 1.0 are extracted as failures. Third, for each failed task, a teacher session is spawned in parallel to diagnose the failure and propose patches; each patch set is validated by re-running the student on that task. Fourth, all accepted patches are merged into the global state. Fifth, all attempted tasks---both fixed and unfixed---are dropped from future evaluation. The loop repeats until no failures remain, all tasks have been dropped, or the maximum iteration count is reached.
+The outer loop proceeds as follows for each iteration. First, the student is evaluated on all benchmark tasks (excluding previously dropped tasks) with the current evolved state, and results are saved. Second, tasks with reward strictly less than 1.0 are extracted as failures. Third, for each failed task, a teacher session is spawned in parallel to diagnose the failure and propose patches; each patch set is validated by re-running the student on that task. Fourth, all accepted patches are merged into the global state. Fifth, all attempted tasks---both fixed and unfixed---are dropped from future evaluation. The loop repeats until no failures remain, all tasks have been dropped, or the maximum iteration count is reached. @Fig:outer-loop visualizes this process.
+
+![Evolution outer loop: the student is evaluated, failures are extracted, teacher sessions fix failures in parallel, winning patches are merged, and all attempted tasks are dropped before the next iteration.](figures/fig_01_outer_loop.png){#fig:outer-loop}
+
+The parallel fix phase uses a thread pool to process multiple failures concurrently, as shown in @fig:parallel-architecture. Each thread operates on a deep copy of the global state, preventing interference between concurrent teacher sessions. Results are collected and merged sequentially after all threads complete.
+
+![Parallel execution architecture: failed tasks are distributed across threads, each with an independent copy of the evolved state. Fix results are collected and merged sequentially.](figures/fig_11_parallel_architecture.png){#fig:parallel-architecture}
 
 Dropping both fixed and unfixed tasks is deliberate. Fixed tasks were already validated during the fix phase; re-evaluating them wastes API budget. Unfixed tasks could not be repaired within the allotted retries; re-attempting with a marginally different global prompt is unlikely to succeed and risks conflicting patches. These tasks are treated as intractable for the current teacher--student pair.
 
 ### 3.5.3 The Inner Loop: Per-Failure Fix Attempts
 
-For each failed task, a teacher session is created with deep copies of the current global state. The session enters a reflect-validate loop with up to 1 + *max_retries* attempts. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied. If the patched reward exceeds the baseline reward, the fix is accepted. If not, the teacher receives the new conversation trace, the new reward breakdown, and the current state of all its modifications, and is asked to try again.
+For each failed task, a teacher session is created with deep copies of the current global state. The session enters a reflect-validate loop with up to 1 + *max_retries* attempts, as shown in @fig:inner-loop. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied. If the patched reward exceeds the baseline reward, the fix is accepted. If not, the teacher receives the new conversation trace, the new reward breakdown, and the current state of all its modifications, and is asked to try again.
+
+![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the reward does not improve, the teacher retries with feedback until retries are exhausted.](figures/fig_02_inner_loop.png){#fig:inner-loop}
 
 Patches are merged into the global state only if validation succeeds. Failed patches are discarded entirely. The fix success criterion is permissive: any improvement in reward counts, not just reaching a perfect 1.0. A patch improving a task's reward from 0.0 to 0.5 is accepted and merged, potentially enabling further improvement in subsequent iterations.
 
 ### 3.5.4 The Teacher Session
 
-The teacher session maintains a stateful conversation with the teacher model using function calling. The teacher has access to four tools: **patch_prompt** (find-and-replace on the system prompt), **patch_tool** (find-and-replace on a tool's JSON schema), **read_tool_code** (inspect a tool's parameters and current preprocessor), and **patch_tool_code** (find-and-replace on a tool's preprocessor source). The initial prompt is a structured template containing five sections: the current system prompt, all tool schemas serialized to JSON, the full failed conversation trace with role labels and preserved tool-call arguments, the task requirements, and the reward breakdown. Automated tests verify that no data is lost or truncated during formatting, since the teacher cannot diagnose what it cannot see. The teacher may make up to 10 rounds of tool calls per session; in practice, most sessions complete in two to four rounds.
+The teacher session maintains a stateful conversation with the teacher model using function calling. The teacher has access to four tools: **patch_prompt** (find-and-replace on the system prompt), **patch_tool** (find-and-replace on a tool's JSON schema), **read_tool_code** (inspect a tool's parameters and current preprocessor), and **patch_tool_code** (find-and-replace on a tool's preprocessor source). The initial prompt is a structured template containing five sections: the current system prompt, all tool schemas serialized to JSON, the full failed conversation trace with role labels and preserved tool-call arguments, the task requirements, and the reward breakdown. Automated tests verify that no data is lost or truncated during formatting, since the teacher cannot diagnose what it cannot see. The teacher may make up to 10 rounds of tool calls per session; in practice, most sessions complete in two to four rounds. @Fig:teacher-session illustrates the multi-round tool-calling flow.
+
+![Teacher session tool-calling sequence: the teacher receives a context package, diagnoses the failure, calls patch tools across multiple rounds, and returns the patched state. The patch_tool_code tool is only available in Phase 2 (escalation).](figures/fig_04_teacher_session.png){#fig:teacher-session}
+
+The teacher session employs a two-phase escalation strategy, depicted in @fig:escalation. In Phase 1 (teaching), the teacher can only modify the prompt and tool schemas. If Phase 1 exhausts its attempts without fixing the task, Phase 2 (guardrails) unlocks the patch_tool_code tool, allowing the teacher to add defensive preprocessors. This staged approach ensures that lighter-weight interventions are attempted first.
+
+![Two-phase teacher escalation: Phase 1 restricts the teacher to prompt and schema patches. If unsuccessful, Phase 2 unlocks tool preprocessor editing for defensive guardrails.](figures/fig_10_escalation.png){#fig:escalation}
 
 ## 3.6 Patch Surfaces and Mechanisms
 
-The framework operates on three distinct patch surfaces, each for a different class of agent failure. All patches use a find-and-replace mechanism: the teacher specifies an old_text to locate and a new_text to substitute, which keeps modifications precise, minimal, and reversible.
+The framework operates on three distinct patch surfaces, each for a different class of agent failure, as illustrated in @fig:patch-surfaces. All patches use a find-and-replace mechanism: the teacher specifies an old_text to locate and a new_text to substitute, which keeps modifications precise, minimal, and reversible.
+
+![Patch surfaces and failure type mapping: different failure categories are addressed by different patch surfaces. Prompt patches handle policy violations, reasoning errors, and communication errors; tool schema patches address tool misuse and reasoning errors; tool preprocessors provide guardrails for persistent formatting errors.](figures/fig_06_patch_surfaces.png){#fig:patch-surfaces}
 
 ### 3.6.1 Prompt Patches
 
@@ -138,11 +162,13 @@ Some formatting errors persist even when the prompt and schema are clear: the mo
 
 ### 3.6.4 Patch Application and Merging
 
-Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single iteration, winning patches are merged into the global state in sequence. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point.
+Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single iteration, winning patches are merged into the global state in sequence. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point. @Fig:patch-pipeline details the validation gates for each patch type.
+
+![Patch application pipeline: prompt patches are applied directly, while tool schema patches must produce valid JSON and tool preprocessor patches must pass static analysis. Invalid patches are rejected without aborting the batch.](figures/fig_12_patch_pipeline.png){#fig:patch-pipeline}
 
 ## 3.7 Failure Taxonomy
 
-The teacher classifies each failure into one of four categories as part of its diagnostic output.
+The teacher classifies each failure into one of four categories as part of its diagnostic output, shown in @fig:failure-taxonomy.
 
 | Category            | Description                                      | Examples                                                   |
 |---------------------|--------------------------------------------------|------------------------------------------------------------|
@@ -151,7 +177,9 @@ The teacher classifies each failure into one of four categories as part of its d
 | REASONING_ERROR     | Incorrect assumption, incomplete plan            | Assuming a flight is direct when it has connections         |
 | COMMUNICATION_ERROR | Confusing message, failed to guide user          | Not explaining applicable fees to the customer             |
 
-: Failure taxonomy for teacher-model diagnosis.
+: Failure taxonomy for teacher-model diagnosis. {#tbl:failure-taxonomy}
+
+![Failure taxonomy: agent failures are classified into four categories, each with characteristic examples. The classification drives per-category analysis of which failure types respond to prompt evolution versus tool-schema patching versus preprocessor guardrails.](figures/fig_08_failure_taxonomy.png){#fig:failure-taxonomy}
 
 Classification is automated: the teacher includes the failure type in its diagnostic text, and the category is extracted by string matching. This is a heuristic---the teacher might use different phrasing, or a failure might span multiple categories. The implementation takes the first match, defaulting to REASONING_ERROR when none is found. @kapoor2024 identified similar categorization challenges in their analysis of agent benchmarking practices, noting that benchmark shortcomings can be organized by failure mode (narrow accuracy focus, benchmark overfitting, cost blindness) but that any taxonomy risks oversimplification. A more robust classification mechanism---for example, a structured output field---could improve accuracy in future work.
 
@@ -165,11 +193,15 @@ The primary metric is pass^1^---the fraction of tasks achieving a perfect reward
 
 ### 3.8.2 Reward Breakdown
 
-τ²-bench's evaluator produces a multi-dimensional reward: an action score (correct tools with correct arguments), environment assertions (expected database state), and a communication score (correct user-facing messages). This breakdown is passed in full to the teacher during diagnosis so it can identify exactly which criteria failed and why.
+τ²-bench's evaluator produces a multi-dimensional reward: an action score (correct tools with correct arguments), environment assertions (expected database state), and a communication score (correct user-facing messages), as shown in @fig:reward-breakdown. This breakdown is passed in full to the teacher during diagnosis so it can identify exactly which criteria failed and why.
+
+![Task evaluation and reward breakdown: a completed conversation trace is evaluated across three dimensions---action correctness, environment assertions, and communication quality---which combine into a single reward. A perfect 1.0 is required for a task to pass.](figures/fig_09_reward_breakdown.png){#fig:reward-breakdown}
 
 ### 3.8.3 Gap Closure
 
-To normalize for domain difficulty, gap closure is computed as: (K − B) / (F − B) × 100%, where K is the evolved pass rate, B the baseline, and F the frontier. A gap closure of 50 percent means the evolved prompt captured half the teacher's advantage through prompt and tool-schema patching alone. The metric is defined only when F > B.
+To normalize for domain difficulty, gap closure is computed as: (K − B) / (F − B) × 100%, where K is the evolved pass rate, B the baseline, and F the frontier. A gap closure of 50 percent means the evolved prompt captured half the teacher's advantage through prompt and tool-schema patching alone. The metric is defined only when F > B. @Fig:gap-closure provides a visual illustration.
+
+![Gap closure metric: the blue region shows the portion of the baseline-to-frontier gap closed by the evolved condition. Example values are illustrative.](figures/fig_13_gap_closure.png){#fig:gap-closure}
 
 ### 3.8.4 Fix Success Rate
 
@@ -219,4 +251,6 @@ The complete evolution state is serialized to JSON after each iteration: the cur
 
 **pass^1^ as reliability proxy.** The metric treats all failures equally---a catastrophic wrong action and a minor communication lapse both count. @rabanser2025 decompose reliability into four dimensions (consistency, robustness, predictability, safety) with twelve metrics, of which pass^1^ captures only the consistency dimension. The reward breakdown provides more granular information, but the primary metric does not weight by severity or dimension.
 
-**Prompt evolution as distillation.** The thesis frames prompt patching as a form of knowledge transfer from teacher to student. There is precedent: weight-level distillation [@hinton2015], output-level distillation (Alpaca, Vicuna), and prompt-level transfer [SPoT, @vu2022; GEPA, @agrawal2025] form a progression toward lighter-weight knowledge transfer. However, the patches may encode surface-level heuristics (add a "#" prefix) without transferring deep domain understanding, and their durability under distribution shift is untested.
+**Prompt evolution as distillation.** The thesis frames prompt patching as a form of knowledge transfer from teacher to student. There is precedent: weight-level distillation [@hinton2015], output-level distillation (Alpaca, Vicuna), and prompt-level transfer [SPoT, @vu2022; GEPA, @agrawal2025] form a progression toward lighter-weight knowledge transfer, as depicted in @fig:knowledge-transfer. However, the patches may encode surface-level heuristics (add a "#" prefix) without transferring deep domain understanding, and their durability under distribution shift is untested.
+
+![Knowledge transfer spectrum: from weight-level distillation (heaviest intervention) through output-level and prompt-level transfer to this work, which patches prompts, tool schemas, and preprocessor code without any weight modifications.](figures/fig_14_knowledge_transfer.png){#fig:knowledge-transfer}

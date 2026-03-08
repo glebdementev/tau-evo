@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import queue
 import threading
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -30,7 +30,43 @@ templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 # In-memory state (single-user, single-run)
 # ---------------------------------------------------------------------------
 _running = False
-_log_queue: queue.Queue[str] = queue.Queue()
+
+
+class EventBuffer:
+    """Thread-safe ring buffer of SSE events with monotonic sequence IDs.
+
+    Supports replay from a given sequence ID so reconnecting clients
+    can recover missed events via the browser's native Last-Event-ID header.
+    """
+
+    def __init__(self, maxlen: int = 2000):
+        self._lock = threading.Lock()
+        self._buf: deque[tuple[int, str]] = deque(maxlen=maxlen)
+        self._seq = 0
+
+    def put(self, msg: str) -> int:
+        with self._lock:
+            self._seq += 1
+            self._buf.append((self._seq, msg))
+            return self._seq
+
+    def get_after(self, after_seq: int) -> list[tuple[int, str]]:
+        with self._lock:
+            return [(s, m) for s, m in self._buf if s > after_seq]
+
+    @property
+    def latest_seq(self) -> int:
+        with self._lock:
+            return self._seq
+
+    def clear(self) -> None:
+        with self._lock:
+            self._buf.clear()
+            # Don't reset _seq — clients holding old IDs should get
+            # an empty replay rather than duplicate events.
+
+
+_events = EventBuffer()
 
 # Route orchestrator logs (agent/user/env messages) to the SSE log queue.
 # Only forward when a run is active to avoid stale messages between runs.
@@ -43,7 +79,7 @@ def _loguru_sink(message):
     text = str(message).rstrip()
     if " - " in text:
         text = text.split(" - ", 1)[1]
-    _log_queue.put(text)
+    _events.put(text)
 
 _loguru.add(_loguru_sink, filter="tau2.orchestrator", level="INFO")
 
@@ -51,6 +87,7 @@ _loguru.add(_loguru_sink, filter="tau2.orchestrator", level="INFO")
 _active_run_id: Optional[str] = None
 _active_state: Optional[LoopState] = None
 _live_fixes: dict[str, dict] = {}  # task_id -> {patches, diagnosis, attempt, status}
+_stop_event: Optional[threading.Event] = None  # set to request graceful stop
 
 # Viewed run (what the dashboard displays — may differ from active)
 _viewed_run_id: Optional[str] = None
@@ -156,7 +193,7 @@ def _on_teacher_message(session, message) -> None:
         "message_count": len(session._messages),
         "is_new": is_new,
     })
-    _log_queue.put(f"[SESSION:{payload}]")
+    _events.put(f"[SESSION:{payload}]")
 
 
 def _on_student_session(session_id: str, data: slog.SessionData) -> None:
@@ -172,7 +209,64 @@ def _on_student_session(session_id: str, data: slog.SessionData) -> None:
         "reward": data.reward,
         "context": data.context or "",
     })
-    _log_queue.put(f"[SESSION:{payload}]")
+    _events.put(f"[SESSION:{payload}]")
+
+
+# ---------------------------------------------------------------------------
+# Shared loop thread helpers
+# ---------------------------------------------------------------------------
+def _on_iteration_cb(meta: RunMeta):
+    """Create an on_iteration callback bound to a RunMeta."""
+    def _on_iteration(state: LoopState):
+        global _active_state
+        state.meta = meta
+        _active_state = state
+        _live_fixes.clear()
+        _save_run(state)
+        _events.put("[SAVE]")
+    return _on_iteration
+
+
+def _on_fix_attempt_cb(task_id: str, attempt: int, patches: list[Patch],
+                       diagnosis: str, status: str):
+    _live_fixes[task_id] = {
+        "task_id": task_id,
+        "attempt": attempt + 1,
+        "patches": [{"old_text": p.old_text, "new_text": p.new_text,
+                     "tool_name": p.tool_name} for p in patches],
+        "diagnosis": diagnosis or "",
+        "status": status,
+    }
+    _events.put("[LIVE]")
+
+
+def _finish_loop_thread(meta: RunMeta, state: LoopState) -> None:
+    """Post-run bookkeeping shared by run and resume threads."""
+    global _active_state
+    was_stopped = _stop_event is not None and _stop_event.is_set()
+    meta.status = "stopped" if was_stopped else "finished"
+    state.meta = meta
+    _active_state = state
+    _live_fixes.clear()
+    _save_run(state)
+    _events.put(f"\nDone. {state.total_fixed}/{state.total_failures} total fixes.")
+    _events.put("[CHARTS]")
+
+
+def _teardown_loop_thread() -> None:
+    """Clean up global state after any loop thread exits."""
+    global _running, _active_run_id, _active_state, _viewed_state
+    if _viewed_run_id == _active_run_id and _active_state:
+        with _run_session_ids_lock:
+            _active_state.session_ids = sorted(_run_session_ids)
+        _viewed_state = _active_state
+    _running = False
+    _active_run_id = None
+    _active_state = None
+    _live_fixes.clear()
+    with _teacher_sessions_lock:
+        _teacher_sessions.clear()
+    _events.put("[DONE]")
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +301,7 @@ async def index(request: Request):
 
 @app.post("/run", response_class=HTMLResponse)
 async def run(request: Request):
-    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state
+    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state, _stop_event
 
     if _running:
         return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
@@ -237,6 +331,7 @@ async def run(request: Request):
     _active_run_id = run_id
     _viewed_run_id = run_id
     _viewed_state = None  # viewed == active, so _get_viewed_state() returns _active_state
+    _stop_event = threading.Event()
     with _teacher_sessions_lock:
         _teacher_sessions.clear()
     with _run_session_ids_lock:
@@ -255,30 +350,8 @@ async def run(request: Request):
     _save_run(_active_state)
 
     def _run_in_thread():
-        global _running, _active_state, _active_run_id, _viewed_state
         try:
             from evo.parallel_loop import run_loop
-
-            def _on_iteration(state: LoopState):
-                global _active_state
-                state.meta = meta
-                _active_state = state
-                _live_fixes.clear()
-                _save_run(state)
-                _log_queue.put("[SAVE]")
-
-            def _on_fix_attempt(task_id: str, attempt: int, patches: list[Patch],
-                                diagnosis: str, status: str):
-                _live_fixes[task_id] = {
-                    "task_id": task_id,
-                    "attempt": attempt + 1,
-                    "patches": [{"old_text": p.old_text, "new_text": p.new_text,
-                                 "tool_name": p.tool_name} for p in patches],
-                    "diagnosis": diagnosis or "",
-                    "status": status,
-                }
-                _log_queue.put("[LIVE]")
-
             state = run_loop(
                 domain=domain,
                 num_tasks=num_tasks,
@@ -287,39 +360,22 @@ async def run(request: Request):
                 seed=seed,
                 task_ids=task_ids,
                 student_model=student_model,
-                on_status=lambda msg: _log_queue.put(msg),
-                on_iteration=_on_iteration,
-                on_fix_attempt=_on_fix_attempt,
+                on_status=lambda msg: _events.put(msg),
+                on_iteration=_on_iteration_cb(meta),
+                on_fix_attempt=_on_fix_attempt_cb,
                 on_teacher_message=_on_teacher_message,
                 on_session=_on_student_session,
+                stop_event=_stop_event,
             )
-            meta.status = "finished"
-            state.meta = meta
-            _active_state = state
-            _live_fixes.clear()
-            _save_run(state)
-            _log_queue.put(f"\nDone. {state.total_fixed}/{state.total_failures} total fixes.")
-            _log_queue.put("[CHARTS]")
+            _finish_loop_thread(meta, state)
         except Exception as e:
             meta.status = "error"
             if _active_state:
                 _active_state.meta = meta
                 _save_run(_active_state)
-            _log_queue.put(f"\nERROR: {e}")
+            _events.put(f"\nERROR: {e}")
         finally:
-            # Snapshot: if user is still viewing this run, copy final state
-            # so _active_state is no longer the source of truth.
-            if _viewed_run_id == _active_run_id and _active_state:
-                with _run_session_ids_lock:
-                    _active_state.session_ids = sorted(_run_session_ids)
-                _viewed_state = _active_state
-            _running = False
-            _active_run_id = None
-            _active_state = None
-            _live_fixes.clear()
-            with _teacher_sessions_lock:
-                _teacher_sessions.clear()
-            _log_queue.put("[DONE]")
+            _teardown_loop_thread()
 
     threading.Thread(target=_run_in_thread, daemon=True).start()
 
@@ -330,38 +386,62 @@ async def run(request: Request):
 
 
 @app.get("/logs")
-async def logs():
-    """SSE endpoint streaming log messages.
+async def logs(request: Request):
+    """SSE endpoint streaming log messages with replay support.
 
-    Terminates only on the [DONE] sentinel — no racy empty-queue heuristics.
+    Clients can reconnect with Last-Event-ID to recover missed events.
+    Terminates only on the [DONE] sentinel.
     """
-    async def event_generator():
-        while True:
-            try:
-                msg = _log_queue.get_nowait()
-            except queue.Empty:
-                await asyncio.sleep(0.2)
-                continue
+    # Determine replay point from Last-Event-ID header.
+    last_id = request.headers.get("last-event-id")
+    cursor = int(last_id) if last_id and last_id.isdigit() else _events.latest_seq
 
-            if msg == "[DONE]":
-                yield {"event": "done", "data": ""}
-                return
-            if msg == "[CHARTS]":
-                yield {"event": "charts", "data": "update"}
-                continue
-            if msg == "[SAVE]":
-                yield {"event": "save", "data": "update"}
-                continue
-            if msg == "[LIVE]":
-                yield {"event": "live", "data": "update"}
-                continue
-            if msg.startswith("[SESSION:"):
-                payload = msg[len("[SESSION:"):-1]
-                yield {"event": "session", "data": payload}
-                continue
-            yield {"event": "log", "data": msg}
+    def _parse_event(msg: str) -> dict:
+        if msg == "[DONE]":
+            return {"event": "done", "data": ""}
+        if msg == "[CHARTS]":
+            return {"event": "charts", "data": "update"}
+        if msg == "[SAVE]":
+            return {"event": "save", "data": "update"}
+        if msg == "[LIVE]":
+            return {"event": "live", "data": "update"}
+        if msg.startswith("[SESSION:"):
+            return {"event": "session", "data": msg[len("[SESSION:"):-1]}
+        return {"event": "log", "data": msg}
+
+    async def event_generator():
+        nonlocal cursor
+
+        while True:
+            new = _events.get_after(cursor)
+            for seq, msg in new:
+                ev = _parse_event(msg)
+                ev["id"] = str(seq)
+                cursor = seq
+                if ev["event"] == "done":
+                    yield ev
+                    return
+                yield ev
+
+            await asyncio.sleep(0.2)
 
     return EventSourceResponse(event_generator())
+
+
+def _build_resume_context(state: Optional[LoopState]) -> dict:
+    """Build can_resume / run_status / resume_iteration for templates."""
+    can_resume = (
+        _viewed_run_id is not None
+        and not _running
+        and state is not None
+        and state.meta is not None
+        and state.meta.status in ("stopped", "error")
+    )
+    return {
+        "can_resume": can_resume,
+        "run_status": state.meta.status if state and state.meta else "",
+        "resume_iteration": len(state.history) + 1 if state else 1,
+    }
 
 
 @app.get("/results", response_class=HTMLResponse)
@@ -380,6 +460,7 @@ async def results(request: Request):
         "request": request,
         "results": _build_results(),
         **ctx,
+        **_build_resume_context(state),
         "can_test": can_test,
         "viewed_run_id": _viewed_run_id,
     })
@@ -534,6 +615,7 @@ async def load_run_endpoint(run_id: str, request: Request):
         "request": request,
         "results": _build_results(),
         **ctx,
+        **_build_resume_context(state),
         "can_test": can_test,
         "viewed_run_id": _viewed_run_id,
     })
@@ -571,10 +653,10 @@ async def run_test_evaluation(run_id: str, request: Request):
 
             splits = load_task_splits(domain)
             if not splits:
-                _log_queue.put("ERROR: No canonical splits for this domain.")
+                _events.put("ERROR: No canonical splits for this domain.")
                 return
             test_ids = splits["test"]
-            _log_queue.put(f"Running test evaluation on {len(test_ids)} held-out tasks...")
+            _events.put(f"Running test evaluation on {len(test_ids)} held-out tasks...")
 
             state.test_results = _run_test_evaluation(
                 domain=domain, test_ids=test_ids, seed=cfg.DEFAULT_SEED,
@@ -583,23 +665,23 @@ async def run_test_evaluation(run_id: str, request: Request):
                 evolved_code=state.tool_code,
                 student_model=None,
                 parallelism=parallelism,
-                on_status=lambda msg: _log_queue.put(msg),
+                on_status=lambda msg: _events.put(msg),
             )
             state.test_task_ids = test_ids
             state.meta.status = "finished"
             _active_state = state
             _save_run(state)
-            _log_queue.put("Test evaluation complete.")
-            _log_queue.put("[CHARTS]")
+            _events.put("Test evaluation complete.")
+            _events.put("[CHARTS]")
         except Exception as e:
-            _log_queue.put(f"\nERROR: {e}")
+            _events.put(f"\nERROR: {e}")
         finally:
             if _viewed_run_id == _active_run_id and _active_state:
                 _viewed_state = _active_state
             _running = False
             _active_run_id = None
             _active_state = None
-            _log_queue.put("[DONE]")
+            _events.put("[DONE]")
 
     threading.Thread(target=_test_in_thread, daemon=True).start()
 
@@ -621,6 +703,100 @@ async def delete_run(run_id: str):
         _viewed_run_id = None
         _viewed_state = None
     return HTMLResponse("")
+
+
+@app.post("/runs/{run_id}/stop", response_class=HTMLResponse)
+async def stop_run(run_id: str):
+    """Request graceful stop of the active run."""
+    global _stop_event
+    if not _running or run_id != _active_run_id:
+        return HTMLResponse('<div id="status" class="text-yellow-400">No active run to stop.</div>')
+    if _stop_event is not None:
+        _stop_event.set()
+        _events.put("\n>>> Stop requested. Finishing in-flight work...")
+    return HTMLResponse(
+        '<div id="status" class="text-amber-400">Stopping... (finishing in-flight requests)</div>'
+    )
+
+
+@app.post("/runs/{run_id}/resume", response_class=HTMLResponse)
+async def resume_run(run_id: str, request: Request):
+    """Resume a stopped run from its last checkpoint."""
+    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state, _stop_event
+
+    if _running:
+        return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
+
+    prev_state = _load_run(run_id)
+    if prev_state is None:
+        return HTMLResponse('<div id="status" class="text-red-400">Run not found.</div>')
+    if prev_state.meta is None:
+        return HTMLResponse('<div id="status" class="text-red-400">Run has no metadata.</div>')
+    if prev_state.meta.status not in ("stopped", "error"):
+        return HTMLResponse('<div id="status" class="text-yellow-400">Only stopped or errored runs can be resumed.</div>')
+
+    form = await request.form()
+    max_iter = int(form.get("max_iterations", cfg.DEFAULT_MAX_ITERATIONS))
+    parallelism = int(form.get("parallelism", cfg.DEFAULT_PARALLELISM))
+
+    domain = prev_state.meta.domain
+    student_model = form.get("student_model")
+    if student_model and student_model not in cfg.STUDENT_MODELS:
+        student_model = None
+
+    # Reuse same run_id so history is continuous.
+    _running = True
+    _active_run_id = run_id
+    _viewed_run_id = run_id
+    _viewed_state = None
+    _stop_event = threading.Event()
+    with _teacher_sessions_lock:
+        _teacher_sessions.clear()
+    with _run_session_ids_lock:
+        # Preserve previous session IDs.
+        _run_session_ids.clear()
+        _run_session_ids.update(prev_state.session_ids)
+    _drain_queue()
+
+    meta = prev_state.meta
+    meta.status = "running"
+    _active_state = prev_state
+    _save_run(_active_state)
+
+    def _resume_in_thread():
+        try:
+            from evo.parallel_loop import run_loop
+            state = run_loop(
+                domain=domain,
+                num_tasks=prev_state.meta.num_tasks,
+                max_iterations=max_iter,
+                parallelism=parallelism,
+                seed=cfg.DEFAULT_SEED,
+                student_model=student_model,
+                on_status=lambda msg: _events.put(msg),
+                on_iteration=_on_iteration_cb(meta),
+                on_fix_attempt=_on_fix_attempt_cb,
+                on_teacher_message=_on_teacher_message,
+                on_session=_on_student_session,
+                stop_event=_stop_event,
+                resume_state=prev_state,
+            )
+            _finish_loop_thread(meta, state)
+        except Exception as e:
+            meta.status = "error"
+            if _active_state:
+                _active_state.meta = meta
+                _save_run(_active_state)
+            _events.put(f"\nERROR: {e}")
+        finally:
+            _teardown_loop_thread()
+
+    threading.Thread(target=_resume_in_thread, daemon=True).start()
+
+    return HTMLResponse(
+        '<div id="status" class="text-green-400">Resumed.</div>'
+        '<script>startSSE(false)</script>'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -694,12 +870,8 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
 
 
 def _drain_queue() -> None:
-    """Drain the log queue (best-effort)."""
-    while True:
-        try:
-            _log_queue.get_nowait()
-        except queue.Empty:
-            break
+    """Clear the event buffer between runs."""
+    _events.clear()
 
 
 def _try_load_latest_run() -> None:

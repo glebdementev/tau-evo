@@ -47,9 +47,9 @@ C = {
 # ---------------------------------------------------------------------------
 # Fonts
 # ---------------------------------------------------------------------------
-FONT = "Helvetica"
-FONT_BOLD = "Helvetica-Bold"
-FONT_MONO = "Courier"
+FONT = "Liberation Serif"
+FONT_BOLD = "Liberation Serif"
+FONT_MONO = "Liberation Mono"
 FONT_SIZE = "11"
 FONT_SIZE_SMALL = "9"
 FONT_SIZE_TITLE = "14"

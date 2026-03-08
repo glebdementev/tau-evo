@@ -547,13 +547,13 @@ def fig_13_gap_closure():
         ax.plot(val, y, "o", color=color, markersize=10, zorder=5)
         ax.annotate(label, (val, y), textcoords="offset points",
                     xytext=(0, 20), ha="center", fontsize=11,
-                    fontweight="bold", color=color, fontfamily="sans-serif")
+                    fontweight="bold", color=color, fontfamily="serif")
 
     # Gap closure label
     mid = (B + K) / 2
     ax.annotate(f"Gap Closure = {gap_closure:.0f}%", (mid, y),
                 textcoords="offset points", xytext=(0, -26),
-                ha="center", fontsize=10, fontfamily="sans-serif",
+                ha="center", fontsize=10, fontfamily="serif",
                 color=BLUE, fontweight="bold",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="#E8F4FD",
                           edgecolor=BLUE, alpha=0.9))
@@ -562,7 +562,7 @@ def fig_13_gap_closure():
     mid2 = (K + F) / 2
     ax.annotate("Remaining gap", (mid2, y),
                 textcoords="offset points", xytext=(0, -26),
-                ha="center", fontsize=10, fontfamily="sans-serif",
+                ha="center", fontsize=10, fontfamily="serif",
                 color=GREY, fontstyle="italic")
 
     # Formula below chart
@@ -574,14 +574,14 @@ def fig_13_gap_closure():
 
     ax.set_xlim(0.3, 0.95)
     ax.set_ylim(0.0, 1.0)
-    ax.set_xlabel(r"Pass Rate (pass$^1$)", fontsize=11, fontfamily="sans-serif")
+    ax.set_xlabel(r"Pass Rate (pass$^1$)", fontsize=11, fontfamily="serif")
     ax.set_yticks([])
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(False)
 
     fig.suptitle("Figure 3.13: Gap Closure Metric", fontsize=13,
-                 fontweight="bold", fontfamily="sans-serif", y=0.98)
+                 fontweight="bold", fontfamily="serif", y=0.98)
 
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
     out = f"{OUTPUT_DIR}/fig_13_gap_closure.png"

@@ -44,6 +44,7 @@ class FixResult:
     teacher_msgs: int = 0
     teacher_tool_calls: int = 0
     teacher_duration_s: float = 0.0
+    error_count: int = 0
 
     @property
     def delta(self) -> float:
@@ -166,6 +167,7 @@ class LoopState:
                     teacher_msgs=f.get("teacher_msgs", 0),
                     teacher_tool_calls=f.get("teacher_tool_calls", 0),
                     teacher_duration_s=f.get("teacher_duration_s", 0.0),
+                    error_count=f.get("error_count", 0),
                 )
                 for f in h.get("fixes", [])
             ]
