@@ -20,7 +20,6 @@ COLORS = {
     "patched": _OI_BLUE,
     "fixed": _OI_GREEN,
     "not_fixed": _OI_VERMILLION,
-    "frontier": _OI_PURPLE,
     "prompt_only": _OI_ORANGE,
     "guardrail": _OI_YELLOW,
     "airline": _OI_SKY,
@@ -29,10 +28,7 @@ COLORS = {
     "TOOL_MISUSE": _OI_VERMILLION,
     "POLICY_VIOLATION": _OI_ORANGE,
     "REASONING_ERROR": _OI_BLUE,
-    "COMMUNICATION_ERROR": _OI_GREEN,
 }
-
-FAILURE_TYPES = ["TOOL_MISUSE", "POLICY_VIOLATION", "REASONING_ERROR", "COMMUNICATION_ERROR"]
 
 # ---------------------------------------------------------------------------
 # Dark layout for web dashboard
@@ -75,12 +71,6 @@ _AXIS_COMMON = dict(
 )
 
 BAR_LINE = dict(color="rgba(255,255,255,0.15)", width=0.8)
-
-HEATMAP_SCALE = [
-    [0.0, COLORS["not_fixed"]],
-    [0.5, "#3d3d3d"],
-    [1.0, COLORS["fixed"]],
-]
 
 
 def base_layout(**overrides) -> dict:

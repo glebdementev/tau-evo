@@ -52,7 +52,7 @@ DOMAIN_TRAIN_TASKS: dict[str, int] = {"airline": 30, "retail": 74, "telecom": 74
 # ── Defaults ─────────────────────────────────────────────────────────────
 DEFAULT_DOMAIN = "airline"
 DEFAULT_NUM_TASKS = 5
-DEFAULT_MAX_ITERATIONS = 3
+DEFAULT_MAX_SWEEPS = 3
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_PARALLELISM = 4
 DEFAULT_SEED = 42

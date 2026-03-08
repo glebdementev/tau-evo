@@ -9,10 +9,10 @@ from pathlib import Path
 import plotly.graph_objects as go
 
 from evo.config import RESULTS_DIR
-from evo.models import FixResult, LoopState
+from evo.models import FixResult, LoopState, SweepResult, FIX_TIER_PROMPT, FIX_TIER_CODE, FIX_TIER_NONE
 
-from .charts import all_charts, all_charts_from_state
-from .theme import FAILURE_TYPES
+from .charts import all_charts_from_state
+from .train_charts import ERROR_CATEGORIES
 
 FIGURES_DIR = RESULTS_DIR / "figures"
 
@@ -56,28 +56,43 @@ def _export_charts(charts: dict[str, dict], out: Path) -> None:
         print(f"  Saved {path}")
 
 
-def _demo_fixes() -> list[FixResult]:
-    """Synthetic fix results for preview."""
+def _demo_state() -> LoopState:
+    """Synthetic loop state for preview (binary 0/1 rewards)."""
     import random
     random.seed(42)
+    num_tasks = 10
+    # All tasks start as failures (baseline=0); some get fixed
     fixes = []
-    for i in range(8):
-        baseline_r = random.uniform(0.0, 0.6)
-        fixed = random.random() < 0.6
-        patched_r = 1.0 if fixed else random.uniform(0.0, baseline_r + 0.1)
-        ft = random.choice(FAILURE_TYPES)
-        tier = random.choice(["prompt", "code"]) if fixed else None
-        fixes.append(FixResult(
-            task_id=str(i),
-            baseline_reward=round(baseline_r, 2),
-            patched_reward=round(patched_r, 2),
-            fixed=fixed,
-            diagnosis=f"{ft}: the agent failed to ...",
-            patches=[],
-            retries=random.randint(0, 2),
-            fix_tier=tier,
-        ))
-    return fixes
+    sweep_rewards: dict[str, float] = {}
+    for i in range(num_tasks):
+        passed_baseline = random.random() < 0.3
+        sweep_rewards[str(i)] = 1.0 if passed_baseline else 0.0
+        if not passed_baseline:
+            fixed = random.random() < 0.6
+            ft = random.choice(ERROR_CATEGORIES)
+            tier = random.choice([FIX_TIER_PROMPT, FIX_TIER_CODE]) if fixed else FIX_TIER_NONE
+            fixes.append(FixResult(
+                task_id=str(i),
+                baseline_reward=0.0,
+                patched_reward=1.0 if fixed else 0.0,
+                fixed=fixed,
+                diagnosis=f"{ft}: the agent failed to ...",
+                patches=[],
+                retries=random.randint(0, 2),
+                fix_tier=tier,
+            ))
+
+    num_failures = sum(1 for r in sweep_rewards.values() if r < 1.0)
+    num_fixed = sum(1 for f in fixes if f.fixed)
+    history = [SweepResult(
+        sweep=1,
+        num_evaluated=num_tasks,
+        num_failures=num_failures,
+        fixes=fixes,
+        num_fixed=num_fixed,
+        sweep_rewards=sweep_rewards,
+    )]
+    return LoopState(history=history)
 
 
 def main() -> None:
@@ -89,8 +104,8 @@ def main() -> None:
 
     if args.demo:
         print("Using synthetic demo data.")
-        fixes = _demo_fixes()
-        charts = all_charts(fixes)
+        state = _demo_state()
+        charts = all_charts_from_state(state)
     else:
         state_path = Path("patches/loop_state.json")
         if not state_path.exists():

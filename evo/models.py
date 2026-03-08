@@ -8,6 +8,29 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+# ── Constants for stringly-typed fields ────────────────────────────────────
+# Fix tiers — which phase produced the fix.
+FIX_TIER_PROMPT = "prompt"
+FIX_TIER_CODE = "code"
+FIX_TIER_NONE = "none"
+
+# Run status values.
+RUN_RUNNING = "running"
+RUN_FINISHED = "finished"
+RUN_STOPPED = "stopped"
+RUN_ERROR = "error"
+
+# Phase names (also in parallel_loop.py as PHASE_* constants).
+PHASE_SWEEP = "sweep"
+PHASE_FIX = "fix"
+PHASE_MERGE = "merge"
+PHASE_TEST = "test"
+
+# Phase status values.
+PHASE_RUNNING = "running"
+PHASE_DONE = "done"
+PHASE_SKIPPED = "skipped"
+
 
 @dataclass
 class Patch:
@@ -40,7 +63,7 @@ class FixResult:
     patches: list[Patch]
     retries: int
     fixed: bool
-    fix_tier: str = "none"  # "prompt" | "code" | "none"
+    fix_tier: str = FIX_TIER_NONE
     teacher_msgs: int = 0
     teacher_tool_calls: int = 0
     teacher_duration_s: float = 0.0
@@ -52,15 +75,14 @@ class FixResult:
 
 
 @dataclass
-class IterationResult:
-    """Outcome of one outer iteration (evaluate all → fix failures in parallel)."""
-    iteration: int
+class SweepResult:
+    """Outcome of one sweep (run all train tasks → fix failures → merge)."""
+    sweep: int
     num_evaluated: int
     num_failures: int
     fixes: list[FixResult]
     num_fixed: int
-    eval_rewards: dict[str, float] = field(default_factory=dict)  # task_id → reward
-
+    sweep_rewards: dict[str, float] = field(default_factory=dict)  # task_id → reward
 
 
 @dataclass
@@ -69,7 +91,6 @@ class TestResults:
     baseline_rewards: dict[str, float] = field(default_factory=dict)
     evolved_rewards: dict[str, float] = field(default_factory=dict)
     prompt_only_rewards: dict[str, float] = field(default_factory=dict)
-    frontier_rewards: dict[str, float] = field(default_factory=dict)
 
     def _pass_rate(self, rewards: dict[str, float]) -> float:
         if not rewards:
@@ -88,25 +109,6 @@ class TestResults:
     def prompt_only_pass_rate(self) -> float:
         return self._pass_rate(self.prompt_only_rewards)
 
-    @property
-    def frontier_pass_rate(self) -> float:
-        return self._pass_rate(self.frontier_rewards)
-
-    @property
-    def gap_closure(self) -> Optional[float]:
-        """(evolved - baseline) / (frontier - baseline). None if denominator is 0."""
-        gap = self.frontier_pass_rate - self.baseline_pass_rate
-        if gap <= 0:
-            return None
-        return (self.evolved_pass_rate - self.baseline_pass_rate) / gap
-
-    @property
-    def prompt_only_gap_closure(self) -> Optional[float]:
-        gap = self.frontier_pass_rate - self.baseline_pass_rate
-        if gap <= 0:
-            return None
-        return (self.prompt_only_pass_rate - self.baseline_pass_rate) / gap
-
 
 @dataclass
 class RunMeta:
@@ -114,7 +116,7 @@ class RunMeta:
     run_id: str
     domain: str
     started_at: str  # ISO format
-    status: str = "running"  # running | finished | error
+    status: str = RUN_RUNNING
     num_tasks: int = 0
     total_fixes: int = 0
     total_failures: int = 0
@@ -135,13 +137,11 @@ class RunMeta:
 class LoopState:
     """Full state of the evolution loop, serialisable to JSON."""
     system_prompt: Optional[str] = None
-    prompt_instruction: Optional[str] = None  # legacy, kept for old state files
     tool_schemas: Optional[dict] = None
     tool_code: Optional[dict[str, str]] = None  # tool_name → preprocessor source
-    history: list[IterationResult] = field(default_factory=list)
+    history: list[SweepResult] = field(default_factory=list)
     meta: Optional[RunMeta] = None
     session_ids: list[str] = field(default_factory=list)
-    dropped_task_ids: list[str] = field(default_factory=list)
     train_task_ids: list[str] = field(default_factory=list)
     test_task_ids: list[str] = field(default_factory=list)
     test_results: Optional[TestResults] = None
@@ -163,7 +163,7 @@ class LoopState:
                     diagnosis=f.get("diagnosis", ""),
                     retries=f.get("retries", 0),
                     fixed=f["fixed"],
-                    fix_tier=f.get("fix_tier", "none"),
+                    fix_tier=f.get("fix_tier", FIX_TIER_NONE),
                     teacher_msgs=f.get("teacher_msgs", 0),
                     teacher_tool_calls=f.get("teacher_tool_calls", 0),
                     teacher_duration_s=f.get("teacher_duration_s", 0.0),
@@ -171,13 +171,13 @@ class LoopState:
                 )
                 for f in h.get("fixes", [])
             ]
-            history.append(IterationResult(
-                iteration=h["iteration"],
+            history.append(SweepResult(
+                sweep=h.get("sweep", h.get("iteration", 0)),
                 num_evaluated=h["num_evaluated"],
                 num_failures=h["num_failures"],
                 fixes=fixes,
                 num_fixed=h["num_fixed"],
-                eval_rewards=h.get("eval_rewards", {}),
+                sweep_rewards=h.get("sweep_rewards", h.get("eval_rewards", {})),
             ))
         meta_raw = raw.get("meta")
         meta = RunMeta(**meta_raw) if meta_raw else None
@@ -185,13 +185,11 @@ class LoopState:
         test_results = TestResults(**test_raw) if test_raw else None
         return cls(
             system_prompt=raw.get("system_prompt"),
-            prompt_instruction=raw.get("prompt_instruction"),
             tool_schemas=raw.get("tool_schemas"),
             tool_code=raw.get("tool_code"),
             history=history,
             meta=meta,
             session_ids=raw.get("session_ids", []),
-            dropped_task_ids=raw.get("dropped_task_ids", []),
             train_task_ids=raw.get("train_task_ids", []),
             test_task_ids=raw.get("test_task_ids", []),
             test_results=test_results,
@@ -206,5 +204,5 @@ class LoopState:
         return sum(r.num_failures for r in self.history)
 
     def flat_fixes(self) -> list[FixResult]:
-        """All FixResults across all iterations, in order."""
+        """All FixResults across all sweeps, in order."""
         return [fix for r in self.history for fix in r.fixes]

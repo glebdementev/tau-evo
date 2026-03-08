@@ -14,6 +14,7 @@ import logging
 import threading
 import time
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -88,6 +89,10 @@ class TeacherSession:
         self._current_prompt = system_prompt
         self._current_tool_schemas = tool_schemas
         self._current_tool_code: dict[str, str] = dict(tool_code) if tool_code else {}
+        # Save base state so we can revert after failed validations.
+        self._base_prompt = system_prompt
+        self._base_tool_schemas = deepcopy(tool_schemas)
+        self._base_tool_code: dict[str, str] = dict(tool_code) if tool_code else {}
         self._tools_by_name: dict[str, object] = {
             (t.name if hasattr(t, "name") else ""): t for t in tools
         }
@@ -366,13 +371,25 @@ class TeacherSession:
             self._log_error(result, context="patch_tool_code")
         return result
 
+    def revert_patches(self) -> None:
+        """Revert prompt, tool schemas, and tool code to their base (pre-patch) state."""
+        self._current_prompt = self._base_prompt
+        self._current_tool_schemas = deepcopy(self._base_tool_schemas)
+        self._current_tool_code = dict(self._base_tool_code)
+
     def report_failure(
         self,
         baseline_reward: float,
         patched_reward: float,
         new_sim,
     ) -> None:
-        """Feed a failed validation back into the conversation."""
+        """Feed a failed validation back into the conversation.
+
+        Reverts all patches so the teacher must apply fixes from scratch.
+        The teacher still sees the original failure and the failed validation
+        trace in its conversation history.
+        """
+        self.revert_patches()
         self.status = "retrying"
         current_tools_str = json.dumps(
             list(self._current_tool_schemas.values()), indent=SCHEMA_INDENT,
@@ -398,9 +415,11 @@ class TeacherSession:
     ) -> None:
         """Unlock tool code patches after prompt-only fixes failed.
 
-        Switches active tools from TEACHING_TOOLS to TEACHER_TOOLS (full set)
-        and appends a special escalation prompt explaining the new capability.
+        Reverts all patches and switches active tools from TEACHING_TOOLS to
+        TEACHER_TOOLS (full set), so the teacher starts fresh with the
+        additional tool code capability.
         """
+        self.revert_patches()
         self.escalated = True
         self.status = "escalated"
         self._active_tools = TEACHER_TOOLS

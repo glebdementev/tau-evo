@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 LITELLM_PREFIX = "openrouter/"
 
 
-def run_baseline(
+def run_tasks(
     domain: str = "airline",
     num_tasks: int = 5,
     task_ids: Optional[list[str]] = None,

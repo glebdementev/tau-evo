@@ -17,8 +17,20 @@ from sse_starlette.sse import EventSourceResponse
 
 import evo.config as cfg
 import evo.session_log as slog
-from evo.analysis.charts import all_charts, all_charts_from_state
-from evo.models import LoopState, Patch, RunMeta
+from evo.analysis.charts import all_charts_from_state
+from evo.models import (
+    LoopState, Patch, RunMeta,
+    FIX_TIER_PROMPT, FIX_TIER_CODE,
+    RUN_RUNNING, RUN_FINISHED, RUN_STOPPED, RUN_ERROR,
+)
+
+# SSE event sentinels.
+_EVT_DONE = "[DONE]"
+_EVT_CHARTS = "[CHARTS]"
+_EVT_SAVE = "[SAVE]"
+_EVT_LIVE = "[LIVE]"
+_EVT_PHASE_PREFIX = "[PHASE:"
+_EVT_SESSION_PREFIX = "[SESSION:"
 
 cfg.ensure_dirs()
 cfg.quiet_deps()
@@ -73,13 +85,19 @@ _events = EventBuffer()
 from loguru import logger as _loguru
 
 def _loguru_sink(message):
-    """Forward loguru records from tau2.orchestrator to the web SSE queue."""
+    """Forward loguru records from tau2.orchestrator to the web SSE queue.
+
+    Only forward step-transition lines (e.g. "Step 6: agent -> user"),
+    not the full message content which can be very large.
+    """
     if not _running:
         return
     text = str(message).rstrip()
     if " - " in text:
         text = text.split(" - ", 1)[1]
-    _events.put(text)
+    # Only forward concise step markers, skip verbose message content
+    if text.startswith("Step ") or text.startswith("[") or text.startswith("Task "):
+        _events.put(text)
 
 _loguru.add(_loguru_sink, filter="tau2.orchestrator", level="INFO")
 
@@ -193,7 +211,7 @@ def _on_teacher_message(session, message) -> None:
         "message_count": len(session._messages),
         "is_new": is_new,
     })
-    _events.put(f"[SESSION:{payload}]")
+    _events.put(f"{_EVT_SESSION_PREFIX}{payload}]")
 
 
 def _on_student_session(session_id: str, data: slog.SessionData) -> None:
@@ -209,7 +227,7 @@ def _on_student_session(session_id: str, data: slog.SessionData) -> None:
         "reward": data.reward,
         "context": data.context or "",
     })
-    _events.put(f"[SESSION:{payload}]")
+    _events.put(f"{_EVT_SESSION_PREFIX}{payload}]")
 
 
 # ---------------------------------------------------------------------------
@@ -223,8 +241,20 @@ def _on_iteration_cb(meta: RunMeta):
         _active_state = state
         _live_fixes.clear()
         _save_run(state)
-        _events.put("[SAVE]")
+        _events.put(_EVT_SAVE)
     return _on_iteration
+
+
+def _make_phase_cb(max_sweeps: int, has_test: bool = False):
+    """Return an on_phase callback that includes max_sweeps in the event."""
+    def _on_phase(sweep: int, phase_name: str, phase_status: str):
+        payload = json.dumps({
+            "sweep": sweep, "phase": phase_name,
+            "status": phase_status, "max_sweeps": max_sweeps,
+            "has_test": has_test,
+        })
+        _events.put(f"{_EVT_PHASE_PREFIX}{payload}]")
+    return _on_phase
 
 
 def _on_fix_attempt_cb(task_id: str, attempt: int, patches: list[Patch],
@@ -237,20 +267,20 @@ def _on_fix_attempt_cb(task_id: str, attempt: int, patches: list[Patch],
         "diagnosis": diagnosis or "",
         "status": status,
     }
-    _events.put("[LIVE]")
+    _events.put(_EVT_LIVE)
 
 
 def _finish_loop_thread(meta: RunMeta, state: LoopState) -> None:
     """Post-run bookkeeping shared by run and resume threads."""
     global _active_state
     was_stopped = _stop_event is not None and _stop_event.is_set()
-    meta.status = "stopped" if was_stopped else "finished"
+    meta.status = RUN_STOPPED if was_stopped else RUN_FINISHED
     state.meta = meta
     _active_state = state
     _live_fixes.clear()
     _save_run(state)
     _events.put(f"\nDone. {state.total_fixed}/{state.total_failures} total fixes.")
-    _events.put("[CHARTS]")
+    _events.put(_EVT_CHARTS)
 
 
 def _teardown_loop_thread() -> None:
@@ -266,7 +296,7 @@ def _teardown_loop_thread() -> None:
     _live_fixes.clear()
     with _teacher_sessions_lock:
         _teacher_sessions.clear()
-    _events.put("[DONE]")
+    _events.put(_EVT_DONE)
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +315,7 @@ async def index(request: Request):
             "domain": cfg.DEFAULT_DOMAIN,
             "student_model": cfg.STUDENT_MODEL,
             "num_tasks": cfg.DEFAULT_NUM_TASKS,
-            "max_iterations": cfg.DEFAULT_MAX_ITERATIONS,
+            "max_sweeps": cfg.DEFAULT_MAX_SWEEPS,
             "parallelism": cfg.DEFAULT_PARALLELISM,
             "seed": cfg.DEFAULT_SEED,
         },
@@ -311,7 +341,7 @@ async def run(request: Request):
     student_model = form.get("student_model", cfg.STUDENT_MODEL)
     if student_model not in cfg.STUDENT_MODELS:
         student_model = cfg.STUDENT_MODEL
-    max_iter = int(form.get("max_iterations", cfg.DEFAULT_MAX_ITERATIONS))
+    max_sweeps = int(form.get("max_sweeps", cfg.DEFAULT_MAX_SWEEPS))
     parallelism = int(form.get("parallelism", cfg.DEFAULT_PARALLELISM))
     seed = int(form.get("seed", cfg.DEFAULT_SEED))
     use_task_ids = form.get("use_task_ids") == "on"
@@ -343,7 +373,7 @@ async def run(request: Request):
         run_id=run_id,
         domain=domain,
         started_at=datetime.now().isoformat(),
-        status="running",
+        status=RUN_RUNNING,
         num_tasks=num_tasks,
     )
     _active_state = LoopState(meta=meta)
@@ -355,13 +385,14 @@ async def run(request: Request):
             state = run_loop(
                 domain=domain,
                 num_tasks=num_tasks,
-                max_iterations=max_iter,
+                max_sweeps=max_sweeps,
                 parallelism=parallelism,
                 seed=seed,
                 task_ids=task_ids,
                 student_model=student_model,
                 on_status=lambda msg: _events.put(msg),
                 on_iteration=_on_iteration_cb(meta),
+                on_phase=_make_phase_cb(max_sweeps, has_test=(task_ids is None)),
                 on_fix_attempt=_on_fix_attempt_cb,
                 on_teacher_message=_on_teacher_message,
                 on_session=_on_student_session,
@@ -369,7 +400,7 @@ async def run(request: Request):
             )
             _finish_loop_thread(meta, state)
         except Exception as e:
-            meta.status = "error"
+            meta.status = RUN_ERROR
             if _active_state:
                 _active_state.meta = meta
                 _save_run(_active_state)
@@ -397,16 +428,18 @@ async def logs(request: Request):
     cursor = int(last_id) if last_id and last_id.isdigit() else _events.latest_seq
 
     def _parse_event(msg: str) -> dict:
-        if msg == "[DONE]":
+        if msg == _EVT_DONE:
             return {"event": "done", "data": ""}
-        if msg == "[CHARTS]":
+        if msg == _EVT_CHARTS:
             return {"event": "charts", "data": "update"}
-        if msg == "[SAVE]":
+        if msg == _EVT_SAVE:
             return {"event": "save", "data": "update"}
-        if msg == "[LIVE]":
+        if msg == _EVT_LIVE:
             return {"event": "live", "data": "update"}
-        if msg.startswith("[SESSION:"):
-            return {"event": "session", "data": msg[len("[SESSION:"):-1]}
+        if msg.startswith(_EVT_PHASE_PREFIX):
+            return {"event": "phase", "data": msg[len(_EVT_PHASE_PREFIX):-1]}
+        if msg.startswith(_EVT_SESSION_PREFIX):
+            return {"event": "session", "data": msg[len(_EVT_SESSION_PREFIX):-1]}
         return {"event": "log", "data": msg}
 
     async def event_generator():
@@ -435,12 +468,12 @@ def _build_resume_context(state: Optional[LoopState]) -> dict:
         and not _running
         and state is not None
         and state.meta is not None
-        and state.meta.status in ("stopped", "error")
+        and state.meta.status in (RUN_STOPPED, RUN_ERROR)
     )
     return {
         "can_resume": can_resume,
         "run_status": state.meta.status if state and state.meta else "",
-        "resume_iteration": len(state.history) + 1 if state else 1,
+        "resume_sweep": len(state.history) + 1 if state else 1,
     }
 
 
@@ -448,20 +481,11 @@ def _build_resume_context(state: Optional[LoopState]) -> dict:
 async def results(request: Request):
     state = _get_viewed_state()
     ctx = _build_stats_context(state)
-    can_test = (
-        _viewed_run_id is not None
-        and not _running
-        and state is not None
-        and state.meta is not None
-        and state.meta.status == "finished"
-        and not ctx["test_results"]
-    )
     return templates.TemplateResponse("_results.html", {
         "request": request,
         "results": _build_results(),
         **ctx,
         **_build_resume_context(state),
-        "can_test": can_test,
         "viewed_run_id": _viewed_run_id,
     })
 
@@ -495,7 +519,7 @@ async def api_state():
 async def api_charts():
     state = _get_viewed_state()
     if state is None:
-        return JSONResponse(all_charts([]))
+        return JSONResponse(all_charts_from_state(LoopState()))
     return JSONResponse(all_charts_from_state(state))
 
 
@@ -604,91 +628,13 @@ async def load_run_endpoint(run_id: str, request: Request):
         _viewed_run_id = run_id
         _viewed_state = state
     ctx = _build_stats_context(state)
-    can_test = (
-        not _running
-        and state is not None
-        and state.meta is not None
-        and state.meta.status == "finished"
-        and not ctx["test_results"]
-    )
     return templates.TemplateResponse("_results.html", {
         "request": request,
         "results": _build_results(),
         **ctx,
         **_build_resume_context(state),
-        "can_test": can_test,
         "viewed_run_id": _viewed_run_id,
     })
-
-
-@app.post("/runs/{run_id}/test", response_class=HTMLResponse)
-async def run_test_evaluation(run_id: str, request: Request):
-    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state
-
-    if _running:
-        return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
-
-    state = _load_run(run_id)
-    if state is None:
-        return HTMLResponse('<div id="status" class="text-red-400">Run not found.</div>')
-    if not state.meta:
-        return HTMLResponse('<div id="status" class="text-red-400">Run has no metadata.</div>')
-
-    form = await request.form()
-    parallelism = int(form.get("parallelism", cfg.DEFAULT_PARALLELISM))
-
-    domain = state.meta.domain
-    _running = True
-    _active_run_id = run_id
-    _viewed_run_id = run_id
-    _viewed_state = None
-    _active_state = state
-    _drain_queue()
-
-    def _test_in_thread():
-        global _running, _active_state, _active_run_id, _viewed_state
-        try:
-            from tau2.run import load_task_splits
-            from evo.parallel_loop import _run_test_evaluation
-
-            splits = load_task_splits(domain)
-            if not splits:
-                _events.put("ERROR: No canonical splits for this domain.")
-                return
-            test_ids = splits["test"]
-            _events.put(f"Running test evaluation on {len(test_ids)} held-out tasks...")
-
-            state.test_results = _run_test_evaluation(
-                domain=domain, test_ids=test_ids, seed=cfg.DEFAULT_SEED,
-                evolved_prompt=state.system_prompt,
-                evolved_schemas=state.tool_schemas,
-                evolved_code=state.tool_code,
-                student_model=None,
-                parallelism=parallelism,
-                on_status=lambda msg: _events.put(msg),
-            )
-            state.test_task_ids = test_ids
-            state.meta.status = "finished"
-            _active_state = state
-            _save_run(state)
-            _events.put("Test evaluation complete.")
-            _events.put("[CHARTS]")
-        except Exception as e:
-            _events.put(f"\nERROR: {e}")
-        finally:
-            if _viewed_run_id == _active_run_id and _active_state:
-                _viewed_state = _active_state
-            _running = False
-            _active_run_id = None
-            _active_state = None
-            _events.put("[DONE]")
-
-    threading.Thread(target=_test_in_thread, daemon=True).start()
-
-    return HTMLResponse(
-        '<div id="status" class="text-green-400">Test evaluation started.</div>'
-        '<script>startSSE(false)</script>'
-    )
 
 
 @app.delete("/runs/{run_id}")
@@ -736,7 +682,7 @@ async def resume_run(run_id: str, request: Request):
         return HTMLResponse('<div id="status" class="text-yellow-400">Only stopped or errored runs can be resumed.</div>')
 
     form = await request.form()
-    max_iter = int(form.get("max_iterations", cfg.DEFAULT_MAX_ITERATIONS))
+    max_sweeps = int(form.get("max_sweeps", cfg.DEFAULT_MAX_SWEEPS))
     parallelism = int(form.get("parallelism", cfg.DEFAULT_PARALLELISM))
 
     domain = prev_state.meta.domain
@@ -759,7 +705,7 @@ async def resume_run(run_id: str, request: Request):
     _drain_queue()
 
     meta = prev_state.meta
-    meta.status = "running"
+    meta.status = RUN_RUNNING
     _active_state = prev_state
     _save_run(_active_state)
 
@@ -769,7 +715,7 @@ async def resume_run(run_id: str, request: Request):
             state = run_loop(
                 domain=domain,
                 num_tasks=prev_state.meta.num_tasks,
-                max_iterations=max_iter,
+                max_sweeps=max_sweeps,
                 parallelism=parallelism,
                 seed=cfg.DEFAULT_SEED,
                 student_model=student_model,
@@ -778,12 +724,13 @@ async def resume_run(run_id: str, request: Request):
                 on_fix_attempt=_on_fix_attempt_cb,
                 on_teacher_message=_on_teacher_message,
                 on_session=_on_student_session,
+                on_phase=_make_phase_cb(max_sweeps, has_test=bool(prev_state.test_task_ids)),
                 stop_event=_stop_event,
                 resume_state=prev_state,
             )
             _finish_loop_thread(meta, state)
         except Exception as e:
-            meta.status = "error"
+            meta.status = RUN_ERROR
             if _active_state:
                 _active_state.meta = meta
                 _save_run(_active_state)
@@ -817,11 +764,11 @@ def _build_results() -> list[dict]:
     for r in state.history:
         for fix in r.fixes:
             rows.append({
-                "iter": r.iteration,
+                "sweep": r.sweep,
                 "task": fix.task_id,
-                "baseline": f"{fix.baseline_reward:.2f}",
-                "patched": f"{fix.patched_reward:.2f}",
-                "delta": f"{fix.delta:+.2f}",
+                "baseline": "Pass" if fix.baseline_reward >= 1.0 else "Fail",
+                "patched": "Pass" if fix.patched_reward >= 1.0 else "Fail",
+                "delta": "0→1" if fix.delta > 0 else "1→0" if fix.delta < 0 else ("1→1" if fix.baseline_reward >= 1.0 else "0→0"),
                 "retries": fix.retries,
                 "status": "FIXED" if fix.fixed else "NOT FIXED",
                 "fix_tier": fix.fix_tier,
@@ -839,15 +786,15 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
     fixes = state.flat_fixes() if state else []
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
-    fixed_prompt = sum(1 for f in fixes if f.fix_tier == "prompt")
-    fixed_code = sum(1 for f in fixes if f.fix_tier == "code")
+    fixed_prompt = sum(1 for f in fixes if f.fix_tier == FIX_TIER_PROMPT)
+    fixed_code = sum(1 for f in fixes if f.fix_tier == FIX_TIER_CODE)
 
-    eval_total = 0
-    eval_passed = 0
+    sweep_total = 0
+    sweep_passed = 0
     if state and not fixes:
         for h in state.history:
-            eval_total += len(h.eval_rewards)
-            eval_passed += sum(1 for r in h.eval_rewards.values() if r >= 1.0)
+            sweep_total += len(h.sweep_rewards)
+            sweep_passed += sum(1 for r in h.sweep_rewards.values() if r >= 1.0)
 
     tr = state.test_results if state else None
     return {
@@ -857,15 +804,14 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
         "fixed_code": fixed_code,
         "not_fixed": total - fixed,
         "rate": int(fixed / total * 100) if total else (
-            int(eval_passed / eval_total * 100) if eval_total else 0
+            int(sweep_passed / sweep_total * 100) if sweep_total else 0
         ),
-        "eval_total": eval_total,
-        "eval_passed": eval_passed,
+        "sweep_total": sweep_total,
+        "sweep_passed": sweep_passed,
         "test_results": tr is not None,
         "test_baseline_rate": int(tr.baseline_pass_rate * 100) if tr else 0,
         "test_evolved_rate": int(tr.evolved_pass_rate * 100) if tr else 0,
         "test_prompt_only_rate": int(tr.prompt_only_pass_rate * 100) if tr else 0,
-        "test_gap_closure": int(tr.gap_closure * 100) if tr and tr.gap_closure is not None else 0,
     }
 
 

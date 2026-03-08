@@ -23,18 +23,15 @@ def main():
     _domain_hints = ", ".join(f"{d}={n}" for d, n in cfg.DOMAIN_NUM_TASKS.items())
     loop_p.add_argument("--num-tasks", type=int, default=cfg.DEFAULT_NUM_TASKS,
                         help=f"Number of tasks to evaluate ({_domain_hints})")
-    loop_p.add_argument("--max-iterations", type=int, default=cfg.DEFAULT_MAX_ITERATIONS)
+    loop_p.add_argument("--max-sweeps", type=int, default=cfg.DEFAULT_MAX_SWEEPS)
     loop_p.add_argument("--max-retries", type=int, default=cfg.DEFAULT_MAX_RETRIES)
-    loop_p.add_argument("--parallelism", type=int, default=cfg.DEFAULT_PARALLELISM, help="Max parallel workers (teachers & tau2 evals)")
+    loop_p.add_argument("--parallelism", type=int, default=cfg.DEFAULT_PARALLELISM, help="Max parallel workers (teachers & task runs)")
     loop_p.add_argument("--seed", type=int, default=cfg.DEFAULT_SEED)
     loop_p.add_argument("--task-ids", nargs="+", help="Run only these task IDs")
     loop_p.add_argument("--split", action=argparse.BooleanOptionalAction, default=True,
                         help="Use canonical train/test split (default: on)")
     loop_p.add_argument("--test-only", type=str, default=None, metavar="STATE_FILE",
                         help="Run test evaluation on an existing LoopState (skip evolution)")
-
-    # ── ui ────────────────────────────────────────────────────────────────
-    sub.add_parser("ui", help="Launch the Textual dashboard")
 
     # ── web ───────────────────────────────────────────────────────────────
     web_p = sub.add_parser("web", help="Launch the web dashboard")
@@ -81,7 +78,7 @@ def main():
             state = run_loop(
                 domain=args.domain,
                 num_tasks=args.num_tasks,
-                max_iterations=args.max_iterations,
+                max_sweeps=args.max_sweeps,
                 max_retries=args.max_retries,
                 parallelism=args.parallelism,
                 seed=args.seed,
@@ -93,16 +90,7 @@ def main():
             if state.test_results:
                 tr = state.test_results
                 console.print(f"[bold]Test results:[/bold] baseline={tr.baseline_pass_rate:.0%} "
-                              f"evolved={tr.evolved_pass_rate:.0%} prompt-only={tr.prompt_only_pass_rate:.0%} "
-                              f"frontier={tr.frontier_pass_rate:.0%}")
-                if tr.gap_closure is not None:
-                    console.print(f"[bold]Gap closure:[/bold] {tr.gap_closure:.1%}")
-
-    elif args.command == "ui":
-        from evo.ui.app import EvolutionApp
-
-        app = EvolutionApp()
-        app.run()
+                              f"evolved={tr.evolved_pass_rate:.0%} prompt-only={tr.prompt_only_pass_rate:.0%}")
 
     elif args.command == "web":
         cfg.quiet_deps()

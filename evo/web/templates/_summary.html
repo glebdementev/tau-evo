@@ -20,7 +20,7 @@
     {% endif %}
   </div>
 </div>
-{% elif eval_total is defined and eval_total > 0 %}
+{% elif sweep_total is defined and sweep_total > 0 %}
 <div class="bg-surface-800 rounded border border-surface-600 p-3">
   <div class="flex items-center gap-6">
     <div class="flex items-baseline gap-1.5">
@@ -29,9 +29,9 @@
     </div>
     <div class="h-8 w-px bg-surface-600"></div>
     <div class="flex items-center gap-5 text-xs">
-      <div><span class="text-sm font-semibold text-white">{{ eval_total }}</span> <span class="text-gray-500">evaluated</span></div>
-      <div><span class="text-sm font-semibold text-emerald-400">{{ eval_passed }}</span> <span class="text-gray-500">passed</span></div>
-      <div><span class="text-sm font-semibold text-red-400">{{ eval_total - eval_passed }}</span> <span class="text-gray-500">failed</span></div>
+      <div><span class="text-sm font-semibold text-white">{{ sweep_total }}</span> <span class="text-gray-500">swept</span></div>
+      <div><span class="text-sm font-semibold text-emerald-400">{{ sweep_passed }}</span> <span class="text-gray-500">passed</span></div>
+      <div><span class="text-sm font-semibold text-red-400">{{ sweep_total - sweep_passed }}</span> <span class="text-gray-500">failed</span></div>
     </div>
   </div>
 </div>
@@ -50,7 +50,6 @@
       <div><span class="text-sm font-semibold text-gray-400">{{ test_baseline_rate }}%</span> <span class="text-gray-500">baseline</span></div>
       <div><span class="text-sm font-semibold text-purple-400">{{ test_prompt_only_rate }}%</span> <span class="text-gray-500">prompt-only</span></div>
       <div><span class="text-sm font-semibold text-accent">{{ test_evolved_rate }}%</span> <span class="text-gray-500">evolved</span></div>
-      <div><span class="text-sm font-semibold text-emerald-400">{{ test_gap_closure }}%</span> <span class="text-gray-500">gap closure</span></div>
     </div>
   </div>
 </div>

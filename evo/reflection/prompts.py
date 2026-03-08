@@ -63,30 +63,33 @@ Your previous patches did NOT fix the issue. The agent was re-run on the same ta
 - Baseline reward: {baseline_reward:.2f}
 - Reward after your patches: {patched_reward:.2f}
 
-Here is the new conversation trace after applying your patches:
+**Your patches have been DISCARDED** because they did not improve the reward. \
+The prompt, tool schemas, and preprocessors have been reverted to their original (pre-patch) state. \
+You must apply your fixes from scratch.
+
+Here is the new conversation trace from the failed validation run (with your now-discarded patches):
 
 {new_trace}
 
-And the new reward breakdown:
+And the reward breakdown from that failed run:
 
 {new_reward}
 
-## Current Agent System Prompt (with your patches applied)
+## Original Agent System Prompt (reverted — no patches applied)
 
 {current_prompt}
 
-## Current Tool Schemas (with your patches applied)
+## Original Tool Schemas (reverted — no patches applied)
 
 {current_tools}
 
-## Current Tool Preprocessors (with your patches applied)
+## Original Tool Preprocessors (reverted — no patches applied)
 
 {current_preprocessors}
 
-Please analyse what went wrong with your previous patches and try again. \
-Use the patch tools to make further edits to the prompt, tool schemas, or tool preprocessors. \
-Remember: the patches you made earlier are already applied — build on top of them or undo them if they were counterproductive. \
-The current prompt, tool schemas, and preprocessors above reflect your changes so far — use them to write accurate old_text values.
+Analyse why your previous patches failed using the validation trace above, then apply a NEW set of patches from scratch. \
+The prompt, schemas, and preprocessors above are the clean originals — use them for accurate old_text values. \
+Do not repeat the same patches that failed. Think about what was fundamentally wrong with your approach and try a different strategy.
 """
 
 ESCALATION_PROMPT = """\
@@ -96,23 +99,27 @@ despite your instructions — the agent's reasoning capacity is insufficient to 
 - Baseline reward: {baseline_reward:.2f}
 - Reward after your prompt/schema patches: {patched_reward:.2f}
 
-Here is the conversation trace after applying your patches:
+**Your patches have been DISCARDED** because they did not improve the reward. \
+The prompt, tool schemas, and preprocessors have been reverted to their original (pre-patch) state. \
+You must apply your fixes from scratch.
+
+Here is the conversation trace from the last failed validation run (with your now-discarded patches):
 
 {new_trace}
 
-And the reward breakdown:
+And the reward breakdown from that failed run:
 
 {new_reward}
 
-## Current Agent System Prompt (with your patches applied)
+## Original Agent System Prompt (reverted — no patches applied)
 
 {current_prompt}
 
-## Current Tool Schemas (with your patches applied)
+## Original Tool Schemas (reverted — no patches applied)
 
 {current_tools}
 
-## Current Tool Preprocessors (with your patches applied)
+## Original Tool Preprocessors (reverted — no patches applied)
 
 {current_preprocessors}
 
@@ -122,6 +129,7 @@ tool inputs BEFORE the tool executes. Use them to add defensive guardrails: inpu
 format normalization, or validation that catches mistakes the agent keeps making despite \
 clear instructions.
 
-Keep your existing prompt/schema patches — they may still help. Layer the preprocessor \
-on top as a safety net for the specific mistake the agent cannot learn to avoid.
+Apply ALL fixes from scratch — both prompt/schema patches and preprocessor patches. \
+Consider combining prompt instructions with tool code guardrails for a more robust fix. \
+Do not repeat the same patches that failed in previous attempts.
 """

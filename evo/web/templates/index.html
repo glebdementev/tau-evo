@@ -57,7 +57,12 @@
     <div id="status" class="text-xs text-gray-500"></div>
   </header>
 
-  <div class="flex gap-0 h-[calc(100vh-41px)]">
+  <!-- Timeline -->
+  <div id="timeline" class="hidden bg-surface-800 border-b border-surface-600 px-4 py-1.5">
+    <div id="timeline-steps" class="flex items-center gap-0 text-[11px] font-medium overflow-x-auto"></div>
+  </div>
+
+  <div class="flex gap-0" style="height: calc(100vh - 41px)" id="main-layout">
 
     <!-- ════════════ LEFT SIDEBAR: Config + Log ════════════ -->
     <aside class="w-56 shrink-0 flex flex-col border-r border-surface-600 bg-surface-800">
@@ -85,8 +90,8 @@
 
         <div class="grid grid-cols-4 gap-1.5 mb-2">
           <div>
-            <label class="block text-[11px] text-gray-400 mb-0.5">Iters</label>
-            <input type="number" name="max_iterations" value="{{ defaults.max_iterations }}" min="1" max="50"
+            <label class="block text-[11px] text-gray-400 mb-0.5">Sweeps</label>
+            <input type="number" name="max_sweeps" value="{{ defaults.max_sweeps }}" min="2" max="4"
                    class="w-full bg-surface-700 border border-surface-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:border-accent focus:outline-none">
           </div>
           <div>
@@ -138,7 +143,7 @@
           <h2 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Log</h2>
           <span id="log-timer" class="text-[10px] text-gray-600 font-mono"></span>
         </div>
-        <pre id="log" class="bg-surface-900 rounded p-2 text-[11px] text-gray-400 font-mono flex-1 overflow-y-auto whitespace-pre-wrap min-h-0 leading-relaxed border border-surface-700"></pre>
+        <pre id="log" class="bg-surface-900 rounded p-2 text-[11px] text-gray-400 font-mono flex-1 overflow-y-auto whitespace-pre-wrap break-all min-h-0 leading-relaxed border border-surface-700" style="overflow-x:hidden"></pre>
       </div>
     </aside>
 
@@ -173,15 +178,15 @@
             <select id="session-type-filter" onchange="refreshSessionList()"
                     class="bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 focus:border-accent focus:outline-none">
               <option value="">All sessions</option>
-              <option value="teacher">Teacher (reflection)</option>
+              <option value="teacher">Teacher (fix)</option>
               <option value="student">Student (all)</option>
             </select>
-            <select id="session-context-filter" onchange="filterSessionsByContext()"
+            <select id="session-context-filter" onchange="refreshSessionList()"
                     class="bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 focus:border-accent focus:outline-none">
               <option value="">Any stage</option>
-              <option value="eval">Evaluation (student baseline)</option>
-              <option value="fix">Fixing (teacher + validation)</option>
-              <option value="test">Test split evaluation</option>
+              <option value="sweep">Sweep (train tasks)</option>
+              <option value="fix">Fix (teacher + verify)</option>
+              <option value="test">Test (held-out split)</option>
             </select>
             <select id="session-select" onchange="loadSession(this.value)"
                     class="flex-1 bg-surface-700 border border-surface-600 rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-accent focus:outline-none">
@@ -235,6 +240,8 @@
     // ── Log Timer ──────────────────────────────────────────────────────
     let _lastLogTime = null;
     let _logTimerInterval = null;
+    let _logPhase = '';  // current phase label, e.g. "S1/sweep" or "S2/fix"
+    let _logStepId = 0;  // monotonic step counter
 
     function updateLogTimer() {
       const el = document.getElementById('log-timer');
@@ -279,10 +286,9 @@
 
     // ── Charts ───────────────────────────────────────────────────────
     const CHART_IDS = [
-      'reward_progression', 'cumulative_fix_rate',
-      'comparison_bar', 'train_comparison',
-      'failure_types', 'fix_tiers',
-      'task_heatmap', 'test_comparison', 'test_heatmap',
+      'sweep_outcomes', 'fix_attempts',
+      'sweep_heatmap', 'error_categories',
+      'test_outcomes', 'test_heatmap',
     ];
 
     const plotlyConfig = { displayModeBar: false, responsive: true };
@@ -388,7 +394,20 @@
 
       src.addEventListener('log', (e) => {
         const log = document.getElementById('log');
-        log.textContent += e.data + '\n';
+        const line = e.data;
+        if (!line.trim()) return;
+
+        // Prefix with step id and current phase
+        const prefix = _logPhase ? `#${_logStepId} ${_logPhase}` : `#${_logStepId}`;
+        const oneliner = `${prefix} | ${line}`;
+
+        // Cap log lines to prevent unbounded DOM growth
+        const MAX_LOG_LINES = 200;
+        const lines = log.textContent.split('\n');
+        if (lines.length >= MAX_LOG_LINES) {
+          log.textContent = lines.slice(-Math.floor(MAX_LOG_LINES * 0.75)).join('\n');
+        }
+        log.textContent += oneliner + '\n';
         log.scrollTop = log.scrollHeight;
         _lastLogTime = Date.now();
         updateLogTimer();
@@ -429,6 +448,21 @@
         }
       });
 
+      src.addEventListener('phase', (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.sweep === 1 && d.phase === 'sweep' && d.status === 'running' && !_timelineSteps.length) {
+            initTimeline(d.max_sweeps || 3, !!d.has_test);
+          }
+          updateTimelinePhase(d.sweep, d.phase, d.status);
+          // Track current phase for log prefixing
+          if (d.status === 'running') {
+            _logPhase = d.sweep ? `S${d.sweep}/${d.phase}` : d.phase;
+            _logStepId++;
+          }
+        } catch(ex) {}
+      });
+
       src.addEventListener('save', () => {
         refreshHistory();
         if (_viewingActive) debouncedRefreshDashboard();
@@ -439,6 +473,7 @@
         src.close();
         _sseSource = null;
         stopLogTimer();
+        hideTimeline();
         fetch('/api/state').then(r => r.json()).then(s => {
           if (!s.running) {
             const statusEl = document.getElementById('status');
@@ -517,12 +552,12 @@
 
     function parseSessionContext(ctx, sessionType) {
       if (!ctx) return sessionType === 'teacher'
-        ? { label: 'Teacher reflection', color: 'text-purple-400', bg: 'bg-purple-900/40' }
+        ? { label: 'Fix (teacher)', color: 'text-purple-400', bg: 'bg-purple-900/40' }
         : { label: 'Student', color: 'text-accent', bg: 'bg-blue-900/40' };
-      const evalMatch = ctx.match(/^eval_iter(\d+)$/);
-      if (evalMatch) return { label: `Eval iter ${evalMatch[1]}`, color: 'text-cyan-400', bg: 'bg-cyan-900/40' };
-      const fixMatch = ctx.match(/^fix_(.+?)_a(\d+)$/);
-      if (fixMatch) return { label: `Validation ${fixMatch[1]} #${fixMatch[2]}`, color: 'text-amber-400', bg: 'bg-amber-900/40' };
+      const sweepMatch = ctx.match(/^sweep_(\d+)$/) || ctx.match(/^eval_iter(\d+)$/);
+      if (sweepMatch) return { label: `Sweep ${sweepMatch[1]}`, color: 'text-cyan-400', bg: 'bg-cyan-900/40' };
+      const verifyMatch = ctx.match(/^verify_(.+?)_a(\d+)$/) || ctx.match(/^fix_(.+?)_a(\d+)$/);
+      if (verifyMatch) return { label: `Verify ${verifyMatch[1]} #${verifyMatch[2]}`, color: 'text-amber-400', bg: 'bg-amber-900/40' };
       if (ctx.startsWith('test_')) return { label: ctx.replace(/_/g, ' '), color: 'text-emerald-400', bg: 'bg-emerald-900/40' };
       return { label: ctx, color: 'text-gray-400', bg: 'bg-surface-700' };
     }
@@ -561,15 +596,10 @@
     function matchesContextFilter(session, ctxFilter) {
       if (!ctxFilter) return true;
       const ctx = session.context || '';
-      if (ctxFilter === 'eval') return ctx.startsWith('eval_iter');
-      if (ctxFilter === 'fix') return ctx.startsWith('fix_') || session.session_type === 'teacher';
+      if (ctxFilter === 'sweep') return ctx.startsWith('sweep_') || ctx.startsWith('eval_iter');
+      if (ctxFilter === 'fix') return ctx.startsWith('verify_') || ctx.startsWith('fix_') || session.session_type === 'teacher';
       if (ctxFilter === 'test') return ctx.startsWith('test_');
       return true;
-    }
-
-    function filterSessionsByContext() {
-      // Client-side re-filter of the current session list
-      refreshSessionList();
     }
 
     function refreshSessionList() {
@@ -666,11 +696,25 @@
             container.appendChild(renderMessage(msg, _sessionMsgCount + i));
           });
           _sessionMsgCount += msgs.length;
+
+          // Cap DOM nodes to prevent unbounded growth
+          const MAX_SESSION_MSGS = 300;
+          while (container.children.length > MAX_SESSION_MSGS) {
+            container.removeChild(container.firstChild);
+          }
           container.scrollTop = container.scrollHeight;
 
           if (status === 'active' || status === 'retrying') {
-            if (!_sessionPollTimer) {
-              _sessionPollTimer = setInterval(() => fetchSessionMessages(sessionId, false), 5000);
+            // Only create a timer if none exists and this is still the active session
+            if (!_sessionPollTimer && sessionId === _activeSession) {
+              const capturedId = sessionId;
+              _sessionPollTimer = setInterval(() => {
+                if (capturedId !== _activeSession) {
+                  clearInterval(_sessionPollTimer); _sessionPollTimer = null;
+                  return;
+                }
+                fetchSessionMessages(capturedId, false);
+              }, 5000);
             }
           } else {
             if (_sessionPollTimer) { clearInterval(_sessionPollTimer); _sessionPollTimer = null; }
@@ -824,6 +868,69 @@
         .then(() => Plotly.downloadImage(clone, { format: 'svg', width: 900, height: 500, filename: chartId + '_print' }))
         .then(() => { Plotly.purge(clone); clone.remove(); });
     }
+
+    // ── Timeline ──────────────────────────────────────────────────────
+    let _timelineSteps = [];  // [{sweep, phase, status}]
+
+    function initTimeline(maxSweeps, hasTest) {
+      _timelineSteps = [];
+      for (let s = 1; s <= maxSweeps; s++) {
+        _timelineSteps.push({sweep: s, phase: 'sweep', status: 'pending'});
+        if (s < maxSweeps) {
+          _timelineSteps.push({sweep: s, phase: 'fix', status: 'pending'});
+          _timelineSteps.push({sweep: s, phase: 'merge', status: 'pending'});
+        }
+      }
+      if (hasTest) {
+        _timelineSteps.push({sweep: 0, phase: 'test', status: 'pending'});
+      }
+      renderTimeline();
+    }
+
+    function updateTimelinePhase(sweep, phase, status) {
+      const step = _timelineSteps.find(s => s.sweep === sweep && s.phase === phase);
+      if (step) step.status = status;
+      renderTimeline();
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById('timeline');
+      const steps = document.getElementById('timeline-steps');
+      if (!_timelineSteps.length) { container.classList.add('hidden'); return; }
+      container.classList.remove('hidden');
+
+      // Adjust main layout height
+      document.getElementById('main-layout').style.height = 'calc(100vh - 41px - 33px)';
+
+      steps.innerHTML = _timelineSteps.map((s, i) => {
+        const colors = {
+          done: 'bg-emerald-500/20 text-emerald-400 border-emerald-600/50',
+          running: 'bg-amber-500/20 text-amber-300 border-amber-600/50',
+          skipped: 'bg-surface-700 text-gray-600 border-surface-600 line-through',
+          pending: 'bg-surface-700/50 text-gray-600 border-surface-700',
+        };
+        const cls = colors[s.status] || colors.pending;
+        const dot = s.status === 'running' ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot inline-block mr-1"></span>' : '';
+        const label = s.sweep === 0 ? s.phase[0].toUpperCase() + s.phase.slice(1) : `${s.phase[0].toUpperCase()}${s.phase.slice(1)} ${s.sweep}`;
+        const arrow = i < _timelineSteps.length - 1
+          ? '<span class="text-gray-600 mx-0.5">\u203A</span>' : '';
+        return `<span class="px-2 py-0.5 rounded border ${cls} whitespace-nowrap">${dot}${label}</span>${arrow}`;
+      }).join('');
+    }
+
+    function hideTimeline() {
+      _timelineSteps = [];
+      document.getElementById('timeline').classList.add('hidden');
+      document.getElementById('main-layout').style.height = 'calc(100vh - 41px)';
+    }
+
+    // ── Cleanup on page unload ────────────────────────────────────────
+    window.addEventListener('beforeunload', () => {
+      if (_sseSource) { _sseSource.close(); _sseSource = null; }
+      if (_sessionPollTimer) { clearInterval(_sessionPollTimer); _sessionPollTimer = null; }
+      if (_logTimerInterval) { clearInterval(_logTimerInterval); _logTimerInterval = null; }
+      if (_refreshTimer) { clearTimeout(_refreshTimer); _refreshTimer = null; }
+    });
 
     // ── Init ─────────────────────────────────────────────────────────
     refreshSessionList();
