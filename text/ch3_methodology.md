@@ -110,23 +110,21 @@ DSPy [@khattab2023] compiles declarative modules against a target metric through
 
 ### 3.5.2 The Outer Loop
 
-The outer loop proceeds as follows for each iteration. First, the student is evaluated on all benchmark tasks (excluding previously dropped tasks) with the current evolved state, and results are saved. Second, tasks with reward strictly less than 1.0 are extracted as failures. Third, for each failed task, a teacher session is spawned in parallel to diagnose the failure and propose patches; each patch set is validated by re-running the student on that task. Fourth, all accepted patches are merged into the global state. Fifth, all attempted tasks---both fixed and unfixed---are dropped from future evaluation. The loop repeats until no failures remain, all tasks have been dropped, or the maximum iteration count is reached. @Fig:outer-loop visualizes this process.
+The outer loop proceeds as follows for each sweep. First, the student is evaluated on all benchmark tasks with the current evolved state, and results are saved. Second, tasks that do not pass unanimously across all trials (any trial with reward below 1.0) are extracted as failures. Third, for each failed task, a teacher session is spawned in parallel to diagnose the failure and propose patches; each patch set is validated by re-running the student on that task. Fourth, all accepted patches are merged into the global state by a merger LLM session (Section 3.6.4). The loop repeats with the full task set until no failures remain or the maximum sweep count is reached. Re-evaluating all tasks every sweep---rather than dropping attempted tasks---is deliberate: merged patches from multiple independent teacher sessions can interact, and re-evaluation catches regressions introduced by the merge step. @Fig:outer-loop visualizes this process.
 
-![Evolution outer loop: the student is evaluated, failures are extracted, teacher sessions fix failures in parallel, winning patches are merged, and all attempted tasks are dropped before the next iteration.](figures/fig_01_outer_loop.png){#fig:outer-loop}
+![Evolution outer loop: the student is evaluated on all tasks, failures are extracted, teacher sessions fix failures in parallel, winning patches are merged, and all tasks are re-evaluated in the next sweep to catch regressions.](figures/fig_01_outer_loop.png){#fig:outer-loop}
 
-The parallel fix phase uses a thread pool to process multiple failures concurrently, as shown in @fig:parallel-architecture. Each thread operates on a deep copy of the global state, preventing interference between concurrent teacher sessions. Results are collected and merged sequentially after all threads complete.
+The parallel fix phase uses a thread pool to process multiple failures concurrently, as shown in @fig:parallel-architecture. Each thread operates on a deep copy of the global state, preventing interference between concurrent teacher sessions. Results are collected and merged after all threads complete.
 
-![Parallel execution architecture: failed tasks are distributed across threads, each with an independent copy of the evolved state. Fix results are collected and merged sequentially.](figures/fig_11_parallel_architecture.png){#fig:parallel-architecture}
-
-Dropping both fixed and unfixed tasks is deliberate. Fixed tasks were already validated during the fix phase; re-evaluating them wastes API budget. Unfixed tasks could not be repaired within the allotted retries; re-attempting with a marginally different global prompt is unlikely to succeed and risks conflicting patches. These tasks are treated as intractable for the current teacher--student pair.
+![Parallel execution architecture: failed tasks are distributed across threads, each with an independent copy of the evolved state. Fix results are collected and merged.](figures/fig_11_parallel_architecture.png){#fig:parallel-architecture}
 
 ### 3.5.3 The Inner Loop: Per-Failure Fix Attempts
 
-For each failed task, a teacher session is created with deep copies of the current global state. The session enters a reflect-validate loop with up to 1 + *max_retries* attempts, as shown in @fig:inner-loop. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied. If the patched reward exceeds the baseline reward, the fix is accepted. If not, the teacher receives the new conversation trace, the new reward breakdown, and the current state of all its modifications, and is asked to try again.
+For each failed task, a teacher session is created with deep copies of the current global state. The total attempt budget (1 + *max_retries*) is split between two phases: Phase 1 (teaching) receives roughly half, and Phase 2 (guardrails) receives the remainder. The session enters a reflect-validate loop, as shown in @fig:inner-loop. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted to their pre-patch state and the teacher receives the new conversation trace, the new reward breakdown, and the reverted state, and is asked to try again from scratch.
 
-![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the reward does not improve, the teacher retries with feedback until retries are exhausted.](figures/fig_02_inner_loop.png){#fig:inner-loop}
+![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the task does not pass all trials, patches are reverted and the teacher retries with feedback until attempts are exhausted.](figures/fig_02_inner_loop.png){#fig:inner-loop}
 
-Patches are merged into the global state only if validation succeeds. Failed patches are discarded entirely. The fix success criterion is permissive: any improvement in reward counts, not just reaching a perfect 1.0. A patch improving a task's reward from 0.0 to 0.5 is accepted and merged, potentially enabling further improvement in subsequent iterations.
+Patches are merged into the global state only if validation succeeds. Failed patches are discarded entirely. The fix success criterion is strict: the patched student must pass the task unanimously across all trials (each achieving reward 1.0). Partial improvements are not accepted. This strictness prevents fragile patches---those that work on some stochastic runs but not others---from entering the global state.
 
 ### 3.5.4 The Teacher Session
 
@@ -162,7 +160,7 @@ Some formatting errors persist even when the prompt and schema are clear: the mo
 
 ### 3.6.4 Patch Application and Merging
 
-Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single iteration, winning patches are merged into the global state in sequence. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point. @Fig:patch-pipeline details the validation gates for each patch type.
+Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single sweep, winning patches are consolidated by a dedicated merger LLM session. The merger receives the current global state (prompt, schemas, preprocessors) and the proposed diffs from all successful fixes. It applies patches via the same patch_prompt and patch_tool tool calls available to the teacher, resolving conflicts, deduplicating redundant edits, and compacting overlapping changes---all within a single session. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point. @Fig:patch-pipeline details the validation gates for each patch type.
 
 ![Patch application pipeline: prompt patches are applied directly, while tool schema patches must produce valid JSON and tool preprocessor patches must pass static analysis. Invalid patches are rejected without aborting the batch.](figures/fig_12_patch_pipeline.png){#fig:patch-pipeline}
 
@@ -205,7 +203,7 @@ To normalize for domain difficulty, gap closure is computed as: (K âˆ’ B) / (F â
 
 ### 3.8.4 Fix Success Rate
 
-A fix succeeds when the patched reward strictly exceeds the baseline reward. The fix success rate---the fraction of attempted fixes that succeed---measures the evolution process's efficiency.
+A fix succeeds when the patched student passes the task unanimously---all trials achieve a perfect reward of 1.0. The fix success rate---the fraction of attempted fixes that succeed---measures the evolution process's efficiency.
 
 ## 3.9 Reproducibility
 
@@ -214,7 +212,7 @@ A fix succeeds when the patched reward strictly exceeds the baseline reward. The
 | Parameter              | Value   | Rationale                                                  |
 |------------------------|---------|------------------------------------------------------------|
 | Random seed            | 42      | Deterministic task selection and ordering                  |
-| Trials per task        | 1       | Single trial per evaluation                                |
+| Trials per task        | 3       | Unanimous pass required across all trials                  |
 | Teacher temperature    | 0.3     | Focused diagnostic output                                  |
 | Reasoning suppression  | Enabled | Prevents reasoning tokens from breaking content parsing    |
 | Max teacher rounds     | 10      | Multi-step diagnosis without unbounded cost                |
@@ -233,7 +231,7 @@ The complete evolution state is serialized to JSON after each iteration: the cur
 
 ### 3.10.1 Internal Validity
 
-**Single trial per task.** Each task is evaluated once per iteration, introducing variance from stochastic LLM generation. @yao2024 introduced the pass^k^ metric precisely to capture this variance, showing that pass^8^ can drop below 25 percent even when pass^1^ exceeds 50 percent. The limitation is mitigated by the fixed seed and by reporting results across multiple tasks, but full confidence intervals would require multiple trials per task at additional cost.
+**Stochastic generation variance.** Each task is evaluated with three trials per sweep, and a task passes only if all three trials achieve a perfect reward. This unanimous-pass criterion reduces the probability of accepting fragile patches that succeed by chance. @yao2024 introduced the pass^k^ metric precisely to capture this variance, showing that pass^8^ can drop below 25 percent even when pass^1^ exceeds 50 percent. Three trials represent a pragmatic trade-off between confidence and API cost; more trials would further tighten estimates but at three times the current budget per additional trial.
 
 **Teacher model bias.** The teacher's diagnoses and patches reflect the capabilities and blind spots of Kimi K2.5. A different teacher might produce different patches and improvement trajectories. The mitigation is empirical validation: only patches that demonstrably improve the student's performance enter the global state. @dorner2024 showed that when the judge is no more capable than the evaluated model, debiasing cannot fully compensate; this limitation does not apply here, since Kimi K2.5 is substantially stronger than Qwen3 30B-A3B.
 

@@ -350,6 +350,10 @@
     function resetForNewRun() {
       _viewingActive = true;
       _sessionRefreshSeq++;
+      _timelineSteps = [];
+      _logPhase = '';
+      _logStepId = 0;
+      hideContinueTestButton();
       refreshHistory();
       htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
       CHART_IDS.forEach(id => {
