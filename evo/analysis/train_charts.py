@@ -3,14 +3,28 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import Optional, Union
 
 import plotly.graph_objects as go
 
-from evo.models import SweepResult, TestResults, FIX_TIER_PROMPT, FIX_TIER_CODE
+from evo.models import SweepResult, TestResults, FIX_TIER_PROMPT, FIX_TIER_TOOLS, FIX_TIER_CODE, is_task_passed, is_task_error
 
 from .theme import BAR_LINE, COLORS, base_layout, empty_figure
 
 _MISSING = object()  # sentinel: task not evaluated in this sweep
+
+
+def _pass_fraction_text(reward_val) -> str:
+    """Return a text label like '2/3' or 'Pass' for a reward value."""
+    if isinstance(reward_val, list):
+        valid = [r for r in reward_val if r is not None]
+        if not valid:
+            return "Error"
+        passes = sum(1 for r in valid if r >= 1.0)
+        return f"{passes}/{len(reward_val)}"
+    if reward_val is None:
+        return "Error"
+    return "Pass" if reward_val >= 1.0 else "Fail"
 
 # Error categories matched against diagnosis text.
 ERROR_CATEGORIES = ["TOOL_MISUSE", "POLICY_VIOLATION", "REASONING_ERROR"]
@@ -30,35 +44,41 @@ def _categorise_diagnosis(diagnosis: str) -> str:
 # ---------------------------------------------------------------------------
 
 def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
-    """Stacked bar per sweep: passes / fixed-prompt / fixed-guardrail / unfixed / errors."""
+    """Stacked bar per sweep: passes / fixed-instruction / fixed-tools / fixed-guardrail / unfixed / errors."""
     if not history:
         return empty_figure("Sweep Outcomes", "No data yet.")
 
     sweeps: list[str] = []
     passes: list[int] = []
-    fixed_prompt: list[int] = []
+    fixed_instruction: list[int] = []
+    fixed_tools: list[int] = []
     fixed_guardrail: list[int] = []
     unfixed: list[int] = []
     errors: list[int] = []
 
     for h in history:
         sweeps.append(f"Sweep {h.sweep}")
-        n_errors = h.num_errors
-        n_pass = h.num_evaluated - h.num_failures - n_errors
-        n_prompt = sum(1 for f in h.fixes if f.fixed and f.fix_tier == FIX_TIER_PROMPT)
+        # Count from sweep_rewards using unanimous voting
+        n_tasks = len(h.sweep_rewards) if h.sweep_rewards else h.num_evaluated
+        n_pass_count = sum(1 for r in h.sweep_rewards.values() if is_task_passed(r)) if h.sweep_rewards else (h.num_evaluated - h.num_failures)
+        n_error_count = sum(1 for r in h.sweep_rewards.values() if is_task_error(r)) if h.sweep_rewards else h.num_errors
+        n_instr = sum(1 for f in h.fixes if f.fixed and f.fix_tier == FIX_TIER_PROMPT)
+        n_tools = sum(1 for f in h.fixes if f.fixed and f.fix_tier == FIX_TIER_TOOLS)
         n_guard = sum(1 for f in h.fixes if f.fixed and f.fix_tier == FIX_TIER_CODE)
-        n_unfixed = max(0, h.num_failures - n_prompt - n_guard)
+        n_unfixed = max(0, n_tasks - n_pass_count - n_error_count - n_instr - n_tools - n_guard)
 
-        passes.append(max(0, n_pass))
-        fixed_prompt.append(n_prompt)
+        passes.append(max(0, n_pass_count))
+        fixed_instruction.append(n_instr)
+        fixed_tools.append(n_tools)
         fixed_guardrail.append(n_guard)
         unfixed.append(n_unfixed)
-        errors.append(n_errors)
+        errors.append(n_error_count)
 
     fig = go.Figure()
     for name, vals, color in [
         ("Passed", passes, COLORS["fixed"]),
-        ("Fixed (prompt)", fixed_prompt, COLORS["prompt_only"]),
+        ("Fixed (instruction)", fixed_instruction, COLORS["prompt_only"]),
+        ("Fixed (tools)", fixed_tools, COLORS["tools"]),
         ("Fixed (guardrail)", fixed_guardrail, COLORS["guardrail"]),
         ("Unfixed", unfixed, COLORS["not_fixed"]),
         ("Error", errors, COLORS["error"]),
@@ -74,7 +94,7 @@ def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
             insidetextanchor="middle",
         ))
 
-    totals = [p + fp + fg + u + e for p, fp, fg, u, e in zip(passes, fixed_prompt, fixed_guardrail, unfixed, errors)]
+    totals = [p + fi + ft + fg + u + e for p, fi, ft, fg, u, e in zip(passes, fixed_instruction, fixed_tools, fixed_guardrail, unfixed, errors)]
     fig.update_layout(**base_layout(
         barmode="stack",
         yaxis=dict(title="Tasks", dtick=max(1, max(totals) // 5) if totals else 1),
@@ -112,13 +132,19 @@ def chart_fix_attempts(history: list[SweepResult]) -> dict:
     fig = go.Figure()
     for attempt in sorted_attempts:
         counts = []
+        tier_counts: dict[str, int] = {}
         for h in history:
-            counts.append(sum(1 for f in h.fixes if f.fixed and f.retries == attempt))
-
-        # Attempts 0-1 (displayed as 1-2) are prompt phase, 2+ (displayed as 3+) are guardrail
-        is_guardrail = attempt >= 2
-        color = COLORS["guardrail"] if is_guardrail else COLORS["prompt_only"]
-        tier_label = "guardrail" if is_guardrail else "prompt"
+            n = 0
+            for f in h.fixes:
+                if f.fixed and f.retries == attempt:
+                    n += 1
+                    tier_counts[f.fix_tier] = tier_counts.get(f.fix_tier, 0) + 1
+            counts.append(n)
+        dominant_tier = max(tier_counts, key=tier_counts.get) if tier_counts else FIX_TIER_PROMPT
+        tier_colors = {FIX_TIER_PROMPT: COLORS["prompt_only"], FIX_TIER_TOOLS: COLORS["tools"], FIX_TIER_CODE: COLORS["guardrail"]}
+        tier_labels = {FIX_TIER_PROMPT: "instruction", FIX_TIER_TOOLS: "tools", FIX_TIER_CODE: "guardrail"}
+        color = tier_colors.get(dominant_tier, COLORS["prompt_only"])
+        tier_label = tier_labels.get(dominant_tier, "instruction")
         display_attempt = attempt + 1  # 0-indexed → 1-indexed
 
         fig.add_trace(go.Bar(
@@ -145,97 +171,143 @@ def chart_fix_attempts(history: list[SweepResult]) -> dict:
 # 3. Sweep × task heatmap
 # ---------------------------------------------------------------------------
 
-# Status codes for heatmap colorscale
-_STATUS_ERROR = 0
-_STATUS_UNFIXED = 1
-_STATUS_FIXED_GUARDRAIL = 2
-_STATUS_FIXED_PROMPT = 3
-_STATUS_PASS = 4
-
-_HEATMAP_COLORSCALE = [
-    [0.0, COLORS["error"]],          # 0 = error (purple)
-    [0.25, COLORS["not_fixed"]],     # 1 = unfixed (red)
-    [0.50, COLORS["guardrail"]],     # 2 = fixed guardrail (yellow)
-    [0.75, COLORS["prompt_only"]],   # 3 = fixed prompt (orange)
-    [1.0, COLORS["fixed"]],          # 4 = pass (green)
-]
-
-_STATUS_LABELS = {
-    _STATUS_PASS: "Pass",
-    _STATUS_FIXED_PROMPT: "Fixed (prompt)",
-    _STATUS_FIXED_GUARDRAIL: "Fixed (guardrail)",
-    _STATUS_UNFIXED: "Unfixed",
-    _STATUS_ERROR: "Error",
-}
-
 
 def chart_sweep_heatmap(history: list[SweepResult]) -> dict:
-    """Heatmap: rows=sweeps, columns=task IDs, colored by outcome status."""
+    """Heatmap: rows=sweeps, columns=individual attempts grouped by task.
+
+    Each task expands into N columns (one per trial). Cells are simply
+    Pass (green) or Fail (red) with no text — just colored rectangles.
+    """
     if not history:
         return empty_figure("Sweep × Task", "No data yet.")
 
-    # Collect all task IDs across all sweeps
+    # Collect all task IDs and determine max attempts per task
     all_tasks: set[str] = set()
     for h in history:
         all_tasks.update(h.sweep_rewards.keys())
     task_ids = sorted(all_tasks, key=lambda t: (len(t), t))
 
+    # Find the max number of attempts across all tasks/sweeps
+    max_attempts = 1
+    for h in history:
+        for rewards in h.sweep_rewards.values():
+            if isinstance(rewards, list):
+                max_attempts = max(max_attempts, len(rewards))
+
+    # Build expanded columns: each task gets max_attempts sub-columns
+    # x-labels: use task name for the middle attempt, empty for others
+    x_labels: list[str] = []
+    x_positions: list[float] = []  # numeric positions with gaps between groups
+    task_tick_positions: list[float] = []
+    task_tick_labels: list[str] = []
+
+    pos = 0.0
+    for i, tid in enumerate(task_ids):
+        group_start = pos
+        for a in range(max_attempts):
+            x_labels.append(f"Task {tid} #{a+1}")
+            x_positions.append(pos)
+            pos += 1.0
+        group_center = group_start + (max_attempts - 1) / 2.0
+        task_tick_positions.append(group_center)
+        task_tick_labels.append(f"Task {tid}")
+        pos += 0.5  # gap between task groups
+
     sweep_labels = [f"Sweep {h.sweep}" for h in history]
+
+    # Simple 2-value colorscale: fail=red, pass=green
+    _ATTEMPT_FAIL = 0
+    _ATTEMPT_PASS = 1
+    _ATTEMPT_ERROR = -1
+    attempt_colorscale = [
+        [0.0, COLORS["error"]],      # -1 = error
+        [0.25, COLORS["not_fixed"]], # 0 = fail
+        [0.5, COLORS["not_fixed"]],
+        [0.75, COLORS["fixed"]],     # 1 = pass
+        [1.0, COLORS["fixed"]],
+    ]
+
     z: list[list[float]] = []
-    text: list[list[str]] = []
+    hover: list[list[str]] = []
 
     for h in history:
-        fix_map = {f.task_id: f for f in h.fixes}
         row_z: list[float] = []
-        row_text: list[str] = []
+        row_hover: list[str] = []
         for tid in task_ids:
-            reward = h.sweep_rewards.get(tid, _MISSING)
-            if reward is _MISSING:
-                # Task not evaluated this sweep
-                row_z.append(float("nan"))
-                row_text.append("N/A")
-            elif reward is None:
-                # Task errored out
-                row_z.append(_STATUS_ERROR)
-                row_text.append("Error")
-            elif reward >= 1.0:
-                row_z.append(_STATUS_PASS)
-                row_text.append("Pass")
-            elif tid in fix_map and fix_map[tid].fixed:
-                f = fix_map[tid]
-                if f.fix_tier == FIX_TIER_PROMPT:
-                    row_z.append(_STATUS_FIXED_PROMPT)
-                    row_text.append("Fixed (prompt)")
+            rewards = h.sweep_rewards.get(tid, _MISSING)
+            for a in range(max_attempts):
+                if rewards is _MISSING:
+                    row_z.append(float("nan"))
+                    row_hover.append("N/A")
+                elif isinstance(rewards, list):
+                    if a < len(rewards):
+                        r = rewards[a]
+                        if r is None:
+                            row_z.append(_ATTEMPT_ERROR)
+                            row_hover.append(f"Task {tid} attempt {a+1}: Error")
+                        elif r >= 1.0:
+                            row_z.append(_ATTEMPT_PASS)
+                            row_hover.append(f"Task {tid} attempt {a+1}: Pass")
+                        else:
+                            row_z.append(_ATTEMPT_FAIL)
+                            row_hover.append(f"Task {tid} attempt {a+1}: Fail")
+                    else:
+                        row_z.append(float("nan"))
+                        row_hover.append("N/A")
                 else:
-                    row_z.append(_STATUS_FIXED_GUARDRAIL)
-                    row_text.append("Fixed (guardrail)")
-            else:
-                row_z.append(_STATUS_UNFIXED)
-                row_text.append("Unfixed")
+                    # Single reward value — show only in first column
+                    if a == 0:
+                        if rewards is None:
+                            row_z.append(_ATTEMPT_ERROR)
+                            row_hover.append(f"Task {tid}: Error")
+                        elif rewards >= 1.0:
+                            row_z.append(_ATTEMPT_PASS)
+                            row_hover.append(f"Task {tid}: Pass")
+                        else:
+                            row_z.append(_ATTEMPT_FAIL)
+                            row_hover.append(f"Task {tid}: Fail")
+                    else:
+                        row_z.append(float("nan"))
+                        row_hover.append("N/A")
         z.append(row_z)
-        text.append(row_text)
+        hover.append(row_hover)
 
     fig = go.Figure(go.Heatmap(
         z=z,
-        x=[f"Task {tid}" for tid in task_ids],
+        x=x_positions,
         y=sweep_labels,
-        colorscale=_HEATMAP_COLORSCALE,
+        colorscale=attempt_colorscale,
         showscale=False,
-        zmin=0, zmax=4,
-        text=text,
-        texttemplate="%{text}",
-        textfont=dict(size=10, color="white"),
-        hovertemplate="Sweep: %{y}<br>Task: %{x}<br>%{text}<extra></extra>",
-        xgap=3, ygap=3,
+        zmin=-1, zmax=1,
+        hovertext=hover,
+        hovertemplate="%{hovertext}<extra></extra>",
+        xgap=1, ygap=3,
     ))
 
-    n_tasks = len(task_ids)
     n_sweeps = len(history)
     fig.update_layout(**base_layout(
         yaxis=dict(autorange="reversed", showgrid=False, showline=False),
-        xaxis=dict(showgrid=False, showline=False, side="top", tickangle=-45),
+        xaxis=dict(
+            showgrid=False, showline=False, side="top", tickangle=-45,
+            tickmode="array",
+            tickvals=task_tick_positions,
+            ticktext=task_tick_labels,
+        ),
         height=max(260, n_sweeps * 40 + 100),
     ))
+
+    # Add vertical separators between task groups
+    for i in range(1, len(task_ids)):
+        # Boundary is halfway through the gap between groups
+        boundary = x_positions[i * max_attempts] - 0.25
+        fig.add_shape(
+            type="line",
+            x0=boundary, x1=boundary,
+            y0=-0.5, y1=n_sweeps - 0.5,
+            xref="x", yref="y",
+            line=dict(color="rgba(255,255,255,0.2)", width=1, dash="dot"),
+        )
+
     return fig.to_dict()
 
 
@@ -317,8 +389,8 @@ def chart_test_outcomes(tr: TestResults | None) -> dict:
         rewards = getattr(tr, attr)
         if not rewards:
             continue
-        n_pass = sum(1 for r in rewards.values() if r is not None and r >= 1.0)
-        n_error = sum(1 for r in rewards.values() if r is None)
+        n_pass = sum(1 for r in rewards.values() if is_task_passed(r))
+        n_error = sum(1 for r in rewards.values() if is_task_error(r))
         n_fail = len(rewards) - n_pass - n_error
         conditions.append(label)
         passed.append(n_pass)
@@ -413,15 +485,17 @@ def chart_test_heatmap(tr: TestResults | None) -> dict:
             if r is _MISSING:
                 row_z.append(float("nan"))
                 row_text.append("N/A")
-            elif r is None:
+            elif is_task_error(r):
                 row_z.append(_TEST_STATUS_ERROR)
                 row_text.append("Error")
-            elif r >= 1.0:
+            elif is_task_passed(r):
+                frac = _pass_fraction_text(r)
                 row_z.append(_TEST_STATUS_PASS)
-                row_text.append("Pass")
+                row_text.append(f"Pass ({frac})" if isinstance(r, list) and len(r) > 1 else "Pass")
             else:
+                frac = _pass_fraction_text(r)
                 row_z.append(_TEST_STATUS_FAIL)
-                row_text.append("Fail")
+                row_text.append(f"Fail ({frac})" if isinstance(r, list) and len(r) > 1 else "Fail")
         z.append(row_z)
         text.append(row_text)
 

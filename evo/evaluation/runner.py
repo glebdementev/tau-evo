@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from copy import deepcopy
 from typing import Callable, Optional
 
@@ -22,6 +23,7 @@ def run_tasks(
     num_tasks: int = 5,
     task_ids: Optional[list[str]] = None,
     seed: int = 42,
+    num_trials: int = 1,
     prompt_instruction: Optional[str] = None,
     tool_schemas: Optional[dict] = None,
     tool_code: Optional[dict[str, str]] = None,
@@ -51,7 +53,7 @@ def run_tasks(
         user="user_simulator",
         llm_user=LITELLM_PREFIX + model,
         llm_args_user=dict(NO_THINK_ARGS),
-        num_trials=1,
+        num_trials=num_trials,
         task_ids=task_ids,
         num_tasks=num_tasks if task_ids is None else None,
         seed=seed,
@@ -65,8 +67,24 @@ def run_tasks(
 
 
 def extract_failures(results: Results) -> list[SimulationRun]:
-    """Return simulations where the agent did not get a perfect score."""
-    return [
-        sim for sim in results.simulations
-        if sim.reward_info is not None and sim.reward_info.reward < 1.0
-    ]
+    """Return one representative failing sim per task.
+
+    A task fails if at least one valid trial scores < 1.0.
+    The sim with the lowest reward is chosen as the representative failure.
+    """
+    by_task: dict[str, list[SimulationRun]] = defaultdict(list)
+    for sim in results.simulations:
+        by_task[sim.task_id].append(sim)
+
+    failures: list[SimulationRun] = []
+    for task_id, sims in by_task.items():
+        valid = [s for s in sims if s.reward_info is not None]
+        if not valid:
+            continue
+        failing = [s for s in valid if s.reward_info.reward < 1.0]
+        if not failing:
+            continue  # all trials pass — task is fine
+        # Pick the failing sim with the lowest reward (best example of failure)
+        failing.sort(key=lambda s: s.reward_info.reward)
+        failures.append(failing[0])
+    return failures

@@ -56,15 +56,42 @@ DEFAULT_MAX_SWEEPS = 3
 DEFAULT_MAX_RETRIES = 2
 DEFAULT_PARALLELISM = 13
 DEFAULT_SEED = 42
+DEFAULT_NUM_TRIALS = 3
 MAX_ERRORS_PER_TASK = 3
 VERIFY_RETRIES = 3
 VERIFY_BACKOFF = 2.0
 API_RETRIES = 3
 API_BACKOFF = 2.0
+API_RATE_LIMIT_RETRIES = 8
+API_RATE_LIMIT_BACKOFF = 5.0
+
+
+def rate_limit_delay(exc: Exception, hit_count: int, base_backoff: float = API_RATE_LIMIT_BACKOFF) -> float:
+    """Compute retry delay for a 429 error.
+
+    Respects Retry-After header if present, otherwise exponential backoff capped at 120s.
+    """
+    retry_after = None
+    if hasattr(exc, "response") and exc.response is not None:
+        headers = getattr(exc.response, "headers", None)
+        if headers:
+            header = headers.get("retry-after") or headers.get("Retry-After")
+            if header:
+                try:
+                    retry_after = float(header)
+                except (ValueError, TypeError):
+                    pass
+    if retry_after is not None and retry_after > 0:
+        return retry_after
+    return min(base_backoff * (2 ** (hit_count - 1)), 120.0)
 
 
 def quiet_deps() -> None:
-    """Suppress noisy logs from litellm, loguru, and tau2."""
+    """Suppress noisy logs from litellm, loguru, and tau2.
+
+    Also bridges Python logging → loguru so all evo.* messages appear in
+    the same loguru stream as tau2 orchestrator output.
+    """
     import logging
     logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
     logging.getLogger("LiteLLM Router").setLevel(logging.CRITICAL)
@@ -74,3 +101,20 @@ def quiet_deps() -> None:
     from loguru import logger
     logger.disable("tau2")
     logger.enable("tau2.orchestrator")  # step-level logs (INFO) visible
+
+    # Bridge evo.* Python logging → loguru so teacher/merger/loop messages
+    # appear in the same terminal stream as tau2 orchestrator output.
+    class _LoguruHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            try:
+                level = logger.level(record.levelname).name
+            except ValueError:
+                level = record.levelno
+            logger.opt(depth=6, exception=record.exc_info).log(
+                level, record.getMessage(),
+            )
+
+    evo_logger = logging.getLogger("evo")
+    if not any(isinstance(h, _LoguruHandler) for h in evo_logger.handlers):
+        evo_logger.addHandler(_LoguruHandler())
+        evo_logger.setLevel(logging.INFO)

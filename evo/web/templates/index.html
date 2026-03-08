@@ -55,6 +55,7 @@
       <div id="timeline-steps" class="flex items-center gap-0 text-[11px] font-medium overflow-x-auto"></div>
     </div>
     <span id="no-timeline-subtitle" class="text-[11px] text-gray-500 font-medium">self-evolving LLM agents</span>
+    <button id="continue-test-btn" class="hidden ml-auto px-3 py-1 text-xs font-medium rounded border border-blue-500/50 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors shrink-0 cursor-pointer" onclick="continueTest()">Continue to Test</button>
     <div id="status" class="text-xs text-gray-500 ml-auto shrink-0"></div>
   </header>
 
@@ -344,11 +345,17 @@
     }
 
     let _viewingActive = {{ 'true' if active_run_id and active_run_id == viewed_run_id else 'false' }};
+    let _activeRunId = {{ ('"%s"' % active_run_id) if active_run_id else 'null' | safe }};
     let _sessionRefreshSeq = 0;
 
     function resetForNewRun() {
       _viewingActive = true;
       _sessionRefreshSeq++;
+      _timelineSteps = [];
+      _logPhase = '';
+      _logStepId = 0;
+      hideContinueTestButton();
+      fetch('/api/state').then(r => r.json()).then(s => { _activeRunId = s.active_run_id; }).catch(() => {});
       refreshHistory();
       htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
       CHART_IDS.forEach(id => {
@@ -456,6 +463,12 @@
             _logPhase = d.sweep ? `S${d.sweep}/${d.phase}` : d.phase;
             _logStepId++;
           }
+          // Show/hide "Continue to Test" button
+          if (d.phase === 'test' && d.status === 'waiting') {
+            showContinueTestButton();
+          } else if (d.phase === 'test' && d.status !== 'waiting') {
+            hideContinueTestButton();
+          }
         } catch(ex) {}
       });
 
@@ -508,9 +521,11 @@
             const statusColor = f.status === 'fixed' ? 'text-emerald-400' :
                                 f.status === 'reflecting' ? 'text-amber-400' : 'text-accent';
             const patches = f.patches.map(p => {
-              const kind = p.tool_name
+              const kind = p.is_code
+                ? `<span class="text-amber-400">guardrail: ${esc(p.tool_name)}</span>`
+                : p.tool_name
                 ? `<span class="text-accent">tool: ${esc(p.tool_name)}</span>`
-                : `<span class="text-purple-400">prompt</span>`;
+                : `<span class="text-purple-400">instruction</span>`;
               return `<div class="bg-surface-900 rounded p-2 text-[11px] font-mono border border-surface-700">
                 ${kind}<br>
                 <span class="text-red-400">- ${esc(p.old_text.slice(0, 200))}</span><br>
@@ -901,11 +916,13 @@
         const colors = {
           done: 'bg-emerald-500/20 text-emerald-400 border-emerald-600/50',
           running: 'bg-amber-500/20 text-amber-300 border-amber-600/50',
+          waiting: 'bg-blue-500/20 text-blue-300 border-blue-600/50',
           skipped: 'bg-surface-700 text-gray-600 border-surface-600 line-through',
           pending: 'bg-surface-700/50 text-gray-600 border-surface-700',
         };
         const cls = colors[s.status] || colors.pending;
-        const dot = s.status === 'running' ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot inline-block mr-1"></span>' : '';
+        const dot = s.status === 'running' ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot inline-block mr-1"></span>'
+                  : s.status === 'waiting' ? '<span class="w-1.5 h-1.5 rounded-full bg-blue-400 pulse-dot inline-block mr-1"></span>' : '';
         const label = s.sweep === 0 ? s.phase[0].toUpperCase() + s.phase.slice(1) : `${s.phase[0].toUpperCase()}${s.phase.slice(1)} ${s.sweep}`;
         const arrow = i < _timelineSteps.length - 1
           ? '<span class="text-gray-600 mx-0.5">\u203A</span>' : '';
@@ -913,10 +930,23 @@
       }).join('');
     }
 
+    function showContinueTestButton() {
+      document.getElementById('continue-test-btn').classList.remove('hidden');
+    }
+    function hideContinueTestButton() {
+      document.getElementById('continue-test-btn').classList.add('hidden');
+    }
+    function continueTest() {
+      if (!_activeRunId) return;
+      fetch(`/runs/${_activeRunId}/continue-test`, { method: 'POST' })
+        .then(() => hideContinueTestButton());
+    }
+
     function hideTimeline() {
       _timelineSteps = [];
       document.getElementById('timeline').classList.add('hidden');
       document.getElementById('no-timeline-subtitle').classList.remove('hidden');
+      hideContinueTestButton();
     }
 
     // ── Cleanup on page unload ────────────────────────────────────────

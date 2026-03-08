@@ -22,7 +22,13 @@ log = logging.getLogger(__name__)
 
 from openai import OpenAI
 
-from evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL, API_RETRIES, API_BACKOFF
+from openai import RateLimitError
+
+from evo.config import (
+    OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL,
+    API_RETRIES, API_BACKOFF, API_RATE_LIMIT_RETRIES, API_RATE_LIMIT_BACKOFF,
+    rate_limit_delay,
+)
 from evo.models import Patch
 from evo.session_log import (
     now_iso, save_session,
@@ -44,6 +50,7 @@ from evo.reflection.tools import (
 
 _client: Optional[OpenAI] = None
 _client_lock = threading.Lock()
+
 
 
 def _get_client() -> OpenAI:
@@ -167,10 +174,17 @@ class TeacherSession:
     def get_log_snapshot(self) -> SessionSummary:
         return SessionSummary.from_data(self._as_session_data())
 
-    def _call_teacher(self, retries: int = API_RETRIES, backoff: float = API_BACKOFF):
-        """Single LLM call with retry. Returns (message, response) or (None, None)."""
+    def _call_teacher(self):
+        """Single LLM call with retry. Returns (message, response) or (None, None).
+
+        Rate-limit errors (429) get extra retries with exponential backoff
+        and respect OpenRouter's Retry-After header.
+        """
         client = _get_client()
-        for attempt in range(retries):
+        max_retries = API_RATE_LIMIT_RETRIES
+        rate_limit_hits = 0
+        attempt = 0
+        while attempt < max_retries:
             try:
                 response = client.chat.completions.create(
                     model=self.model,
@@ -186,7 +200,18 @@ class TeacherSession:
                         len(msg.tool_calls or []),
                     )
                 return msg, response
+            except RateLimitError as e:
+                rate_limit_hits += 1
+                delay = rate_limit_delay(e, rate_limit_hits, API_RATE_LIMIT_BACKOFF)
+                log.warning(
+                    "Teacher 429 (attempt %d, rate-limit hit #%d), retrying in %.1fs: %s",
+                    attempt + 1, rate_limit_hits, delay, e,
+                )
+                self._log_error(str(e), context=f"rate_limit attempt {attempt + 1}")
+                time.sleep(delay)
+                attempt += 1
             except Exception as e:
+                attempt += 1
                 raw = ""
                 if hasattr(e, "response"):
                     try:
@@ -195,15 +220,17 @@ class TeacherSession:
                         pass
                 log.warning(
                     "Teacher API error (attempt %d/%d): %s%s",
-                    attempt + 1, retries, e,
+                    attempt, max_retries, e,
                     f"\nRaw response: {raw}" if raw else "",
                 )
                 self._log_error(
                     str(e),
-                    context=f"API call attempt {attempt + 1}/{retries}",
+                    context=f"API call attempt {attempt}/{max_retries}",
                 )
-                if attempt < retries - 1:
-                    time.sleep(backoff * (attempt + 1))
+                # Non-rate-limit errors: give up after API_RETRIES attempts
+                if attempt >= API_RETRIES:
+                    break
+                time.sleep(API_BACKOFF * attempt)
         return None, None
 
     def reflect(self, max_rounds: int = 10) -> tuple[list[Patch], str]:
@@ -376,6 +403,31 @@ class TeacherSession:
         self._current_prompt = self._base_prompt
         self._current_tool_schemas = deepcopy(self._base_tool_schemas)
         self._current_tool_code = dict(self._base_tool_code)
+
+    def report_regression(
+        self,
+        baseline_reward: float,
+        patched_reward: float,
+        regressed_tasks: list[str],
+    ) -> None:
+        """Report that patches caused regressions on previously-passing tasks.
+
+        Reverts all patches so the teacher must apply fixes from scratch.
+        """
+        self.revert_patches()
+        self.status = "retrying"
+        msg = (
+            f"Your patches improved the target task ({baseline_reward:.2f} → {patched_reward:.2f}), "
+            f"but caused REGRESSIONS on {len(regressed_tasks)} previously-passing task(s): "
+            f"{', '.join(regressed_tasks)}.\n\n"
+            f"Your patches have been DISCARDED. The prompt, tool schemas, and preprocessors "
+            f"have been reverted to their original (pre-patch) state.\n\n"
+            f"Try a more targeted approach. Write rules that are specific to the failure mode "
+            f"you diagnosed, rather than broad changes that could interfere with other task handling. "
+            f"Apply your fixes from scratch."
+        )
+        self._history.append({"role": "user", "content": msg})
+        self._log_message(SessionMessage(role="user", content=msg))
 
     def report_failure(
         self,
