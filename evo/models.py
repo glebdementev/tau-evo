@@ -31,6 +31,7 @@ PHASE_TEST = "test"
 PHASE_RUNNING = "running"
 PHASE_DONE = "done"
 PHASE_SKIPPED = "skipped"
+PHASE_WAITING = "waiting"
 
 
 def task_passed(rewards: list[Optional[float]], threshold: float = 1.0) -> bool:

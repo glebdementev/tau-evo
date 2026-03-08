@@ -23,7 +23,7 @@ from evo.models import (
     Patch, FixResult, SweepResult, LoopState, TestResults,
     FIX_TIER_PROMPT, FIX_TIER_TOOLS, FIX_TIER_CODE, FIX_TIER_NONE,
     PHASE_SWEEP, PHASE_FIX, PHASE_MERGE, PHASE_TEST,
-    PHASE_RUNNING, PHASE_DONE, PHASE_SKIPPED,
+    PHASE_RUNNING, PHASE_DONE, PHASE_SKIPPED, PHASE_WAITING,
     RUN_RUNNING, RUN_FINISHED, RUN_STOPPED, RUN_ERROR,
     task_passed,
 )
@@ -667,19 +667,14 @@ def run_loop(
     if test_ids and not stopped:
         # Gate: wait for explicit user confirmation before running test eval.
         if test_continue_event is not None:
-            phase(0, PHASE_TEST, "waiting")
+            phase(0, PHASE_TEST, PHASE_WAITING)
             status("\nSweeps complete. Waiting for confirmation to run test evaluation...")
-            # Block until user clicks "Continue to Test" or stop is requested.
             while not test_continue_event.is_set():
                 if _stopped():
                     stopped = True
                     break
                 test_continue_event.wait(timeout=0.5)
-            if stopped:
-                phase(0, PHASE_TEST, PHASE_SKIPPED)
-                state.save(PATCHES_DIR / "loop_state.json")
-                status(f"\nLoop stopped. {state.total_fixed}/{state.total_failures} total fixes across {len(state.history)} sweep(s).")
-                return state
+    if test_ids and not stopped:
         phase(0, PHASE_TEST, PHASE_RUNNING)
         state.test_results = _run_test_evaluation(
             domain=domain,

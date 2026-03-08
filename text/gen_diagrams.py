@@ -430,7 +430,7 @@ def fig_11_parallel_architecture():
     process_node(g, "extract", "Extract N failures")
 
     # Parallel threads
-    par = cluster(g, "parallel", "  ThreadPoolExecutor (max_workers = parallelism)  ")
+    par = cluster(g, "parallel", "  ThreadPoolExecutor  ")
     par.attr(bgcolor="#F0F4FF")
     for i in range(1, 4):
         sub = cluster(par, f"t{i}", f"  Thread {i}  ")
@@ -449,7 +449,7 @@ def fig_11_parallel_architecture():
     g.subgraph(par)
 
     process_node(g, "collect", "Collect FixResults")
-    process_node(g, "merge", "Merge winners\n(sequential)")
+    process_node(g, "merge", "Merge via\nmerger LLM session")
     data_node(g, "state", "Updated\nglobal state")
 
     g.edge("eval", "extract")
@@ -495,7 +495,7 @@ def fig_12_patch_pipeline():
     c_path = cluster(g, "code_path", "  Preprocessor  ")
     process_node(c_path, "c_find", "Find old_text in\npreprocessor source")
     process_node(c_path, "c_replace", "Replace with\nnew_text")
-    decision_node(c_path, "c_safe", "Passes static\nanalysis?")
+    decision_node(c_path, "c_safe", "Passes static\nanalysis +\ncompiles?")
     c_path.edge("c_find", "c_replace")
     c_path.edge("c_replace", "c_safe")
     g.subgraph(c_path)

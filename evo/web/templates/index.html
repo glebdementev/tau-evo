@@ -345,6 +345,7 @@
     }
 
     let _viewingActive = {{ 'true' if active_run_id and active_run_id == viewed_run_id else 'false' }};
+    let _activeRunId = {{ ('"%s"' % active_run_id) if active_run_id else 'null' | safe }};
     let _sessionRefreshSeq = 0;
 
     function resetForNewRun() {
@@ -354,6 +355,7 @@
       _logPhase = '';
       _logStepId = 0;
       hideContinueTestButton();
+      fetch('/api/state').then(r => r.json()).then(s => { _activeRunId = s.active_run_id; }).catch(() => {});
       refreshHistory();
       htmx.ajax('GET', '/results', {target: '#results-panel', swap: 'innerHTML'});
       CHART_IDS.forEach(id => {
@@ -935,11 +937,9 @@
       document.getElementById('continue-test-btn').classList.add('hidden');
     }
     function continueTest() {
-      fetch('/api/state').then(r => r.json()).then(s => {
-        if (!s.active_run_id) return;
-        fetch(`/runs/${s.active_run_id}/continue-test`, { method: 'POST' })
-          .then(() => hideContinueTestButton());
-      });
+      if (!_activeRunId) return;
+      fetch(`/runs/${_activeRunId}/continue-test`, { method: 'POST' })
+        .then(() => hideContinueTestButton());
     }
 
     function hideTimeline() {
