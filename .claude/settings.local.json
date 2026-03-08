@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:www-cdn.anthropic.com)",
+      "WebFetch(domain:www.vellum.ai)",
+      "WebFetch(domain:www.leanware.co)",
+      "WebFetch(domain:taubench.com)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
