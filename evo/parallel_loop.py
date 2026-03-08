@@ -60,6 +60,7 @@ def _verify_patches(
     parallelism: int,
     on_status: Callable[[str], None],
     on_session: Optional[Callable],
+    save_prefix: str = "",
 ):
     """Re-run the student on one task (num_trials times) to verify the teacher's patches helped.
 
@@ -76,7 +77,7 @@ def _verify_patches(
                 system_prompt=session.current_prompt,
                 tool_schemas=session.current_tool_schemas,
                 tool_code=session.current_tool_code or None,
-                save_name=f"verify_{task_id}_a{attempt}",
+                save_name=f"{save_prefix}verify_{task_id}_a{attempt}",
                 student_model=student_model,
                 parallelism=parallelism,
             )
@@ -118,6 +119,7 @@ def _fix_single_failure(
     student_model: Optional[str] = None,
     parallelism: int = DEFAULT_PARALLELISM,
     stop_event: Optional[threading.Event] = None,
+    save_prefix: str = "",
 ) -> FixResult:
     """Run teacher loop on one failure with two-phase escalation.
 
@@ -199,6 +201,7 @@ def _fix_single_failure(
             verify_sim_r, verify_passed, verify_error = _verify_patches(
                 session, task_id, domain, seed, attempt, num_trials,
                 student_model, parallelism, on_status, on_session,
+                save_prefix=save_prefix,
             )
             if verify_error:
                 error_count += 1
@@ -302,6 +305,7 @@ def _run_test_evaluation(
     num_trials: int,
     on_status: Callable[[str], None],
     on_session: Optional[Callable] = None,
+    save_prefix: str = "",
 ) -> TestResults:
     """Run baseline and only the relevant evolved conditions on the held-out test split."""
     on_status("\n" + "=" * 60)
@@ -317,16 +321,16 @@ def _run_test_evaluation(
         student_model=student_model, parallelism=parallelism,
     )
     conditions: dict[str, dict] = {
-        "baseline": dict(**common, save_name="test_baseline"),
+        "baseline": dict(**common, save_name=save_prefix + "test_baseline"),
     }
     if has_prompt_patches:
         conditions["prompt_only"] = dict(
-            **common, save_name="test_prompt_only",
+            **common, save_name=save_prefix + "test_prompt_only",
             system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
         )
     if has_code_patches:
         conditions["evolved"] = dict(
-            **common, save_name="test_evolved",
+            **common, save_name=save_prefix + "test_evolved",
             system_prompt=evolved_prompt, tool_schemas=evolved_schemas,
             tool_code=evolved_code,
         )
@@ -363,6 +367,7 @@ def run_loop(
     parallelism: int = DEFAULT_PARALLELISM,
     student_model: Optional[str] = None,
     use_split: bool = True,
+    run_id: Optional[str] = None,
     on_status: Optional[Callable[[str], None]] = None,
     on_iteration: Optional[Callable[[LoopState], None]] = None,
     on_phase: Optional[Callable[[int, str, str], None]] = None,
@@ -382,6 +387,10 @@ def run_loop(
     Use PHASE_* and PHASE_RUNNING/PHASE_DONE/PHASE_SKIPPED constants.
     """
     state = LoopState()
+
+    def _sn(name: str) -> str:
+        """Prefix save_name with run_id to avoid cross-instance collisions."""
+        return f"{run_id}_{name}" if run_id else name
 
     def status(msg: str):
         if on_status:
@@ -483,7 +492,7 @@ def run_loop(
             system_prompt=current_system_prompt,
             tool_schemas=current_tool_schemas,
             tool_code=current_tool_code or None,
-            save_name=f"sweep_{sweep}",
+            save_name=_sn(f"sweep_{sweep}"),
             on_task_complete=_on_task if on_status else None,
             student_model=student_model,
             parallelism=parallelism,
@@ -587,6 +596,7 @@ def run_loop(
                     student_model=student_model,
                     parallelism=num_trials,
                     stop_event=stop_event,
+                    save_prefix=f"{run_id}_" if run_id else "",
                 )
                 futures[future] = sim.task_id
 
@@ -688,6 +698,7 @@ def run_loop(
             num_trials=num_trials,
             on_status=status,
             on_session=on_session,
+            save_prefix=f"{run_id}_" if run_id else "",
         )
         phase(0, PHASE_TEST, PHASE_DONE)
         if on_iteration:
@@ -696,7 +707,7 @@ def run_loop(
         phase(0, PHASE_TEST, PHASE_SKIPPED)
 
     # -- Save final state ---------------------------------------------------
-    state.save(PATCHES_DIR / "loop_state.json")
+    state.save(PATCHES_DIR / (_sn("loop_state") + ".json"))
     if stopped:
         status(f"\nLoop stopped. {state.total_fixed}/{state.total_failures} total fixes across {len(state.history)} sweep(s).")
     else:

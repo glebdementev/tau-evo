@@ -1,0 +1,21 @@
+Sweep Results
+Per-task fix attempts across sweeps
+#	Task	Base	Patch	Delta	Status	Tier	Try	Msgs	Calls	Duration
+1	0	Fail	Pass	0→1	FIXED	instruction	1	10	4	51s
+1	1	Fail	Pass	0→1	FIXED	instruction	1	4	1	21s
+1	5	Fail	Pass	0→1	FIXED	instruction	2	16	6	5m 11s
+1	3	Fail	Pass	0→1	FIXED	guardrail	3	36	15	5m 54s
+1	10	Fail	Pass	0→1	FIXED	instruction	2	35	14	6m 59s
+1	12	Fail	Fail	0→0	NOT FIXED	—	—	36	15	8m 37s
+1	9	Fail	Fail	0→0	NOT FIXED	—	—	37	14	12m 36s
+1	11	Fail	Fail	0→0	NOT FIXED	—	—	38	16	6m 21s
+1	7	Fail	Fail	0→0	NOT FIXED	—	—	39	16	8m 40s
+2	3	Fail	Fail	0→0	NOT FIXED	—	—	26	10	3m 33s
+2	1	Fail	Pass	0→1	FIXED	instruction	2	12	4	3m 42s
+2	0	Fail	Fail	0→0	NOT FIXED	—	—	35	12	5m 9s
+2	12	Fail	Fail	0→0	NOT FIXED	—	—	46	19	7m 50s
+2	11	Fail	Fail	0→0	NOT FIXED	—	—	37	15	8m 45s
+2	7	Fail	Fail	0→0	NOT FIXED	—	—	22	8	7m 22s
+2	5	Fail	Pass	0→1	FIXED	guardrail	3	59	26	11m 49s
+2	9	Fail	Fail	0→0	NOT FIXED	—	—	39	17	10m 0s
+2	10	Fail	Fail	0→0	NOT FIXED	—	—	38	16	19m 0s
