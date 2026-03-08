@@ -105,6 +105,7 @@ _active_run_id: Optional[str] = None
 _active_state: Optional[LoopState] = None
 _live_fixes: dict[str, dict] = {}  # task_id -> {patches, diagnosis, attempt, status}
 _stop_event: Optional[threading.Event] = None  # set to request graceful stop
+_test_continue_event: Optional[threading.Event] = None  # set to allow test phase
 
 # Viewed run (what the dashboard displays — may differ from active)
 _viewed_run_id: Optional[str] = None
@@ -284,7 +285,7 @@ def _finish_loop_thread(meta: RunMeta, state: LoopState) -> None:
 
 def _teardown_loop_thread() -> None:
     """Clean up global state after any loop thread exits."""
-    global _running, _active_run_id, _active_state, _viewed_state
+    global _running, _active_run_id, _active_state, _viewed_state, _test_continue_event
     if _viewed_run_id == _active_run_id and _active_state:
         with _run_session_ids_lock:
             _active_state.session_ids = sorted(_run_session_ids)
@@ -292,6 +293,7 @@ def _teardown_loop_thread() -> None:
     _running = False
     _active_run_id = None
     _active_state = None
+    _test_continue_event = None
     _live_fixes.clear()
     with _teacher_sessions_lock:
         _teacher_sessions.clear()
@@ -330,7 +332,7 @@ async def index(request: Request):
 
 @app.post("/run", response_class=HTMLResponse)
 async def run(request: Request):
-    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state, _stop_event
+    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state, _stop_event, _test_continue_event
 
     if _running:
         return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
@@ -361,6 +363,7 @@ async def run(request: Request):
     _viewed_run_id = run_id
     _viewed_state = None  # viewed == active, so _get_viewed_state() returns _active_state
     _stop_event = threading.Event()
+    _test_continue_event = threading.Event()
     with _teacher_sessions_lock:
         _teacher_sessions.clear()
     with _run_session_ids_lock:
@@ -396,6 +399,7 @@ async def run(request: Request):
                 on_teacher_message=_on_teacher_message,
                 on_session=_on_student_session,
                 stop_event=_stop_event,
+                test_continue_event=_test_continue_event,
             )
             _finish_loop_thread(meta, state)
         except Exception as e:
@@ -694,10 +698,22 @@ async def stop_run(run_id: str):
     )
 
 
+@app.post("/runs/{run_id}/continue-test", response_class=HTMLResponse)
+async def continue_test(run_id: str):
+    """Unblock the test evaluation gate for the active run."""
+    if not _running or run_id != _active_run_id:
+        return HTMLResponse('<div id="status" class="text-yellow-400">No active run waiting.</div>')
+    if _test_continue_event is not None:
+        _test_continue_event.set()
+    return HTMLResponse(
+        '<div id="status" class="text-emerald-400">Test evaluation started.</div>'
+    )
+
+
 @app.post("/runs/{run_id}/resume", response_class=HTMLResponse)
 async def resume_run(run_id: str, request: Request):
     """Resume a stopped run from its last checkpoint."""
-    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state, _stop_event
+    global _running, _active_run_id, _active_state, _viewed_run_id, _viewed_state, _stop_event, _test_continue_event
 
     if _running:
         return HTMLResponse('<div id="status" class="text-yellow-400">Already running.</div>')
@@ -725,6 +741,7 @@ async def resume_run(run_id: str, request: Request):
     _viewed_run_id = run_id
     _viewed_state = None
     _stop_event = threading.Event()
+    _test_continue_event = threading.Event()
     with _teacher_sessions_lock:
         _teacher_sessions.clear()
     with _run_session_ids_lock:
@@ -755,6 +772,7 @@ async def resume_run(run_id: str, request: Request):
                 on_session=_on_student_session,
                 on_phase=_make_phase_cb(max_sweeps, has_test=bool(prev_state.test_task_ids)),
                 stop_event=_stop_event,
+                test_continue_event=_test_continue_event,
                 resume_state=prev_state,
             )
             _finish_loop_thread(meta, state)

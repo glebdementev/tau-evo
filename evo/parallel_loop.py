@@ -343,7 +343,7 @@ def _run_test_evaluation(
             rewards = future.result()
             results[label] = rewards
             passed = sum(1 for r in rewards.values() if task_passed(r))
-            on_status(f"[test] {label}: {passed}/{len(rewards)} passed (majority of {num_trials} trials)")
+            on_status(f"[test] {label}: {passed}/{len(rewards)} passed (unanimous of {num_trials} trials)")
 
     return TestResults(
         baseline_rewards=results["baseline"],
@@ -370,6 +370,7 @@ def run_loop(
     on_teacher_message: Optional[Callable] = None,
     on_session: Optional[Callable] = None,
     stop_event: Optional[threading.Event] = None,
+    test_continue_event: Optional[threading.Event] = None,
     resume_state: Optional[LoopState] = None,
 ) -> LoopState:
     """Run the parallel evolution loop.
@@ -506,7 +507,7 @@ def run_loop(
         n_passed = sum(1 for r in sweep_rewards.values() if task_passed(r))
         if num_errors:
             status(f"  {num_errors} trial(s) errored out (no reward).")
-        status(f"Sweep done. {n_passed}/{n_tasks} tasks pass (majority of {num_trials}), {len(failures)} to fix.")
+        status(f"Sweep done. {n_passed}/{n_tasks} tasks pass (unanimous of {num_trials}), {len(failures)} to fix.")
         phase(sweep, PHASE_SWEEP, PHASE_DONE)
 
         # No failures → record and stop.
@@ -664,6 +665,21 @@ def run_loop(
 
     # -- Test evaluation on held-out split -----------------------------------
     if test_ids and not stopped:
+        # Gate: wait for explicit user confirmation before running test eval.
+        if test_continue_event is not None:
+            phase(0, PHASE_TEST, "waiting")
+            status("\nSweeps complete. Waiting for confirmation to run test evaluation...")
+            # Block until user clicks "Continue to Test" or stop is requested.
+            while not test_continue_event.is_set():
+                if _stopped():
+                    stopped = True
+                    break
+                test_continue_event.wait(timeout=0.5)
+            if stopped:
+                phase(0, PHASE_TEST, PHASE_SKIPPED)
+                state.save(PATCHES_DIR / "loop_state.json")
+                status(f"\nLoop stopped. {state.total_fixed}/{state.total_failures} total fixes across {len(state.history)} sweep(s).")
+                return state
         phase(0, PHASE_TEST, PHASE_RUNNING)
         state.test_results = _run_test_evaluation(
             domain=domain,

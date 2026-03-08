@@ -58,7 +58,7 @@ def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
 
     for h in history:
         sweeps.append(f"Sweep {h.sweep}")
-        # Count from sweep_rewards using majority voting
+        # Count from sweep_rewards using unanimous voting
         n_tasks = len(h.sweep_rewards) if h.sweep_rewards else h.num_evaluated
         n_pass_count = sum(1 for r in h.sweep_rewards.values() if is_task_passed(r)) if h.sweep_rewards else (h.num_evaluated - h.num_failures)
         n_error_count = sum(1 for r in h.sweep_rewards.values() if is_task_error(r)) if h.sweep_rewards else h.num_errors
