@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 from openai import OpenAI
 
-from evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL
+from evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL, API_RETRIES, API_BACKOFF
 from evo.models import Patch
 from evo.session_log import (
     now_iso, save_session,
@@ -167,7 +167,7 @@ class TeacherSession:
     def get_log_snapshot(self) -> SessionSummary:
         return SessionSummary.from_data(self._as_session_data())
 
-    def _call_teacher(self, retries: int = 3, backoff: float = 2.0):
+    def _call_teacher(self, retries: int = API_RETRIES, backoff: float = API_BACKOFF):
         """Single LLM call with retry. Returns (message, response) or (None, None)."""
         client = _get_client()
         for attempt in range(retries):

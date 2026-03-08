@@ -34,6 +34,19 @@ comprehensively fix the issue. Do not rush; thoroughness is more important than 
 and `patch_tool`. Write concrete, specific rules that teach the agent the correct behavior. \
 The goal is to make the agent *learn* to do the right thing, not to silently fix its mistakes.
 
+**CRITICAL — Do NOT overfit to this specific task**:
+- NEVER hardcode task-specific values: flight numbers, dollar amounts, reservation IDs, \
+user names, airport codes for specific routes, or pre-computed answers.
+- NEVER write rules like "For JFK to SFO on date X, use flight HAT023" — these only help \
+on this exact task and hurt generalization to other tasks.
+- Instead, write GENERAL rules about the *class* of mistake. For example: \
+"Always call get_reservation_details before calculating totals" or \
+"Use the calculate tool for any arithmetic involving prices".
+- Your patches will be applied to ALL future tasks, not just this one. A patch that \
+hardcodes the answer to one task is worthless — it will never see that exact task again.
+- Think: "What general skill or procedure was the agent missing?" not "What is the \
+correct answer to this specific question?"
+
 ---
 
 ## Agent System Prompt
@@ -90,6 +103,9 @@ And the reward breakdown from that failed run:
 Analyse why your previous patches failed using the validation trace above, then apply a NEW set of patches from scratch. \
 The prompt, schemas, and preprocessors above are the clean originals — use them for accurate old_text values. \
 Do not repeat the same patches that failed. Think about what was fundamentally wrong with your approach and try a different strategy.
+
+Reminder: Do NOT hardcode task-specific values (flight numbers, prices, IDs, names). \
+Write general rules about the CLASS of mistake, not the specific answer.
 """
 
 ESCALATION_PROMPT = """\
@@ -132,4 +148,7 @@ clear instructions.
 Apply ALL fixes from scratch — both prompt/schema patches and preprocessor patches. \
 Consider combining prompt instructions with tool code guardrails for a more robust fix. \
 Do not repeat the same patches that failed in previous attempts.
+
+Reminder: Do NOT hardcode task-specific values (flight numbers, prices, IDs, names). \
+Write general rules about the CLASS of mistake, not the specific answer.
 """

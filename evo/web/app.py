@@ -600,36 +600,26 @@ async def api_session_messages(session_id: str, after: int = 0):
 
 @app.get("/api/sessions/teacher-summary")
 async def api_teacher_summary():
-    """Download all teacher session summaries for the viewed run as JSON."""
+    """Download sweep results table for the viewed run as JSON."""
     from fastapi.responses import Response
 
-    allowed = _get_viewed_session_ids()
-    if not allowed:
-        return JSONResponse([])
-
-    active: dict[str, slog.SessionSummary] = {}
-    if _viewing_active():
-        with _teacher_sessions_lock:
-            for sid, s in _teacher_sessions.items():
-                if sid in allowed:
-                    try:
-                        active[sid] = s.get_log_snapshot()
-                    except Exception:
-                        pass
-
-    disk = slog.list_sessions(session_type="teacher", only_ids=allowed)
-
-    merged: dict[str, slog.SessionSummary] = {}
-    for s in disk:
-        merged[s.session_id] = s
-    for sid, s in active.items():
-        merged[sid] = s
-
-    result = sorted(merged.values(), key=lambda s: s.started_at, reverse=True)
-    data = [s.model_dump(**_DUMP) for s in result]
+    rows = _build_results()
+    # Serialize patches properly (dataclass → dict)
+    data = []
+    for r in rows:
+        row = dict(r)
+        if row.get("patches"):
+            row["patches"] = [
+                {"old_text": p.old_text, "new_text": p.new_text,
+                 "tool_name": p.tool_name, "is_code": p.is_code}
+                for p in row["patches"]
+            ]
+        else:
+            row["patches"] = []
+        data.append(row)
 
     run_id = _viewed_run_id or _active_run_id or "unknown"
-    filename = f"teacher_sessions_{run_id}.json"
+    filename = f"sweep_results_{run_id}.json"
 
     return Response(
         content=json.dumps(data, indent=2),
@@ -832,7 +822,7 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
     if state and not fixes:
         for h in state.history:
             sweep_total += len(h.sweep_rewards)
-            sweep_passed += sum(1 for r in h.sweep_rewards.values() if r >= 1.0)
+            sweep_passed += sum(1 for r in h.sweep_rewards.values() if r is not None and r >= 1.0)
 
     tr = state.test_results if state else None
     return {

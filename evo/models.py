@@ -82,20 +82,24 @@ class SweepResult:
     num_failures: int
     fixes: list[FixResult]
     num_fixed: int
-    sweep_rewards: dict[str, float] = field(default_factory=dict)  # task_id → reward
+    sweep_rewards: dict[str, Optional[float]] = field(default_factory=dict)  # task_id → reward (None = error)
+    num_errors: int = 0
 
 
 @dataclass
 class TestResults:
     """Results of evaluating the evolved system on held-out test tasks."""
-    baseline_rewards: dict[str, float] = field(default_factory=dict)
-    evolved_rewards: dict[str, float] = field(default_factory=dict)
-    prompt_only_rewards: dict[str, float] = field(default_factory=dict)
+    baseline_rewards: dict[str, Optional[float]] = field(default_factory=dict)
+    evolved_rewards: dict[str, Optional[float]] = field(default_factory=dict)
+    prompt_only_rewards: dict[str, Optional[float]] = field(default_factory=dict)
 
-    def _pass_rate(self, rewards: dict[str, float]) -> float:
+    def _pass_rate(self, rewards: dict[str, Optional[float]]) -> float:
         if not rewards:
             return 0.0
-        return sum(1 for r in rewards.values() if r >= 1.0) / len(rewards)
+        valid = [r for r in rewards.values() if r is not None]
+        if not valid:
+            return 0.0
+        return sum(1 for r in valid if r >= 1.0) / len(rewards)
 
     @property
     def baseline_pass_rate(self) -> float:
@@ -178,6 +182,7 @@ class LoopState:
                 fixes=fixes,
                 num_fixed=h["num_fixed"],
                 sweep_rewards=h.get("sweep_rewards", h.get("eval_rewards", {})),
+                num_errors=h.get("num_errors", 0),
             ))
         meta_raw = raw.get("meta")
         meta = RunMeta(**meta_raw) if meta_raw else None

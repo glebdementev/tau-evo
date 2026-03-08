@@ -15,7 +15,8 @@ from tau2.registry import registry as tau2_registry
 from evo.config import (
     PATCHES_DIR, DEFAULT_DOMAIN, DEFAULT_NUM_TASKS,
     DEFAULT_MAX_SWEEPS, DEFAULT_MAX_RETRIES, DEFAULT_SEED,
-    DEFAULT_PARALLELISM,
+    DEFAULT_PARALLELISM, MAX_ERRORS_PER_TASK, VERIFY_RETRIES,
+    VERIFY_BACKOFF,
 )
 from evo.evaluation.runner import run_tasks, extract_failures
 from evo.models import (
@@ -31,10 +32,18 @@ from evo.session_log import save_student_sessions, _calc_duration
 
 log = logging.getLogger(__name__)
 
-MAX_ERRORS_PER_TASK = 3
-VERIFY_RETRIES = 3
-VERIFY_BACKOFF = 2.0
 
+def _extract_rewards(simulations) -> tuple[dict[str, float | None], int]:
+    """Extract task_id → reward from simulations. Returns (rewards, num_errors)."""
+    rewards: dict[str, float | None] = {}
+    num_errors = 0
+    for s in simulations:
+        if s.reward_info is not None:
+            rewards[s.task_id] = s.reward_info.reward
+        else:
+            rewards[s.task_id] = None
+            num_errors += 1
+    return rewards, num_errors
 
 
 def _verify_patches(
@@ -252,15 +261,12 @@ def _run_condition_with_retry(
     retries: int = VERIFY_RETRIES,
     **run_kwargs,
 ) -> dict[str, float]:
-    """Run a single test condition with retry. Returns task_id -> reward dict."""
+    """Run a single test condition with retry. Returns task_id -> reward dict (None = error)."""
     for retry in range(retries):
         try:
             results = run_tasks(**run_kwargs)
-            return {
-                s.task_id: s.reward_info.reward
-                for s in results.simulations
-                if s.reward_info is not None
-            }
+            rewards, _ = _extract_rewards(results.simulations)
+            return rewards
         except Exception as e:
             log.warning("[test/%s] Error (retry %d/%d): %s", label, retry + 1, retries, e)
             on_status(f"[test] {label} error (retry {retry + 1}/{retries}): {e}")
@@ -476,12 +482,10 @@ def run_loop(
             status(f"Locked task set: {task_ids}")
 
         failures = extract_failures(results)
-        sweep_rewards = {
-            sim.task_id: sim.reward_info.reward
-            for sim in results.simulations
-            if sim.reward_info is not None
-        }
-        status(f"Sweep done. {len(failures)}/{len(results.simulations)} tasks failed.")
+        sweep_rewards, num_errors = _extract_rewards(results.simulations)
+        if num_errors:
+            status(f"  {num_errors} task(s) errored out (no reward).")
+        status(f"Sweep done. {len(failures)}/{len(results.simulations)} tasks failed, {num_errors} errors.")
         phase(sweep, PHASE_SWEEP, PHASE_DONE)
 
         # No failures → record and stop.
@@ -496,6 +500,7 @@ def run_loop(
                 fixes=[],
                 num_fixed=0,
                 sweep_rewards=sweep_rewards,
+                num_errors=num_errors,
             ))
             if on_iteration:
                 on_iteration(state)
@@ -520,6 +525,7 @@ def run_loop(
                 fixes=[],
                 num_fixed=0,
                 sweep_rewards=sweep_rewards,
+                num_errors=num_errors,
             ))
             if on_iteration:
                 on_iteration(state)
@@ -604,6 +610,7 @@ def run_loop(
             fixes=fix_results,
             num_fixed=len(winners),
             sweep_rewards=sweep_rewards,
+            num_errors=num_errors,
         ))
 
         if on_iteration:

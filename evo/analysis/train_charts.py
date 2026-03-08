@@ -10,6 +10,8 @@ from evo.models import SweepResult, TestResults, FIX_TIER_PROMPT, FIX_TIER_CODE
 
 from .theme import BAR_LINE, COLORS, base_layout, empty_figure
 
+_MISSING = object()  # sentinel: task not evaluated in this sweep
+
 # Error categories matched against diagnosis text.
 ERROR_CATEGORIES = ["TOOL_MISUSE", "POLICY_VIOLATION", "REASONING_ERROR"]
 
@@ -28,7 +30,7 @@ def _categorise_diagnosis(diagnosis: str) -> str:
 # ---------------------------------------------------------------------------
 
 def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
-    """Stacked bar per sweep: passes / fixed-prompt / fixed-guardrail / unfixed."""
+    """Stacked bar per sweep: passes / fixed-prompt / fixed-guardrail / unfixed / errors."""
     if not history:
         return empty_figure("Sweep Outcomes", "No data yet.")
 
@@ -37,21 +39,21 @@ def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
     fixed_prompt: list[int] = []
     fixed_guardrail: list[int] = []
     unfixed: list[int] = []
+    errors: list[int] = []
 
     for h in history:
         sweeps.append(f"Sweep {h.sweep}")
-        n_pass = h.num_evaluated - h.num_failures
+        n_errors = h.num_errors
+        n_pass = h.num_evaluated - h.num_failures - n_errors
         n_prompt = sum(1 for f in h.fixes if f.fixed and f.fix_tier == FIX_TIER_PROMPT)
         n_guard = sum(1 for f in h.fixes if f.fixed and f.fix_tier == FIX_TIER_CODE)
-        n_unfixed = sum(1 for f in h.fixes if not f.fixed)
-        # Account for failures with no fix attempt (shouldn't happen, but be safe)
-        n_unfixed += h.num_failures - len(h.fixes) - 0  # no-fix failures
         n_unfixed = max(0, h.num_failures - n_prompt - n_guard)
 
-        passes.append(n_pass)
+        passes.append(max(0, n_pass))
         fixed_prompt.append(n_prompt)
         fixed_guardrail.append(n_guard)
         unfixed.append(n_unfixed)
+        errors.append(n_errors)
 
     fig = go.Figure()
     for name, vals, color in [
@@ -59,7 +61,10 @@ def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
         ("Fixed (prompt)", fixed_prompt, COLORS["prompt_only"]),
         ("Fixed (guardrail)", fixed_guardrail, COLORS["guardrail"]),
         ("Unfixed", unfixed, COLORS["not_fixed"]),
+        ("Error", errors, COLORS["error"]),
     ]:
+        if not any(v > 0 for v in vals):
+            continue
         fig.add_trace(go.Bar(
             name=name, x=sweeps, y=vals,
             marker=dict(color=color, line=BAR_LINE),
@@ -69,11 +74,10 @@ def chart_sweep_outcomes(history: list[SweepResult]) -> dict:
             insidetextanchor="middle",
         ))
 
+    totals = [p + fp + fg + u + e for p, fp, fg, u, e in zip(passes, fixed_prompt, fixed_guardrail, unfixed, errors)]
     fig.update_layout(**base_layout(
         barmode="stack",
-        yaxis=dict(title="Tasks", dtick=max(1, max(
-            p + fp + fg + u for p, fp, fg, u in zip(passes, fixed_prompt, fixed_guardrail, unfixed)
-        ) // 5)),
+        yaxis=dict(title="Tasks", dtick=max(1, max(totals) // 5) if totals else 1),
         height=360,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     ))
@@ -142,16 +146,18 @@ def chart_fix_attempts(history: list[SweepResult]) -> dict:
 # ---------------------------------------------------------------------------
 
 # Status codes for heatmap colorscale
-_STATUS_PASS = 3
-_STATUS_FIXED_PROMPT = 2
-_STATUS_FIXED_GUARDRAIL = 1
-_STATUS_UNFIXED = 0
+_STATUS_ERROR = 0
+_STATUS_UNFIXED = 1
+_STATUS_FIXED_GUARDRAIL = 2
+_STATUS_FIXED_PROMPT = 3
+_STATUS_PASS = 4
 
 _HEATMAP_COLORSCALE = [
-    [0.0, COLORS["not_fixed"]],       # 0 = unfixed (red)
-    [0.33, COLORS["guardrail"]],      # 1 = fixed guardrail (yellow)
-    [0.66, COLORS["prompt_only"]],    # 2 = fixed prompt (orange)
-    [1.0, COLORS["fixed"]],           # 3 = pass (green)
+    [0.0, COLORS["error"]],          # 0 = error (purple)
+    [0.25, COLORS["not_fixed"]],     # 1 = unfixed (red)
+    [0.50, COLORS["guardrail"]],     # 2 = fixed guardrail (yellow)
+    [0.75, COLORS["prompt_only"]],   # 3 = fixed prompt (orange)
+    [1.0, COLORS["fixed"]],          # 4 = pass (green)
 ]
 
 _STATUS_LABELS = {
@@ -159,6 +165,7 @@ _STATUS_LABELS = {
     _STATUS_FIXED_PROMPT: "Fixed (prompt)",
     _STATUS_FIXED_GUARDRAIL: "Fixed (guardrail)",
     _STATUS_UNFIXED: "Unfixed",
+    _STATUS_ERROR: "Error",
 }
 
 
@@ -182,11 +189,15 @@ def chart_sweep_heatmap(history: list[SweepResult]) -> dict:
         row_z: list[float] = []
         row_text: list[str] = []
         for tid in task_ids:
-            reward = h.sweep_rewards.get(tid)
-            if reward is None:
+            reward = h.sweep_rewards.get(tid, _MISSING)
+            if reward is _MISSING:
                 # Task not evaluated this sweep
                 row_z.append(float("nan"))
                 row_text.append("N/A")
+            elif reward is None:
+                # Task errored out
+                row_z.append(_STATUS_ERROR)
+                row_text.append("Error")
             elif reward >= 1.0:
                 row_z.append(_STATUS_PASS)
                 row_text.append("Pass")
@@ -210,7 +221,7 @@ def chart_sweep_heatmap(history: list[SweepResult]) -> dict:
         y=sweep_labels,
         colorscale=_HEATMAP_COLORSCALE,
         showscale=False,
-        zmin=0, zmax=3,
+        zmin=0, zmax=4,
         text=text,
         texttemplate="%{text}",
         textfont=dict(size=10, color="white"),
@@ -293,27 +304,29 @@ _TEST_CONDITIONS = [
 
 
 def chart_test_outcomes(tr: TestResults | None) -> dict:
-    """Stacked bar: passed vs failed for each test condition."""
+    """Stacked bar: passed vs failed vs errors for each test condition."""
     if tr is None:
         return empty_figure("Test Outcomes", "No test evaluation yet.")
 
     conditions: list[str] = []
     passed: list[int] = []
     failed: list[int] = []
+    errors: list[int] = []
 
     for label, attr, _ in _TEST_CONDITIONS:
-        rewards: dict[str, float] = getattr(tr, attr)
+        rewards = getattr(tr, attr)
         if not rewards:
             continue
-        n_pass = sum(1 for r in rewards.values() if r >= 1.0)
+        n_pass = sum(1 for r in rewards.values() if r is not None and r >= 1.0)
+        n_error = sum(1 for r in rewards.values() if r is None)
+        n_fail = len(rewards) - n_pass - n_error
         conditions.append(label)
         passed.append(n_pass)
-        failed.append(len(rewards) - n_pass)
+        failed.append(n_fail)
+        errors.append(n_error)
 
     if not conditions:
         return empty_figure("Test Outcomes", "No test data.")
-
-    cond_colors = [c for _, _, c in _TEST_CONDITIONS if _ in [a for _, a, _ in _TEST_CONDITIONS]]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -332,8 +345,17 @@ def chart_test_outcomes(tr: TestResults | None) -> dict:
         textfont=dict(size=11, color="white"),
         insidetextanchor="middle",
     ))
+    if any(e > 0 for e in errors):
+        fig.add_trace(go.Bar(
+            name="Error", x=conditions, y=errors,
+            marker=dict(color=COLORS["error"], line=BAR_LINE),
+            text=errors,
+            textposition="inside",
+            textfont=dict(size=11, color="white"),
+            insidetextanchor="middle",
+        ))
 
-    total = max(p + f for p, f in zip(passed, failed)) if passed else 1
+    total = max(p + f + e for p, f, e in zip(passed, failed, errors)) if passed else 1
     fig.update_layout(**base_layout(
         barmode="stack",
         yaxis=dict(title="Tasks", dtick=max(1, total // 5)),
@@ -348,9 +370,16 @@ def chart_test_outcomes(tr: TestResults | None) -> dict:
 # ---------------------------------------------------------------------------
 
 _TEST_HEATMAP_SCALE = [
-    [0.0, COLORS["not_fixed"]],  # fail
+    [0.0, COLORS["error"]],      # -1 = error (purple)
+    [0.25, COLORS["not_fixed"]], # 0 = fail (red)
+    [0.5, COLORS["not_fixed"]],  # boundary
+    [0.75, COLORS["fixed"]],     # 1 = pass (green)
     [1.0, COLORS["fixed"]],      # pass
 ]
+
+_TEST_STATUS_PASS = 1
+_TEST_STATUS_FAIL = 0
+_TEST_STATUS_ERROR = -1
 
 
 def chart_test_heatmap(tr: TestResults | None) -> dict:
@@ -380,15 +409,18 @@ def chart_test_heatmap(tr: TestResults | None) -> dict:
         row_z: list[float] = []
         row_text: list[str] = []
         for tid in task_ids:
-            r = rewards.get(tid)
-            if r is None:
+            r = rewards.get(tid, _MISSING)
+            if r is _MISSING:
                 row_z.append(float("nan"))
                 row_text.append("N/A")
+            elif r is None:
+                row_z.append(_TEST_STATUS_ERROR)
+                row_text.append("Error")
             elif r >= 1.0:
-                row_z.append(1)
+                row_z.append(_TEST_STATUS_PASS)
                 row_text.append("Pass")
             else:
-                row_z.append(0)
+                row_z.append(_TEST_STATUS_FAIL)
                 row_text.append("Fail")
         z.append(row_z)
         text.append(row_text)
@@ -399,7 +431,7 @@ def chart_test_heatmap(tr: TestResults | None) -> dict:
         y=row_labels,
         colorscale=_TEST_HEATMAP_SCALE,
         showscale=False,
-        zmin=0, zmax=1,
+        zmin=-1, zmax=1,
         text=text,
         texttemplate="%{text}",
         textfont=dict(size=10, color="white"),

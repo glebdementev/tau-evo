@@ -10,7 +10,7 @@ from typing import Optional
 
 from openai import OpenAI
 
-from evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL
+from evo.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEACHER_MODEL, API_RETRIES, API_BACKOFF
 from evo.merge.types import ConflictGroup
 from evo.models import Patch
 
@@ -95,7 +95,7 @@ def _build_merge_prompt(group: ConflictGroup) -> str:
 def resolve_conflict(
     group: ConflictGroup,
     model: str = TEACHER_MODEL,
-    retries: int = 3,
+    retries: int = API_RETRIES,
 ) -> Patch | None:
     """Ask the LLM to merge one conflict group into a single patch.
 
@@ -164,7 +164,7 @@ def resolve_conflict(
         except Exception as e:
             log.warning("Merger API error (attempt %d/%d): %s", attempt + 1, retries, e)
             if attempt < retries - 1:
-                time.sleep(2 * (attempt + 1))
+                time.sleep(API_BACKOFF * (attempt + 1))
 
     log.error("Merger failed for conflict group on %s after %d attempts", group.target, retries)
     return None
