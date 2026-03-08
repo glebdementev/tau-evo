@@ -6,12 +6,13 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 # ── Constants for stringly-typed fields ────────────────────────────────────
 # Fix tiers — which phase produced the fix.
-FIX_TIER_PROMPT = "prompt"
-FIX_TIER_CODE = "code"
+FIX_TIER_PROMPT = "prompt"       # instruction-only patches (system prompt)
+FIX_TIER_TOOLS = "tools"        # tool schema patches (possibly + prompt)
+FIX_TIER_CODE = "code"          # tool preprocessor patches (guardrails)
 FIX_TIER_NONE = "none"
 
 # Run status values.
@@ -30,6 +31,41 @@ PHASE_TEST = "test"
 PHASE_RUNNING = "running"
 PHASE_DONE = "done"
 PHASE_SKIPPED = "skipped"
+
+
+def task_passed(rewards: list[Optional[float]], threshold: float = 1.0) -> bool:
+    """Task passes only if ALL valid trials pass."""
+    valid = [r for r in rewards if r is not None]
+    if not valid:
+        return False
+    return all(r >= threshold for r in valid)
+
+
+def is_task_passed(reward_val) -> bool:
+    """Check if a reward value (list or scalar) indicates a pass."""
+    if isinstance(reward_val, list):
+        return task_passed(reward_val)
+    if reward_val is None:
+        return False
+    return reward_val >= 1.0
+
+
+def is_task_error(reward_val) -> bool:
+    """Check if a reward value indicates an error (all None)."""
+    if isinstance(reward_val, list):
+        return all(r is None for r in reward_val)
+    return reward_val is None
+
+
+def _coerce_rewards(raw: dict) -> dict[str, list[Optional[float]]]:
+    """Normalise rewards from either old (single-float) or new (list) format."""
+    out: dict[str, list[Optional[float]]] = {}
+    for k, v in raw.items():
+        if isinstance(v, list):
+            out[k] = v
+        else:
+            out[k] = [v]
+    return out
 
 
 @dataclass
@@ -82,24 +118,21 @@ class SweepResult:
     num_failures: int
     fixes: list[FixResult]
     num_fixed: int
-    sweep_rewards: dict[str, Optional[float]] = field(default_factory=dict)  # task_id → reward (None = error)
+    sweep_rewards: dict[str, list[Optional[float]]] = field(default_factory=dict)  # task_id → [reward per trial]
     num_errors: int = 0
 
 
 @dataclass
 class TestResults:
     """Results of evaluating the evolved system on held-out test tasks."""
-    baseline_rewards: dict[str, Optional[float]] = field(default_factory=dict)
-    evolved_rewards: dict[str, Optional[float]] = field(default_factory=dict)
-    prompt_only_rewards: dict[str, Optional[float]] = field(default_factory=dict)
+    baseline_rewards: dict[str, Union[list[Optional[float]], Optional[float]]] = field(default_factory=dict)
+    evolved_rewards: dict[str, Union[list[Optional[float]], Optional[float]]] = field(default_factory=dict)
+    prompt_only_rewards: dict[str, Union[list[Optional[float]], Optional[float]]] = field(default_factory=dict)
 
-    def _pass_rate(self, rewards: dict[str, Optional[float]]) -> float:
+    def _pass_rate(self, rewards: dict) -> float:
         if not rewards:
             return 0.0
-        valid = [r for r in rewards.values() if r is not None]
-        if not valid:
-            return 0.0
-        return sum(1 for r in valid if r >= 1.0) / len(rewards)
+        return sum(1 for v in rewards.values() if is_task_passed(v)) / len(rewards)
 
     @property
     def baseline_pass_rate(self) -> float:
@@ -175,19 +208,28 @@ class LoopState:
                 )
                 for f in h.get("fixes", [])
             ]
+            raw_rewards = h.get("sweep_rewards", h.get("eval_rewards", {}))
             history.append(SweepResult(
                 sweep=h.get("sweep", h.get("iteration", 0)),
                 num_evaluated=h["num_evaluated"],
                 num_failures=h["num_failures"],
                 fixes=fixes,
                 num_fixed=h["num_fixed"],
-                sweep_rewards=h.get("sweep_rewards", h.get("eval_rewards", {})),
+                sweep_rewards=_coerce_rewards(raw_rewards),
                 num_errors=h.get("num_errors", 0),
             ))
         meta_raw = raw.get("meta")
         meta = RunMeta(**meta_raw) if meta_raw else None
         test_raw = raw.get("test_results")
-        test_results = TestResults(**test_raw) if test_raw else None
+        if test_raw:
+            # Only pass known fields; coerce rewards to lists.
+            known = {}
+            for k in ("baseline_rewards", "evolved_rewards", "prompt_only_rewards"):
+                if k in test_raw:
+                    known[k] = _coerce_rewards(test_raw[k])
+            test_results = TestResults(**known)
+        else:
+            test_results = None
         return cls(
             system_prompt=raw.get("system_prompt"),
             tool_schemas=raw.get("tool_schemas"),

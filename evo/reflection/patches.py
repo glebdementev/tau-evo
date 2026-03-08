@@ -26,8 +26,7 @@ def text_replace(text: str, old: str, new: str, label: str) -> tuple[str, bool, 
     """
     if old == "":
         result = text + "\n" + new
-        snippet = new[:120]
-        return result, True, f"OK: text appended to end of {label}. Snippet: {snippet!r}"
+        return result, True, f"OK: appended to {label}."
     if old not in text:
         return text, False, (
             f"FAILED: old_text not found in {label}. "
@@ -35,12 +34,7 @@ def text_replace(text: str, old: str, new: str, label: str) -> tuple[str, bool, 
             f"First 120 chars of old_text you sent: {old[:120]!r}"
         )
     result = text.replace(old, new, 1)
-    # Show a snippet of context around the replacement.
-    pos = result.find(new)
-    start = max(0, pos - 40)
-    end = min(len(result), pos + len(new) + 40)
-    snippet = result[start:end]
-    return result, True, f"OK: replacement applied in {label}. Context: ...{snippet!r}..."
+    return result, True, f"OK: applied in {label}."
 
 
 def apply_one_patch(

@@ -16,7 +16,8 @@
       {% if fixed > 0 %}
       <div class="h-8 w-px bg-surface-600"></div>
       <div class="flex items-center gap-4 text-xs">
-        <div><span class="text-sm font-semibold text-purple-400">{{ fixed_prompt }}</span> <span class="text-gray-500">prompt</span></div>
+        <div><span class="text-sm font-semibold text-purple-400">{{ fixed_prompt }}</span> <span class="text-gray-500">instruction</span></div>
+        <div><span class="text-sm font-semibold text-accent">{{ fixed_tools }}</span> <span class="text-gray-500">tools</span></div>
         <div><span class="text-sm font-semibold text-amber-400">{{ fixed_code }}</span> <span class="text-gray-500">guardrail</span></div>
       </div>
       {% endif %}
@@ -129,7 +130,9 @@
           </td>
           <td class="px-2 py-1.5">
             {% if r.fix_tier == 'prompt' %}
-            <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-900/60 text-purple-300">prompt</span>
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-900/60 text-purple-300">instruction</span>
+            {% elif r.fix_tier == 'tools' %}
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-900/60 text-accent">tools</span>
             {% elif r.fix_tier == 'code' %}
             <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-900/60 text-amber-300">guardrail</span>
             {% else %}
@@ -183,10 +186,12 @@
       <div class="ml-5 mt-1 space-y-1.5">
         {% for p in r.patches %}
         <div class="bg-surface-900 rounded p-2 text-[11px] font-mono border border-surface-700">
-          {% if p.tool_name %}
+          {% if p.is_code %}
+          <span class="text-amber-400">guardrail: {{ p.tool_name }}</span><br>
+          {% elif p.tool_name %}
           <span class="text-accent">tool: {{ p.tool_name }}</span><br>
           {% else %}
-          <span class="text-purple-400">prompt</span><br>
+          <span class="text-purple-400">instruction</span><br>
           {% endif %}
           <span class="text-red-400">- {{ p.old_text }}</span><br>
           <span class="text-emerald-400">+ {{ p.new_text }}</span>

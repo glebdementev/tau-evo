@@ -9,7 +9,7 @@ from pathlib import Path
 import plotly.graph_objects as go
 
 from evo.config import RESULTS_DIR
-from evo.models import FixResult, LoopState, SweepResult, FIX_TIER_PROMPT, FIX_TIER_CODE, FIX_TIER_NONE
+from evo.models import FixResult, LoopState, SweepResult, FIX_TIER_PROMPT, FIX_TIER_TOOLS, FIX_TIER_CODE, FIX_TIER_NONE
 
 from .charts import all_charts_from_state
 from .train_charts import ERROR_CATEGORIES
@@ -70,7 +70,7 @@ def _demo_state() -> LoopState:
         if not passed_baseline:
             fixed = random.random() < 0.6
             ft = random.choice(ERROR_CATEGORIES)
-            tier = random.choice([FIX_TIER_PROMPT, FIX_TIER_CODE]) if fixed else FIX_TIER_NONE
+            tier = random.choice([FIX_TIER_PROMPT, FIX_TIER_TOOLS, FIX_TIER_CODE]) if fixed else FIX_TIER_NONE
             fixes.append(FixResult(
                 task_id=str(i),
                 baseline_reward=0.0,

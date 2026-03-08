@@ -15,16 +15,17 @@ from tau2.registry import registry as tau2_registry
 from evo.config import (
     PATCHES_DIR, DEFAULT_DOMAIN, DEFAULT_NUM_TASKS,
     DEFAULT_MAX_SWEEPS, DEFAULT_MAX_RETRIES, DEFAULT_SEED,
-    DEFAULT_PARALLELISM, MAX_ERRORS_PER_TASK, VERIFY_RETRIES,
-    VERIFY_BACKOFF,
+    DEFAULT_PARALLELISM, DEFAULT_NUM_TRIALS,
+    MAX_ERRORS_PER_TASK, VERIFY_RETRIES, VERIFY_BACKOFF,
 )
 from evo.evaluation.runner import run_tasks, extract_failures
 from evo.models import (
     Patch, FixResult, SweepResult, LoopState, TestResults,
-    FIX_TIER_PROMPT, FIX_TIER_CODE, FIX_TIER_NONE,
+    FIX_TIER_PROMPT, FIX_TIER_TOOLS, FIX_TIER_CODE, FIX_TIER_NONE,
     PHASE_SWEEP, PHASE_FIX, PHASE_MERGE, PHASE_TEST,
     PHASE_RUNNING, PHASE_DONE, PHASE_SKIPPED,
     RUN_RUNNING, RUN_FINISHED, RUN_STOPPED, RUN_ERROR,
+    task_passed,
 )
 from evo.merge import merge_fixes
 from evo.reflection.teacher import TeacherSession, apply_patches
@@ -33,15 +34,17 @@ from evo.session_log import save_student_sessions, _calc_duration
 log = logging.getLogger(__name__)
 
 
-def _extract_rewards(simulations) -> tuple[dict[str, float | None], int]:
-    """Extract task_id → reward from simulations. Returns (rewards, num_errors)."""
-    rewards: dict[str, float | None] = {}
+def _extract_rewards(simulations) -> tuple[dict[str, list[float | None]], int]:
+    """Extract task_id → [rewards] from simulations (one per trial). Returns (rewards, num_errors)."""
+    rewards: dict[str, list[float | None]] = {}
     num_errors = 0
     for s in simulations:
+        if s.task_id not in rewards:
+            rewards[s.task_id] = []
         if s.reward_info is not None:
-            rewards[s.task_id] = s.reward_info.reward
+            rewards[s.task_id].append(s.reward_info.reward)
         else:
-            rewards[s.task_id] = None
+            rewards[s.task_id].append(None)
             num_errors += 1
     return rewards, num_errors
 
@@ -52,22 +55,24 @@ def _verify_patches(
     domain: str,
     seed: int,
     attempt: int,
+    num_trials: int,
     student_model: Optional[str],
     parallelism: int,
     on_status: Callable[[str], None],
     on_session: Optional[Callable],
 ):
-    """Re-run the student on one task to verify the teacher's patches helped.
+    """Re-run the student on one task (num_trials times) to verify the teacher's patches helped.
 
-    Returns (sim, reward, error_occurred).
+    Returns (sim, passed, error_occurred).
     """
-    on_status(f"[{task_id}] Verifying...")
+    on_status(f"[{task_id}] Verifying ({num_trials} trials)...")
     for retry in range(VERIFY_RETRIES):
         try:
             results = run_tasks(
                 domain=domain,
                 task_ids=[task_id],
                 seed=seed,
+                num_trials=num_trials,
                 system_prompt=session.current_prompt,
                 tool_schemas=session.current_tool_schemas,
                 tool_code=session.current_tool_code or None,
@@ -81,14 +86,18 @@ def _verify_patches(
                 model=student_model or "",
                 on_session=on_session,
             )
-            sim = results.simulations[0]
-            return sim, sim.reward_info.reward, False
+            rewards, _ = _extract_rewards(results.simulations)
+            passed = task_passed(rewards.get(task_id, []))
+            # Pick the worst sim as representative
+            valid = [s for s in results.simulations if s.reward_info is not None]
+            sim = min(valid, key=lambda s: s.reward_info.reward) if valid else results.simulations[0]
+            return sim, passed, False
         except Exception as e:
             log.warning("[%s] Verify error (retry %d/%d): %s", task_id, retry + 1, VERIFY_RETRIES, e)
             on_status(f"[{task_id}] Verify error (retry {retry + 1}/{VERIFY_RETRIES}): {e}")
             if retry < VERIFY_RETRIES - 1:
                 time.sleep(VERIFY_BACKOFF * (retry + 1))
-    return None, None, True
+    return None, False, True
 
 
 def _fix_single_failure(
@@ -101,6 +110,7 @@ def _fix_single_failure(
     base_tool_code: dict[str, str],
     tools: list,
     max_retries: int,
+    num_trials: int,
     on_status: Callable[[str], None],
     on_fix_attempt: Optional[Callable[[str, int, list[Patch], str, str], None]] = None,
     on_teacher_message: Optional[Callable] = None,
@@ -136,7 +146,6 @@ def _fix_single_failure(
     all_diagnoses: list[str] = []
     fixed = False
     fix_tier = FIX_TIER_NONE
-    patched_reward = baseline_reward
     verify_sim = None
     attempt = 0
     error_count = 0
@@ -152,7 +161,7 @@ def _fix_single_failure(
         tier: str,
     ) -> bool:
         """Run one fix phase (teaching or guardrails). Returns True if fixed."""
-        nonlocal attempt, error_count, fixed, fix_tier, patched_reward, verify_sim
+        nonlocal attempt, error_count, fixed, fix_tier, verify_sim
 
         for phase_idx in range(num_attempts):
             if _stopped():
@@ -187,8 +196,8 @@ def _fix_single_failure(
             if on_fix_attempt:
                 on_fix_attempt(task_id, attempt, list(all_patches), diagnosis, "reflecting")
 
-            verify_sim_r, patched_reward_r, verify_error = _verify_patches(
-                session, task_id, domain, seed, attempt,
+            verify_sim_r, verify_passed, verify_error = _verify_patches(
+                session, task_id, domain, seed, attempt, num_trials,
                 student_model, parallelism, on_status, on_session,
             )
             if verify_error:
@@ -197,24 +206,29 @@ def _fix_single_failure(
                 continue
 
             verify_sim = verify_sim_r
-            patched_reward = patched_reward_r
-            fixed = patched_reward > baseline_reward
+            fixed = verify_passed
 
             on_status(
-                f"[{task_id}] {baseline_reward:.2f} -> {patched_reward:.2f} "
-                f"({'FIXED [' + phase_label + ']' if fixed else 'NOT FIXED'})"
+                f"[{task_id}] Verified {num_trials} trials: "
+                f"{'FIXED [' + phase_label + ']' if fixed else 'NOT FIXED'}"
             )
             if on_fix_attempt:
                 on_fix_attempt(task_id, attempt, list(all_patches), diagnosis,
                                "fixed" if fixed else "verifying")
             if fixed:
-                fix_tier = tier
+                # Determine tier from actual patch types, not just phase.
+                if tier == FIX_TIER_CODE:
+                    fix_tier = FIX_TIER_CODE
+                elif any(p.is_tool for p in all_patches):
+                    fix_tier = FIX_TIER_TOOLS
+                else:
+                    fix_tier = FIX_TIER_PROMPT
                 return True
 
             if phase_idx < num_attempts - 1:
                 session.report_failure(
                     baseline_reward=baseline_reward,
-                    patched_reward=patched_reward,
+                    patched_reward=0.0,
                     new_sim=verify_sim,
                 )
                 all_patches.clear()
@@ -228,7 +242,7 @@ def _fix_single_failure(
         on_status(f"[{task_id}] Escalating: unlocking tool code patches...")
         session.escalate(
             baseline_reward=baseline_reward,
-            patched_reward=patched_reward,
+            patched_reward=0.0,
             new_sim=verify_sim,
         )
         all_patches.clear()
@@ -242,7 +256,7 @@ def _fix_single_failure(
     return FixResult(
         task_id=task_id,
         baseline_reward=baseline_reward,
-        patched_reward=patched_reward,
+        patched_reward=1.0 if fixed else baseline_reward,
         diagnosis="\n---\n".join(d for d in all_diagnoses if d),
         patches=all_patches if fixed else [],
         retries=attempt,
@@ -260,8 +274,8 @@ def _run_condition_with_retry(
     on_status: Callable[[str], None],
     retries: int = VERIFY_RETRIES,
     **run_kwargs,
-) -> dict[str, float]:
-    """Run a single test condition with retry. Returns task_id -> reward dict (None = error)."""
+) -> dict[str, list[float | None]]:
+    """Run a single test condition with retry. Returns task_id -> [rewards]."""
     for retry in range(retries):
         try:
             results = run_tasks(**run_kwargs)
@@ -285,6 +299,7 @@ def _run_test_evaluation(
     evolved_code: Optional[dict[str, str]],
     student_model: Optional[str],
     parallelism: int,
+    num_trials: int,
     on_status: Callable[[str], None],
     on_session: Optional[Callable] = None,
 ) -> TestResults:
@@ -298,6 +313,7 @@ def _run_test_evaluation(
 
     common = dict(
         domain=domain, task_ids=test_ids, seed=seed,
+        num_trials=num_trials,
         student_model=student_model, parallelism=parallelism,
     )
     conditions: dict[str, dict] = {
@@ -315,8 +331,8 @@ def _run_test_evaluation(
             tool_code=evolved_code,
         )
 
-    on_status(f"[test] Running {len(conditions)} conditions in parallel ({len(test_ids)} tasks each)...")
-    results: dict[str, dict[str, float]] = {}
+    on_status(f"[test] Running {len(conditions)} conditions in parallel ({len(test_ids)} tasks × {num_trials} trials each)...")
+    results: dict[str, dict[str, list[float | None]]] = {}
     with ThreadPoolExecutor(max_workers=len(conditions)) as pool:
         futures = {
             pool.submit(_run_condition_with_retry, label, on_status, **kwargs): label
@@ -326,8 +342,8 @@ def _run_test_evaluation(
             label = futures[future]
             rewards = future.result()
             results[label] = rewards
-            passed = sum(1 for r in rewards.values() if r >= 1.0)
-            on_status(f"[test] {label}: {passed}/{len(rewards)} passed")
+            passed = sum(1 for r in rewards.values() if task_passed(r))
+            on_status(f"[test] {label}: {passed}/{len(rewards)} passed (majority of {num_trials} trials)")
 
     return TestResults(
         baseline_rewards=results["baseline"],
@@ -342,6 +358,7 @@ def run_loop(
     max_sweeps: int = DEFAULT_MAX_SWEEPS,
     max_retries: int = DEFAULT_MAX_RETRIES,
     seed: int = DEFAULT_SEED,
+    num_trials: int = DEFAULT_NUM_TRIALS,
     task_ids: Optional[list[str]] = None,
     parallelism: int = DEFAULT_PARALLELISM,
     student_model: Optional[str] = None,
@@ -402,10 +419,11 @@ def run_loop(
     tools = env.get_tools()
     domain_policy = env.get_policy()
 
-    current_system_prompt = SYSTEM_PROMPT.format(
+    base_system_prompt = SYSTEM_PROMPT.format(
         domain_policy=domain_policy,
         agent_instruction=AGENT_INSTRUCTION,
     )
+    current_system_prompt = base_system_prompt
     current_tool_schemas: dict[str, dict] = {
         t.name: deepcopy(t.openai_schema) for t in tools
     }
@@ -451,15 +469,16 @@ def run_loop(
         def _on_task(task_id, trial, reward):
             if reward is not None:
                 marker = "PASS" if reward >= 1.0 else "FAIL"
-                status(f"  Task {task_id} done — reward {reward:.2f} [{marker}]")
+                status(f"  Task {task_id} t{trial} — reward {reward:.2f} [{marker}]")
             else:
-                status(f"  Task {task_id} done — no reward")
+                status(f"  Task {task_id} t{trial} — no reward")
 
         results = run_tasks(
             domain=domain,
             num_tasks=num_tasks,
             task_ids=task_ids,
             seed=seed,
+            num_trials=num_trials,
             system_prompt=current_system_prompt,
             tool_schemas=current_tool_schemas,
             tool_code=current_tool_code or None,
@@ -483,9 +502,11 @@ def run_loop(
 
         failures = extract_failures(results)
         sweep_rewards, num_errors = _extract_rewards(results.simulations)
+        n_tasks = len(sweep_rewards)
+        n_passed = sum(1 for r in sweep_rewards.values() if task_passed(r))
         if num_errors:
-            status(f"  {num_errors} task(s) errored out (no reward).")
-        status(f"Sweep done. {len(failures)}/{len(results.simulations)} tasks failed, {num_errors} errors.")
+            status(f"  {num_errors} trial(s) errored out (no reward).")
+        status(f"Sweep done. {n_passed}/{n_tasks} tasks pass (majority of {num_trials}), {len(failures)} to fix.")
         phase(sweep, PHASE_SWEEP, PHASE_DONE)
 
         # No failures → record and stop.
@@ -495,7 +516,7 @@ def run_loop(
             phase(sweep, PHASE_MERGE, PHASE_SKIPPED)
             state.history.append(SweepResult(
                 sweep=sweep,
-                num_evaluated=len(results.simulations),
+                num_evaluated=len(sweep_rewards),
                 num_failures=0,
                 fixes=[],
                 num_fixed=0,
@@ -520,7 +541,7 @@ def run_loop(
             phase(sweep, PHASE_MERGE, PHASE_SKIPPED)
             state.history.append(SweepResult(
                 sweep=sweep,
-                num_evaluated=len(results.simulations),
+                num_evaluated=len(sweep_rewards),
                 num_failures=len(failures),
                 fixes=[],
                 num_fixed=0,
@@ -536,7 +557,11 @@ def run_loop(
         status(f"Fixing {len(failures)} failure(s) in parallel...")
 
         fix_results: list[FixResult] = []
-        workers = min(parallelism, len(failures))
+        # Cap concurrent teachers so total verify sessions ≤ parallelism.
+        # Each teacher's verify runs num_trials concurrent sessions.
+        max_teachers = max(1, parallelism // max(num_trials, 1))
+        workers = min(max_teachers, len(failures))
+        status(f"  (up to {workers} teachers × {num_trials} verify trials = {workers * num_trials} concurrent sessions, cap {parallelism})")
         task_by_id = {t.id: t for t in results.tasks}
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -553,12 +578,13 @@ def run_loop(
                     base_tool_code=current_tool_code,
                     tools=tools,
                     max_retries=max_retries,
+                    num_trials=num_trials,
                     on_status=status,
                     on_fix_attempt=on_fix_attempt,
                     on_teacher_message=on_teacher_message,
                     on_session=on_session,
                     student_model=student_model,
-                    parallelism=parallelism,
+                    parallelism=num_trials,
                     stop_event=stop_event,
                 )
                 futures[future] = sim.task_id
@@ -592,11 +618,11 @@ def run_loop(
 
         current_system_prompt, current_tool_schemas, current_tool_code, merge_result = merge_fixes(
             fix_results, current_system_prompt, current_tool_schemas, current_tool_code,
+            on_session=on_session,
+            on_message=on_teacher_message,
         )
-        if merge_result.conflict_groups:
-            n_resolved = len(merge_result.resolved_patches)
-            n_total = len(merge_result.conflict_groups)
-            status(f"  {n_resolved}/{n_total} conflict groups resolved by LLM merger.")
+        n_applied = len(merge_result.merged_patches)
+        status(f"  Merger applied {n_applied} patches.")
 
         phase(sweep, PHASE_MERGE, PHASE_DONE)
 
@@ -605,7 +631,7 @@ def run_loop(
         state.tool_code = current_tool_code or None
         state.history.append(SweepResult(
             sweep=sweep,
-            num_evaluated=len(results.simulations),
+            num_evaluated=len(sweep_rewards),
             num_failures=len(failures),
             fixes=fix_results,
             num_fixed=len(winners),
@@ -648,6 +674,7 @@ def run_loop(
             evolved_code=state.tool_code,
             student_model=student_model,
             parallelism=parallelism,
+            num_trials=num_trials,
             on_status=status,
             on_session=on_session,
         )

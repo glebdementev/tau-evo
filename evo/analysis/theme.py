@@ -21,6 +21,7 @@ COLORS = {
     "fixed": _OI_GREEN,
     "not_fixed": _OI_VERMILLION,
     "prompt_only": _OI_ORANGE,
+    "tools": _OI_SKY,
     "guardrail": _OI_YELLOW,
     "error": _OI_PURPLE,           # distinct from pass/fail/fix
     "airline": _OI_SKY,

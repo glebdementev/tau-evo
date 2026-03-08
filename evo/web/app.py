@@ -20,8 +20,9 @@ import evo.session_log as slog
 from evo.analysis.charts import all_charts_from_state
 from evo.models import (
     LoopState, Patch, RunMeta,
-    FIX_TIER_PROMPT, FIX_TIER_CODE,
+    FIX_TIER_PROMPT, FIX_TIER_TOOLS, FIX_TIER_CODE,
     RUN_RUNNING, RUN_FINISHED, RUN_STOPPED, RUN_ERROR,
+    is_task_passed,
 )
 
 # SSE event sentinels.
@@ -261,7 +262,7 @@ def _on_fix_attempt_cb(task_id: str, attempt: int, patches: list[Patch],
         "task_id": task_id,
         "attempt": attempt + 1,
         "patches": [{"old_text": p.old_text, "new_text": p.new_text,
-                     "tool_name": p.tool_name} for p in patches],
+                     "tool_name": p.tool_name, "is_code": p.is_code} for p in patches],
         "diagnosis": diagnosis or "",
         "status": status,
     }
@@ -815,6 +816,7 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
     total = len(fixes)
     fixed = sum(1 for f in fixes if f.fixed)
     fixed_prompt = sum(1 for f in fixes if f.fix_tier == FIX_TIER_PROMPT)
+    fixed_tools = sum(1 for f in fixes if f.fix_tier == FIX_TIER_TOOLS)
     fixed_code = sum(1 for f in fixes if f.fix_tier == FIX_TIER_CODE)
 
     sweep_total = 0
@@ -822,13 +824,14 @@ def _build_stats_context(state: Optional[LoopState]) -> dict:
     if state and not fixes:
         for h in state.history:
             sweep_total += len(h.sweep_rewards)
-            sweep_passed += sum(1 for r in h.sweep_rewards.values() if r is not None and r >= 1.0)
+            sweep_passed += sum(1 for r in h.sweep_rewards.values() if is_task_passed(r))
 
     tr = state.test_results if state else None
     return {
         "total": total,
         "fixed": fixed,
         "fixed_prompt": fixed_prompt,
+        "fixed_tools": fixed_tools,
         "fixed_code": fixed_code,
         "not_fixed": total - fixed,
         "rate": int(fixed / total * 100) if total else (
