@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import threading
 from collections import deque
 from datetime import datetime
@@ -519,12 +520,25 @@ async def api_state():
     })
 
 
+def _sanitize_floats(obj):
+    """Replace NaN/Inf floats with None so JSON serialization succeeds."""
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize_floats(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_floats(v) for v in obj]
+    return obj
+
+
 @app.get("/api/charts")
 async def api_charts():
     state = _get_viewed_state()
     if state is None:
-        return JSONResponse(all_charts_from_state(LoopState()))
-    return JSONResponse(all_charts_from_state(state))
+        data = all_charts_from_state(LoopState())
+    else:
+        data = all_charts_from_state(state)
+    return JSONResponse(_sanitize_floats(data))
 
 
 # ---------------------------------------------------------------------------
