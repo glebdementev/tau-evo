@@ -1,0 +1,38 @@
+digraph slide_fig_01_outer_loop {
+	bgcolor=white dpi=300 fontname="Liberation Serif" fontsize=11 margin=0 pad=0.4 rankdir=LR
+	node [color="#2C3E50" fontname="Liberation Serif" fontsize=11 penwidth=1.2 style=filled]
+	edge [arrowsize=0.7 color="#34495E" fontname="Liberation Serif" fontsize=9 penwidth=1.0]
+	nodesep=0.5 ranksep=0.8
+	start [label="Start
+(sweep = 1)" fillcolor="#E8E8E8" shape=oval style=filled]
+	eval [label="Evaluate student
+on all tasks
+(N trials each)" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
+	results [label="Evaluation
+results" fillcolor="#E2E0F5" shape=note style=filled]
+	extract [label="Extract
+failures
+(trial < 1.0)" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
+	any_fail [label="Failures
+remain?" fillcolor="#FFF3CD" fontsize=9 height=1.0 shape=diamond style=filled width=1.8]
+	fix [label="Fix failures
+in parallel
+(teacher sessions)" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
+	merge [label="Merge via
+merger LLM" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
+	max_iter [label="Max sweeps
+reached?" fillcolor="#FFF3CD" fontsize=9 height=1.0 shape=diamond style=filled width=1.8]
+	end [label="End
+(evolved state)" fillcolor="#E8E8E8" shape=oval style=filled]
+	start -> eval
+	eval -> results
+	results -> extract
+	extract -> any_fail
+	any_fail -> fix [label=Yes]
+	any_fail -> end [label=No style=dashed]
+	fix -> merge
+	merge -> max_iter
+	max_iter -> end [label=Yes style=dashed]
+	max_iter -> eval [label="No
+(re-evaluate)" color="#0072B2" constraint=false fontcolor="#0072B2" style=dashed]
+}
