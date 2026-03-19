@@ -16,9 +16,30 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
 
 from diagram_style import *  # noqa: E402
+import diagram_style as _ds
 
 # Override output directory
 OUTPUT_DIR = "figures"
+
+# -- Compact overrides for slide figures --
+# Smaller decision diamonds and tighter padding
+_orig_decision_node = _ds.decision_node
+_orig_new_graph = _ds.new_graph
+
+
+def decision_node(g, name, label, **kw):
+    kw["width"] = kw.get("width", "1.2")
+    kw["height"] = kw.get("height", "0.7")
+    # Call node directly to avoid conflict with diagram_style defaults
+    g.node(name, label=label, shape="diamond", style="filled",
+           fillcolor=C["decision"], fontsize=FONT_SIZE_SMALL, **kw)
+
+
+def new_graph(name, *, directed=True, rankdir="TB", engine="dot", **extra):
+    g = _orig_new_graph(name, directed=directed, rankdir=rankdir, engine=engine, **extra)
+    g.attr(pad="0.15")
+    g.attr("edge", arrowsize="0.6")
+    return g
 
 
 # ===================================================================
@@ -28,7 +49,7 @@ OUTPUT_DIR = "figures"
 def fig_01_outer_loop():
     """Evolution outer loop — horizontal layout."""
     g = new_graph("slide_fig_01_outer_loop", rankdir="LR")
-    g.attr(nodesep="0.5", ranksep="0.8")
+    g.attr(nodesep="0.2", ranksep="0.35")
 
     terminal_node(g, "start", "Start\n(sweep = 1)")
     process_node(g, "eval", "Evaluate student\non all tasks\n(N trials each)")
@@ -65,7 +86,7 @@ def fig_01_outer_loop():
 def fig_02_inner_loop():
     """Per-failure fix loop — horizontal layout."""
     g = new_graph("slide_fig_02_inner_loop", rankdir="LR")
-    g.attr(nodesep="0.4", ranksep="0.7")
+    g.attr(nodesep="0.15", ranksep="0.3")
 
     terminal_node(g, "start", "Failed task\nreceived")
     process_node(g, "copy", "Deep-copy\ncurrent state")
@@ -103,7 +124,7 @@ def fig_02_inner_loop():
 def fig_04_teacher_session():
     """Teacher session tool-calling sequence — horizontal layout."""
     g = new_graph("slide_fig_04_teacher_session", rankdir="LR")
-    g.attr(nodesep="0.4", ranksep="0.9")
+    g.attr(nodesep="0.15", ranksep="0.4")
 
     data_node(g, "context", "Context Package\n"
               "- System prompt\n"
@@ -150,7 +171,7 @@ def fig_04_teacher_session():
 def fig_06_patch_surfaces():
     """Patch surfaces and failure type mapping — wider layout."""
     g = new_graph("slide_fig_06_patch_surfaces", rankdir="LR")
-    g.attr(nodesep="0.3", ranksep="1.4")
+    g.attr(nodesep="0.15", ranksep="0.5")
 
     # Failure types column
     fails = cluster(g, "failures", "  Failure Types  ")
@@ -199,7 +220,7 @@ def fig_06_patch_surfaces():
 def fig_07_conversation_mechanics():
     """Conversation mechanics — horizontal layout."""
     g = new_graph("slide_fig_07_conversation_mechanics", rankdir="LR")
-    g.attr(nodesep="0.4", ranksep="0.7")
+    g.attr(nodesep="0.15", ranksep="0.3")
 
     terminal_node(g, "start", "Task begins\n(scenario loaded)")
     process_node(g, "user_turn", "User simulator\nsends message")
@@ -238,7 +259,7 @@ def fig_07_conversation_mechanics():
 def fig_09_reward_breakdown():
     """Reward evaluation components — horizontal layout."""
     g = new_graph("slide_fig_09_reward_breakdown", rankdir="LR")
-    g.attr(nodesep="0.3", ranksep="0.9")
+    g.attr(nodesep="0.15", ranksep="0.4")
 
     data_node(g, "trace", "Completed\nConversation\nTrace")
 
@@ -283,7 +304,7 @@ def fig_09_reward_breakdown():
 def fig_10_escalation():
     """Two-phase teacher escalation — horizontal with side-by-side phases."""
     g = new_graph("slide_fig_10_escalation", rankdir="LR")
-    g.attr(nodesep="0.35", ranksep="0.7")
+    g.attr(nodesep="0.15", ranksep="0.3")
 
     terminal_node(g, "start", "Task failure\nreceived")
 
@@ -334,7 +355,7 @@ def fig_10_escalation():
 def fig_11_parallel_architecture():
     """Parallel execution architecture — horizontal layout."""
     g = new_graph("slide_fig_11_parallel_architecture", rankdir="LR")
-    g.attr(nodesep="0.3", ranksep="0.8")
+    g.attr(nodesep="0.15", ranksep="0.35")
 
     process_node(g, "eval", "Evaluate\nall tasks")
     process_node(g, "extract", "Extract\nN failures")
@@ -379,7 +400,7 @@ def fig_11_parallel_architecture():
 def fig_12_patch_pipeline():
     """Patch application pipeline — horizontal with three parallel paths."""
     g = new_graph("slide_fig_12_patch_pipeline", rankdir="LR")
-    g.attr(nodesep="0.25", ranksep="0.7")
+    g.attr(nodesep="0.15", ranksep="0.3")
 
     process_node(g, "propose", "Teacher proposes\npatch (old, new)")
     decision_node(g, "type", "Patch\ntype?")
@@ -432,7 +453,7 @@ def fig_12_patch_pipeline():
 def fig_lr_01_argument_flow():
     """Literature review argument structure — horizontal zigzag."""
     g = new_graph("slide_fig_lr_01_argument_flow", rankdir="LR")
-    g.attr(nodesep="0.35", ranksep="0.6")
+    g.attr(nodesep="0.15", ranksep="0.3")
 
     steps = [
         ("s1", "LLM agents are\nunreliable at\nenterprise scale", "#F8D7DA", "\u00a72.1"),

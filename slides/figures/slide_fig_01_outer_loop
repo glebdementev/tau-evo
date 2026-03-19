@@ -2,7 +2,9 @@ digraph slide_fig_01_outer_loop {
 	bgcolor=white dpi=300 fontname="Liberation Serif" fontsize=11 margin=0 pad=0.4 rankdir=LR
 	node [color="#2C3E50" fontname="Liberation Serif" fontsize=11 penwidth=1.2 style=filled]
 	edge [arrowsize=0.7 color="#34495E" fontname="Liberation Serif" fontsize=9 penwidth=1.0]
-	nodesep=0.5 ranksep=0.8
+	pad=0.15
+	edge [arrowsize=0.6]
+	nodesep=0.2 ranksep=0.35
 	start [label="Start
 (sweep = 1)" fillcolor="#E8E8E8" shape=oval style=filled]
 	eval [label="Evaluate student
@@ -14,14 +16,14 @@ results" fillcolor="#E2E0F5" shape=note style=filled]
 failures
 (trial < 1.0)" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
 	any_fail [label="Failures
-remain?" fillcolor="#FFF3CD" fontsize=9 height=1.0 shape=diamond style=filled width=1.8]
+remain?" fillcolor="#FFF3CD" fontsize=9 height=0.7 shape=diamond style=filled width=1.2]
 	fix [label="Fix failures
 in parallel
 (teacher sessions)" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
 	merge [label="Merge via
 merger LLM" fillcolor="#E8F4FD" shape=box style="filled,rounded"]
 	max_iter [label="Max sweeps
-reached?" fillcolor="#FFF3CD" fontsize=9 height=1.0 shape=diamond style=filled width=1.8]
+reached?" fillcolor="#FFF3CD" fontsize=9 height=0.7 shape=diamond style=filled width=1.2]
 	end [label="End
 (evolved state)" fillcolor="#E8E8E8" shape=oval style=filled]
 	start -> eval
