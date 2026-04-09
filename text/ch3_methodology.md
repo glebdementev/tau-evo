@@ -4,7 +4,7 @@ This chapter describes the research design, experimental setup, and implementati
 
 ## 3.1 Research Design
 
-The research follows a design-science approach [@hevner2004; @peffers2007]: the primary contribution is a software artifact---the prompt evolution framework---and the primary evaluation is an empirical measurement of its effect on a standardized benchmark. The study is quantitative and experimental, with a pre-test/post-test design in which the same agent is evaluated before and after the intervention (automated prompt and tool-schema evolution), with an additional ceiling condition provided by a stronger model. @hevner2004's Design Evaluation guideline requires demonstrating that the artifact improves upon a baseline and contextualizing improvement against an upper bound; the three-condition design satisfies both requirements.
+The research follows a design-science approach [@hevner2004; @peffers2007]: the primary contribution is a software artifact---the prompt evolution framework---and the primary evaluation is an empirical measurement of its effect on a standardized benchmark. The artifact is motivated by a practical business problem: the recurring human cost of post-deployment agent maintenance (the *implementation tax* described in Chapter 1) that currently blocks enterprise AI adoption at scale. The study is quantitative and experimental, with a pre-test/post-test design in which the same agent is evaluated before and after the intervention (automated prompt and tool-schema evolution), with an additional ceiling condition provided by a stronger model. @hevner2004's Design Evaluation guideline requires demonstrating that the artifact improves upon a baseline and contextualizing improvement against an upper bound; the three-condition design satisfies both requirements.
 
 The research question---*How can AI agent performance on structured benchmarks be improved through automated, teacher-model-driven prompt and tool evolution?*---is operationalized as a measurable change in pass rate on the τ²-bench benchmark across three experimental conditions. The sub-questions map to specific analyses: failure-mode responsiveness is assessed through the failure taxonomy and ablation of patch types; the efficiency question is addressed by the iterative structure of the loop, which tracks marginal gains per iteration; and the comparison with static agents is enabled by the floor--intervention--ceiling design.
 
@@ -12,7 +12,7 @@ The research question---*How can AI agent performance on structured benchmarks b
 
 ### 3.2.1 Selection Rationale
 
-The evaluation benchmark is τ²-bench [@barres2025], an extension of τ-bench [@yao2024]. It was selected over four alternative benchmarks for reasons that reduce to a single requirement: the benchmark must combine multi-turn dialogue with tool calling, a simulated user that reveals information incrementally, and domain-specific policy constraints---what makes customer-service automation realistic in practice.
+The evaluation benchmark is τ²-bench [@barres2025], an extension of τ-bench [@yao2024]. It was selected over four alternative benchmarks for reasons that reduce to a single requirement: the benchmark must combine multi-turn dialogue with tool calling, a simulated user that reveals information incrementally, and domain-specific policy constraints---what makes customer-service automation realistic in practice. Customer service is the natural evaluation domain because it represents the largest addressable market for AI agent automation: approximately 17 million contact center agents globally, with labor constituting up to 95% of operating costs [@gartner2022labor], and a contact center AI market growing at 21--25% CAGR [@grandviewresearch2024].
 
 AgentBench [@liu2023] covers eight interactive environments but features no simulated user interaction; the agent operates autonomously given all information upfront. SWE-bench [@jimenez2024] is confined to single-shot code generation with no dialogue or tool-calling APIs. GAIA [@mialon2023] evaluates single-turn factual question answering with no conversational back-and-forth. ToolBench [@qin2023] tests tool use across 16,000+ APIs, but---as noted in the τ-bench paper---instructions are provided upfront in their entirety: there is no multi-turn user dialogue, no domain policies, and no customer-service workflows. τ²-bench is the only benchmark that combines all four elements: multi-turn conversations with an LLM-simulated user providing partial information, domain-specific policies, tool-calling APIs that modify database state, and the pass^k^ reliability metric that the thesis requires.
 
@@ -82,7 +82,7 @@ All models are accessed through OpenRouter using a single API key.
 
 ### 3.4.1 Student Model: Qwen3 30B-A3B
 
-The student model is Qwen3 30B-A3B [@qwen2025], a Mixture-of-Experts Transformer with 30.5 billion total parameters but only 3.3 billion active per token. It employs 128 experts with top-8 routing across 48 layers and supports 32,768 native context tokens extensible to 131,072 with YaRN scaling. Despite activating barely 10 percent of its parameters per forward pass, the model outperforms Qwen2.5-14B on all reported benchmarks and leads the Berkeley Function Calling Leaderboard (BFCL v3). The selection reflects a trade-off: the model needs non-trivial τ²-bench scores, but must be weak enough relative to the frontier that meaningful headroom exists, and cheap enough for the many evaluation runs the iterative process requires. Qwen3 30B-A3B fits: its MoE architecture makes it fast and inexpensive via API, it handles tool-calling and multi-turn dialogue, and it is demonstrably imperfect on τ²-bench tasks.
+The student model is Qwen3 30B-A3B [@qwen2025], a Mixture-of-Experts Transformer with 30.5 billion total parameters but only 3.3 billion active per token. It employs 128 experts with top-8 routing across 48 layers and supports 32,768 native context tokens extensible to 131,072 with YaRN scaling. Despite activating barely 10 percent of its parameters per forward pass, the model outperforms Qwen2.5-14B on all reported benchmarks and leads the Berkeley Function Calling Leaderboard (BFCL v3). The selection reflects a trade-off: the model needs non-trivial τ²-bench scores, but must be weak enough relative to the frontier that meaningful headroom exists, and cheap enough for the many evaluation runs the iterative process requires. This trade-off mirrors the real enterprise deployment decision: organizations choose cost-efficient models precisely because frontier models are prohibitively expensive at production volumes, then need a mechanism to close the resulting performance gap without switching to a more expensive model. Qwen3 30B-A3B fits: its MoE architecture makes it fast and inexpensive via API, it handles tool-calling and multi-turn dialogue, and it is demonstrably imperfect on τ²-bench tasks.
 
 Alternative student models---Qwen3.5 Flash and GLM 4.7 Flash---are supported by the implementation for cross-student ablation, but the primary evaluation uses Qwen3 30B-A3B.
 
@@ -100,7 +100,7 @@ The user simulator uses the same model as the student (Qwen3 30B-A3B). τ²-benc
 
 ### 3.5.1 Architecture Overview
 
-The evolution framework implements a diagnose-patch-validate loop. A weaker student model runs on benchmark tasks and fails on some. A stronger teacher model analyzes each failure, proposes modifications to the student's prompt and tool configuration, and those modifications are validated by re-running the student on the failed task. Successful patches are merged into a progressively improved agent configuration. The architecture operates at two levels: an outer loop iterates over the full task set, and an inner loop handles individual failure repair. @Fig:system-architecture provides a high-level view of the system components and data flow.
+The evolution framework implements a diagnose-patch-validate loop that automates the most labor-intensive component of post-deployment agent maintenance: failure diagnosis and prompt remediation. In current enterprise practice, this cycle requires a human expert to review failed conversation traces, identify the root cause, write a corrective prompt or schema edit, and regression-test the change---a process that industry estimates place at 0.5 to 3 FTEs per deployment [@gartner2025complexity]. The framework replaces this human loop with a model-driven one. A weaker student model runs on benchmark tasks and fails on some. A stronger teacher model analyzes each failure, proposes modifications to the student's prompt and tool configuration, and those modifications are validated by re-running the student on the failed task. Successful patches are merged into a progressively improved agent configuration. The architecture operates at two levels: an outer loop iterates over the full task set, and an inner loop handles individual failure repair. @Fig:system-architecture provides a high-level view of the system components and data flow.
 
 ![System architecture: the τ²-bench orchestrator mediates between the student agent and user simulator, while the teacher model analyzes failed traces and patches the evolved state (prompt, tool schemas, and preprocessors).](figures/fig_03_system_architecture.png){#fig:system-architecture}
 
@@ -118,6 +118,43 @@ The parallel fix phase uses a thread pool to process multiple failures concurren
 
 ![Parallel execution architecture: failed tasks are distributed across threads, each with an independent copy of the evolved state. Fix results are collected and merged.](figures/fig_11_parallel_architecture.png){#fig:parallel-architecture}
 
+Algorithm 1 formalizes the outer loop. Let $\sigma = (\pi, \mathcal{S}, \mathcal{C})$ denote the evolved state---the system prompt, the dictionary of tool schemas, and the dictionary of tool preprocessors, respectively. $\text{Pass}(\mathbf{r})$ holds if and only if all $T$ trials achieve a perfect reward: $\forall\, t \in \{1,\dots,T\}: r_t = 1.0$.
+
+\begin{algorithm}
+\caption{Diagnose-Patch-Validate Loop}\label{alg:outer-loop}
+\begin{algorithmic}[1]
+\Require $\mathcal{D}_\text{train}, \mathcal{D}_\text{test}, \sigma_0 = (\pi_0, \mathcal{S}_0, \mathcal{C}_0), M_s, M_t, S_\text{max}, A, T$
+\Ensure $\sigma^*$ (evolved state)
+\State $\sigma \gets \sigma_0$
+\For{$s = 1$ \textbf{to} $S_\text{max}$}
+    \Comment{\textsc{Sweep}: evaluate student on all train tasks}
+    \State $R \gets \{(\tau,\; \mathbf{r}(\tau, \sigma, M_s, T)) : \tau \in \mathcal{D}_\text{train}\}$ \Comment{$T$ trials per task}
+    \State $F \gets \{(\tau, \mathbf{r}) \in R : \neg\textsc{Pass}(\mathbf{r})\}$
+    \If{$F = \emptyset$} \textbf{break} \Comment{all tasks pass}
+    \EndIf
+    \If{$s = S_\text{max}$} \textbf{break} \Comment{final sweep is evaluation-only}
+    \EndIf
+    \Comment{\textsc{Fix}: repair each failure independently}
+    \State $W \gets \emptyset$
+    \ParFor{$(\tau, \mathbf{r}) \in F$}
+        \State $\sigma_\text{local} \gets \textsc{DeepCopy}(\sigma)$
+        \State $\text{result} \gets \textsc{FixFailure}(\tau, \sigma_\text{local}, M_t, A, T)$ \Comment{Algorithm~\ref{alg:fix-failure}}
+        \If{$\text{result.fixed}$} $W \gets W \cup \{\text{result}\}$
+        \EndIf
+    \EndParFor
+    \Comment{\textsc{Merge}: consolidate winning patches}
+    \If{$W \neq \emptyset$}
+        \State $\sigma \gets \textsc{MergePatches}(\sigma, W, M_t)$ \Comment{LLM-based dedup \& compaction}
+    \EndIf
+\EndFor
+\Comment{\textsc{Test}: evaluate on held-out split}
+\For{$\text{cond} \in \{\text{baseline},\, \text{prompt\_only},\, \text{evolved}\}$}
+    \State $\textsc{Evaluate}(\mathcal{D}_\text{test}, \text{cond}, \sigma, M_s, T)$
+\EndFor
+\State \Return $\sigma$
+\end{algorithmic}
+\end{algorithm}
+
 ### 3.5.3 The Inner Loop: Per-Failure Fix Attempts
 
 For each failed task, a teacher session is created with deep copies of the current global state. The total attempt budget $A = 1 + \textit{max\_retries}$ is split between two phases: Phase 1 (teaching) receives $\lceil A/2 \rceil$ attempts, and Phase 2 (guardrails) receives the remainder $A - \lceil A/2 \rceil$. The session enters a reflect-validate loop, as shown in @fig:inner-loop. In the reflection step, the teacher receives a comprehensive prompt containing the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 3.7), and calls patch tools to propose modifications. In the validation step, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted to their pre-patch state and the teacher receives the new conversation trace, the new reward breakdown, and the reverted state, and is asked to try again from scratch.
@@ -125,6 +162,53 @@ For each failed task, a teacher session is created with deep copies of the curre
 ![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the task does not pass all trials, patches are reverted and the teacher retries with feedback until attempts are exhausted.](figures/fig_02_inner_loop.png){#fig:inner-loop}
 
 Patches are merged into the global state only if validation succeeds. Failed patches are discarded entirely. The fix success criterion is strict: the patched student must pass the task unanimously across all trials (each achieving reward 1.0). Partial improvements are not accepted. This strictness prevents fragile patches---those that work on some stochastic runs but not others---from entering the global state.
+
+Algorithm 2 details the per-failure fix procedure. Let $\mathcal{T}_1$ and $\mathcal{T}_2$ denote the Phase 1 and Phase 2 tool sets, respectively.
+
+\begin{algorithm}
+\caption{FixFailure: Two-Phase Teacher Escalation}\label{alg:fix-failure}
+\begin{algorithmic}[1]
+\Require failed task $\tau$, state copy $\sigma = (\pi, \mathcal{S}, \mathcal{C})$, teacher $M_t$, attempt budget $A$, trials $T$
+\Ensure \textsc{FixResult}
+\State $A_1 \gets \lceil(A{+}1)/2\rceil$;\quad $A_2 \gets A - A_1$ \Comment{split budget between phases}
+\State $\mathcal{T}_1 \gets \{\texttt{patch\_prompt},\, \texttt{patch\_tool},\, \texttt{read\_tool\_code}\}$
+\State $\mathcal{T}_2 \gets \mathcal{T}_1 \cup \{\texttt{patch\_tool\_code}\}$
+\State $\sigma_\text{base} \gets \sigma$ \Comment{checkpoint for revert}
+\State $\text{trace} \gets$ initial failing conversation
+\Statex
+\Comment{\textbf{Phase 1}: Teaching (prompt + schema patches only)}
+\For{$a = 1$ \textbf{to} $A_1$}
+    \State $\text{patches}, \text{diag} \gets \textsc{Reflect}(M_t, \text{trace}, \sigma, \tau, \mathcal{T}_1)$ \Comment{multi-round tool calling}
+    \If{$\text{patches} = \emptyset$} \textbf{break} \Comment{teacher proposed nothing}
+    \EndIf
+    \State $\sigma \gets \textsc{Apply}(\sigma, \text{patches})$
+    \State $\mathbf{r} \gets \textsc{Validate}(\tau, \sigma, M_s, T)$ \Comment{re-run student for $T$ trials}
+    \If{$\textsc{Pass}(\mathbf{r})$}
+        \State \Return $\textsc{FixResult}(\text{fixed}{=}\text{true},\, \text{patches},\, \text{tier}{=}\textsc{Tier}(\text{patches}))$
+    \EndIf
+    \State $\sigma \gets \sigma_\text{base}$ \Comment{revert \emph{all} patches}
+    \State $\text{trace} \gets \mathbf{r}$ \Comment{feed new trace to teacher}
+\EndFor
+\Statex
+\Comment{\textbf{Phase 2}: Guardrails (unlock preprocessor editing)}
+\If{$A_2 > 0$}
+    \State $\textsc{Escalate}(M_t, \mathcal{T}_2)$ \Comment{switch tool set, reset state}
+    \For{$a = 1$ \textbf{to} $A_2$}
+        \State $\text{patches}, \text{diag} \gets \textsc{Reflect}(M_t, \text{trace}, \sigma, \tau, \mathcal{T}_2)$
+        \If{$\text{patches} = \emptyset$} \textbf{break}
+        \EndIf
+        \State $\sigma \gets \textsc{Apply}(\sigma, \text{patches})$
+        \State $\mathbf{r} \gets \textsc{Validate}(\tau, \sigma, M_s, T)$
+        \If{$\textsc{Pass}(\mathbf{r})$}
+            \State \Return $\textsc{FixResult}(\text{fixed}{=}\text{true},\, \text{patches},\, \text{tier}{=}\text{CODE})$
+        \EndIf
+        \State $\sigma \gets \sigma_\text{base}$
+        \State $\text{trace} \gets \mathbf{r}$
+    \EndFor
+\EndIf
+\State \Return $\textsc{FixResult}(\text{fixed}{=}\text{false})$
+\end{algorithmic}
+\end{algorithm}
 
 ### 3.5.4 The Teacher Session
 
@@ -160,7 +244,7 @@ Some formatting errors persist even when the prompt and schema are clear: the mo
 
 ### 3.6.4 Patch Application and Merging
 
-Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single sweep, winning patches are consolidated by a dedicated merger LLM session. The merger receives the current global state (prompt, schemas, preprocessors) and the proposed diffs from all successful fixes. It applies patches via the same patch_prompt and patch_tool tool calls available to the teacher, resolving conflicts, deduplicating redundant edits, and compacting overlapping changes---all within a single session. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point. @Fig:patch-pipeline details the validation gates for each patch type.
+Patches are applied sequentially using first-occurrence-only string replacement to prevent cascading substitutions. Failed patches (old_text not found) are logged and skipped without aborting the batch. When multiple tasks are fixed in a single sweep, winning patches are consolidated by a dedicated merger LLM session. The merger receives the current global state (prompt, schemas, preprocessors) and the proposed diffs from all successful fixes. It applies patches via the same patch_prompt and patch_tool tool calls available to the teacher---but not patch_tool_code---resolving conflicts, deduplicating redundant edits, and compacting overlapping changes within a single session. The merger procedure is formalized as Algorithm 3 in Appendix A. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code, so the exact evolved agent can be reconstructed at any point. @Fig:patch-pipeline details the validation gates for each patch type.
 
 ![Patch application pipeline: prompt patches are applied directly, while tool schema patches must produce valid JSON and tool preprocessor patches must pass static analysis. Invalid patches are rejected without aborting the batch.](figures/fig_12_patch_pipeline.png){#fig:patch-pipeline}
 
@@ -217,6 +301,22 @@ $$\text{FSR} = \frac{|\{i : \text{fix}_i \text{ succeeds}\}|}{M}$$
 
 This measures the evolution process's efficiency.
 
+### 3.8.5 Statistical Analysis Plan
+
+Statistical evaluation of LLM agents on benchmarks with small task counts requires methods appropriate for the data structure. Standard confidence intervals based on the Central Limit Theorem dramatically underestimate uncertainty when the number of evaluation items is below a few hundred [@bowyer2025], and conventional t-tests on pre-averaged scores disregard the hierarchical structure of evaluation data, yielding Type I error rates as high as 80% [@luettgau2025]. This section specifies the statistical tests used for each hypothesis, following the general protocol of @dror2018 and the small-sample recommendations of @bowyer2025 and @card2020.
+
+The evaluation data has a nested structure: each task is evaluated with $T = 3$ independent trials per sweep, and each experiment runs 3 sweeps (baseline evaluation, one round of evolution with re-evaluation, and a second round of evolution with final evaluation). The final sweep (sweep 3) serves as the evolved condition because it reflects the cumulative effect of all merged patches and has no further fixes applied after it---it is a pure evaluation. Sweep 1 serves as the baseline.
+
+**H1 (Effectiveness): Paired t-test on per-task trial-pass-rate deltas.** Each task contributes one continuous observation: its trial pass rate under the evolved condition minus its trial pass rate under the baseline. With $T = 3$ trials, this takes values in $\{-1, -\frac{2}{3}, -\frac{1}{3}, 0, +\frac{1}{3}, +\frac{2}{3}, +1\}$, providing more statistical power than a binary task-level test. The paired design controls for task difficulty: easy tasks that pass under both conditions contribute a delta of zero rather than inflating either rate. The test is one-sided ($H_a$: mean delta $> 0$; $H_0$: mean delta $\leq 0$) at $\alpha = 0.05$. Effect size is reported as Cohen's $d$ for paired data. Two sensitivity checks are performed: McNemar's exact test on task-level unanimous-pass outcomes [@dror2018], and the Wilcoxon signed-rank test as a non-parametric alternative (where sample size permits). Results are additionally pooled across task-pool sizes within each student model to increase statistical power, yielding a combined test across all tasks evaluated with a given student.
+
+**H2 (Diminishing returns): Cochran-Armitage trend test.** The fix success rate is computed at each pool size (5, 10, 20 tasks). The Cochran-Armitage test [@cochran1954; @armitage1955] assesses whether the proportion of successful fixes declines monotonically across the ordered pool sizes. This is a standard test for dose-response trends in proportions and is appropriate here because the pool sizes form a natural ordering and the outcome (fix success) is binary. The test is one-sided ($H_a$: declining trend; $H_0$: no trend).
+
+**H3 (Gap closure $\geq 25\%$): Cluster bootstrap confidence interval.** Gap closure is a ratio of differences ($G = (K - B) / (F - B)$) and has no standard parametric distribution. A cluster bootstrap [@field2007] resamples tasks with replacement (keeping all trials within a task together to preserve the nested structure), computes $G$ for each bootstrap sample, and reports the 2.5th and 97.5th percentiles as a 95% confidence interval. If the lower bound exceeds 25%, H3 is supported. The posterior probability $P(G > 0.25)$ is reported as the fraction of bootstrap samples exceeding the threshold ($n_\text{boot} = 10{,}000$).
+
+**Confidence intervals on pass rates.** For trial-level and task-level pass rates, exact Clopper-Pearson intervals [@clopper1934] are used rather than normal approximations, following the recommendation of @bowyer2025 for evaluations with fewer than 300 data points.
+
+**Multiple comparisons.** Each hypothesis is tested independently, not as a family. The three hypotheses address different claims (effectiveness, scaling, gap closure) and are not multiple tests of the same null. No correction is applied [@dror2018, who recommend against routine Bonferroni correction when hypotheses are substantively distinct].
+
 ## 3.9 Reproducibility
 
 ### 3.9.1 Fixed Parameters
@@ -252,6 +352,12 @@ The complete evolution state is serialized to JSON after each iteration: the cur
 ### 3.10.2 External Validity
 
 **Benchmark versus production.** τ²-bench tasks are simulated customer-service interactions. While designed to approximate operational settings, they lack the full diversity and adversarial nature of real interactions. @kapoor2024 documented that 7 of 8 major agent benchmarks lack appropriate holdout sets and that benchmark-specific overfitting is common---the top WebArena agent hardcodes policies for specific tasks. Whether the framework works in production is untested.
+
+**Absence of a train/test split.** Prompt optimization methods such as GEPA [@agrawal2025] and MIPROv2 [@opsahl-ong2024] use train/validation/test splits because their benchmarks consist of hundreds or thousands of structurally identical instances of a single task type. All HotpotQA questions follow the same pattern (given documents, answer a multi-hop question); all AIME problems require a single numerical answer; HoVer is binary classification. Evaluation is deterministic---exact match, F1, or pass/fail on verifiable constraints. A single optimized prompt must generalize across instances, so a held-out test set is essential to distinguish genuine learning from overfitting.
+
+τ²-bench has a fundamentally different structure. Each of the 50 airline tasks is a unique customer-service scenario with its own user persona, conversational strategy, required tool-call sequences, database state assertions, and natural-language assertions evaluated by an LLM judge. Task 0 tests whether the agent refuses an unauthorized cancellation; Task 2 tests mid-conversation topic switching combined with arithmetic verification; Task 4 tests resistance to social engineering by a customer fabricating a flight cancellation. No two tasks test the same skill in the same way, and evaluation criteria are task-specific (for example, "Agent should detect that the number of passengers mentioned by the user is incorrect"). There is no population of interchangeable instances from which to sample a training and test set---each task is a distinct test case, not a draw from a homogeneous distribution.
+
+The contribution of the present work is the *framework*---the diagnose-patch-validate loop---not the specific patches it produces. In the intended deployment scenario, an operator runs the framework on the failure cases that matter to their domain; the patches are meant to fix *those* failures. A rule like "always verify the customer's identity before modifying a reservation" is domain policy, not a task-specific overfit---it applies to every airline task by construction because all tasks share the same policy document and tool set. The teacher prompt explicitly prohibits task-specific hardcoding (flight numbers, dollar amounts, reservation IDs), and the validation step requires unanimous pass across multiple stochastic trials, which further guards against brittle, instance-specific patches. The evaluation therefore measures all conditions on the same task set, asking which optimization strategy fixes more failures, rather than which one generalizes to held-out instances of a repeating task type.
 
 **Model generalization.** The framework is evaluated with one student--teacher pair. Whether results generalize to stronger students (where headroom is smaller) or weaker teachers (where diagnostic quality degrades) is an open question. Alternative student models are supported for future ablation.
 

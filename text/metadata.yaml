@@ -6,7 +6,7 @@ csl: apa.csl
 reference-section-title: "References"
 lang: en-US
 toc: true
-toc-depth: 3
+toc-depth: 2
 
 # --- GOST 7.32-2017 page layout ---
 documentclass: extarticle

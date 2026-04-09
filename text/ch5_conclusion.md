@@ -2,13 +2,13 @@
 
 This chapter summarizes the findings, discusses what they mean for theory and practice, acknowledges limitations, and suggests directions for future work.
 
-## 5.1 Revisiting the research problem
+### 5.1 Revisiting the research problem
 
 Enterprise customer service is a hard environment for LLM-based agents. Organizations want reliability at four-nines (99.99%) or above, but even frontier models like Claude Opus 4.5 top out around 98% on structured tool-calling benchmarks like τ²-bench [@barres2025; @rabanser2025]. That 2% gap matters more than it sounds. At enterprise scale, it translates into thousands of mishandled customer interactions per day, any of which could mean churn, compliance violations, or reputational damage. The problem is that deployed agents are static: once their prompt and tool configuration are set, they do not learn from the failures that follow. Fine-tuning and RLHF can improve model behavior at training time [@ouyang2022; @bai2022], but they are expensive, slow, and inaccessible to organizations consuming models through APIs without the ability to modify weights. Meanwhile, the humans working alongside these agents in customer service workflows already correct mistakes, handle escalations, and resolve edge cases every day. That behavioral data is almost entirely unused as a learning signal.
 
 This thesis asked a single research question: **How can AI agent performance on structured benchmarks be improved through automated, teacher-model-driven prompt and tool evolution?** The question sits at the intersection of three literatures: agent benchmarking, automated prompt optimization, and human-in-the-loop supervision. No prior work had combined teacher-driven diagnosis with prompt-level patching and validated the result on a multi-turn tool-calling benchmark.
 
-## 5.2 Summary of findings
+### 5.2 Summary of findings
 
 The thesis developed and evaluated a Diagnose-Patch-Validate framework in which a stronger teacher model (Kimi K2.5) analyzes a weaker student model's (Qwen3 30B-A3B) failed conversation traces on τ²-bench, diagnoses root causes, proposes structured patches to the student's prompt, tool schemas, or tool preprocessors, and validates those patches through re-simulation before merging. The student model's weights are never modified; only its operating instructions change. Two experiments were conducted on the airline domain of τ²-bench, with a third in progress.
 
@@ -26,7 +26,7 @@ The thesis developed and evaluated a Diagnose-Patch-Validate framework in which 
 
 **Finding 7: Student model strength reshapes the framework's utility.** Preliminary results with Qwen3.5 Flash as an alternative student showed a perfect 5/5 pass rate on the 5-task subset, eliminating the need for evolution entirely at that scale. The framework's value depends on the baseline gap: for weaker models, it provides substantial uplift by compensating for missing knowledge; for stronger models, its role narrows to polishing edge-case reliability, which is still practically relevant but a different proposition.
 
-## 5.3 Contributions to knowledge
+### 5.3 Contributions to knowledge
 
 This thesis makes several contributions that individually have precedents but, in combination, are novel.
 
@@ -38,7 +38,7 @@ Third, the framework introduces **three distinct patch surfaces**: system prompt
 
 Fourth, the experiments document **scaling behavior** previously uncharacterized in the prompt optimization literature: constant absolute gain, declining fix rate, the hard core of resistant tasks, rapid saturation across sweeps, and patch interference. These patterns provide a basis for predicting the framework's performance at larger scale and designing mitigation strategies.
 
-## 5.4 Practical implications
+### 5.4 Practical implications
 
 For enterprise teams deploying LLM agents in customer service, the framework has several practical advantages. It operates entirely in the input space: patches are human-readable text edits to prompts and JSON schema annotations. They can be reviewed, versioned, approved through existing change-management workflows, and rolled back. No GPU infrastructure is needed for the student model beyond inference, and the teacher model can be accessed through an API for the diagnostic phase. The diagnose-patch-validate loop fits into existing quality assurance pipelines: when an agent fails a customer interaction (detected through automated evaluation or human review), the failure trace goes to the teacher for diagnosis, a candidate patch is generated, validated against held-out tasks, and deployed if it passes regression checks.
 
@@ -46,7 +46,17 @@ The dominance of instruction-tier patches has a specific implication. Rather tha
 
 The limitations matter too. The fix rate declines as the task pool grows, and a hard core of failures resists all prompt-level intervention. The framework is best understood as one layer in a broader strategy: it handles the long tail of policy-encodable failures efficiently, but four-nines reliability will require additional layers, including stronger base models, fine-tuning for the hardest cases, architectural improvements to tool-use pipelines, and human escalation for irreducible edge cases.
 
-## 5.5 Theoretical implications
+### 5.4.1 Economic implications
+
+The framework's practical value is best understood against the economics of AI agent deployment. Customer service represents a global labor market of approximately 17 million contact center agents, with labor accounting for up to 95% of operating costs [@gartner2022labor]. The contact center AI market is projected to grow from roughly \$2 billion in 2024 to \$7--13 billion by 2030 [@grandviewresearch2024; @fortunebi2025], yet only 25% of enterprises have moved a significant share of AI pilots into production [@deloitte2026ai]. The gap between market potential and actual deployment reflects a structural problem: the ongoing human cost of maintaining AI agents.
+
+Industry data shows that post-deployment maintenance requires 0.5 to 3 full-time equivalents and \$50,000--\$100,000 per year per deployment [@gartner2025complexity]. Enterprise implementations routinely cost three to five times the advertised price [@acceldata2025]. For AI platform vendors, professional services account for 60--70% of total project cost, compared to only 30--40% for platform licensing [@opexengine2024]. This services-heavy model produces gross margins of 50--60%, well below the 75--90% margins typical of traditional SaaS [@bessemer2025], and scales linearly with headcount rather than exponentially with software.
+
+The framework directly addresses the most labor-intensive component of this cost structure: the diagnosis-and-remediation cycle. In a typical deployment, when an AI agent fails a customer interaction, a human expert must review the conversation trace, identify the root cause, write a corrective prompt or tool-schema edit, test the edit against other scenarios, and deploy it. At enterprise scale, where an agent handling 1,000 interactions per day at a 5% failure rate generates 50 failures daily, this remediation loop alone can consume multiple full-time equivalents. The Diagnose-Patch-Validate framework automates this loop: the teacher model performs the diagnostic analysis, generates structured patches, and validates them through re-simulation, all without human intervention.
+
+The economic implication is a reduction in what Section 1.6.1 termed the *implementation tax*: the recurring human cost that erodes the ROI of AI deployment. By converting failure diagnosis from a per-incident human task to an automated process, the framework shifts the cost structure from linear (proportional to failure volume) to near-fixed (the compute cost of running the teacher model). For AI platform vendors, this enables a transition from services-attached revenue to product-led growth, a shift the broader AI industry is already pursuing: product-led growth now represents 27% of AI application spending, four times the rate in traditional software [@bessemer2025]. For enterprises, it reduces the expertise barrier that currently blocks scaling: the framework requires no ML engineering, no access to model weights, and no training infrastructure, only API access to a teacher model and a structured evaluation pipeline.
+
+### 5.5 Theoretical implications
 
 The results speak to several ongoing theoretical discussions. The consistent dominance of instruction-tier patches provides further empirical support for the Superficial Alignment Hypothesis [@zhou2023lima], extending it from single-turn instruction-following to multi-turn tool-calling settings. If a small number of plain-text additions to the system prompt can recover 20+ percentage points of benchmark performance, the student model's pre-training already encodes most of the necessary competence; what is missing is a thin layer of task-specific behavioral specification. This connects to the finding from @sclar2023 that prompt formatting alone can swing performance by up to 76 percentage points, but with a difference: the patches here are semantically meaningful, targeted interventions rather than arbitrary formatting variations.
 
@@ -54,7 +64,7 @@ Patch interference connects the work to the continual learning literature. Just 
 
 The framework also extends knowledge distillation into a new modality. Where @hinton2015 proposed distilling a teacher's knowledge into a student's weights, this thesis demonstrates distillation into a student's *operating instructions*, a form of transfer that preserves the student's original capabilities while augmenting its behavior in targeted areas. This "prompt-level distillation" could matter as the industry moves toward a model marketplace where practitioners combine base models from one provider with prompt configurations optimized by another.
 
-## 5.6 Limitations
+### 5.6 Limitations
 
 Several limitations constrain the generalizability of these findings.
 
@@ -72,7 +82,7 @@ Several limitations constrain the generalizability of these findings.
 
 **Distance from enterprise reliability.** The best trial-level pass rate achieved was 73% on 5 tasks. While this is a meaningful improvement from a 53% baseline, it is far from the 99.99% that motivates the work. The framework helps, but it is not, by itself, a solution to the enterprise reliability problem.
 
-## 5.7 Directions for future research
+### 5.7 Directions for future research
 
 The limitations above suggest several concrete directions.
 
@@ -88,7 +98,7 @@ The limitations above suggest several concrete directions.
 
 **Real-world deployment study.** The real test of the framework is deployment in a production customer service environment, where the teacher model processes actual failure traces from actual customer interactions and proposes patches validated against real-world success criteria. Such a study would address the ecological validity limitations of benchmark-only evaluation and provide evidence on impact on customer satisfaction, agent efficiency, and operational cost.
 
-## 5.8 Closing reflection
+### 5.8 Closing reflection
 
 This thesis started from a simple observation: LLM agents fail in customer service, and humans already know how to fix those failures, but the knowledge flows in only one direction, from human to customer, not from human to agent. The Diagnose-Patch-Validate framework closes part of that loop. A teacher model can extract actionable learning from failure traces and translate it into structured edits that measurably improve a student agent's performance, all without touching model weights or retraining.
 
