@@ -6,43 +6,15 @@ This section selects and justifies the methodologies used in this project. Two d
 
 Five methodologies were considered for structuring the project. Each is suited to a different class of technical work; the question is which best fits a project whose deliverable is a software framework evaluated empirically against a benchmark.
 
-### TOGAF (The Open Group Architecture Framework)
+**TOGAF** (The Open Group Architecture Framework) is the most widely used framework for enterprise architecture [@togaf2022]. It provides a comprehensive approach for designing, planning, implementing, and governing enterprise IT architecture, structured around four domains (Business, Application, Data, Technology) and an iterative Architecture Development Method (ADM). TOGAF is designed for multi-system enterprise transformations where the deliverable is an architecture governing multiple interacting systems. However, this project develops and evaluates a single software framework, not an enterprise architecture. The ADM's phases (Architecture Vision, Business Architecture, Information Systems Architecture, Technology Architecture, Migration Planning) do not map to the work of building a prompt-evolution loop and testing it on a benchmark, and TOGAF's scope far exceeds what is needed.
 
-TOGAF is the most widely used framework for enterprise architecture [@togaf2022]. It provides a comprehensive approach for designing, planning, implementing, and governing enterprise IT architecture, structured around four domains (Business, Application, Data, Technology) and an iterative Architecture Development Method (ADM). TOGAF is designed for multi-system enterprise transformations where the deliverable is an architecture governing multiple interacting systems.
+**SDLC models** (Waterfall, Agile, Scrum) govern the process of delivering production software. Waterfall prescribes sequential phases (requirements, design, implementation, testing, deployment); Agile and Scrum organize work into iterative sprints with continuous delivery and stakeholder feedback. These models structure the software delivery process---sprints, releases, CI/CD pipelines, user stories, backlog management---but this project is not delivering production software to end users; it is building a framework prototype and evaluating it against a benchmark. The project has no deployment phase, no user acceptance testing, and no maintenance releases. SDLC models would govern how the code is written but would not structure the evaluation of the framework as a research artifact---which is the core of the thesis.
 
-**Limitations for this project:** TOGAF addresses enterprise-scale IT governance across business, application, data, and technology domains. This project develops and evaluates a single software framework, not an enterprise architecture. The ADM's phases (Architecture Vision, Business Architecture, Information Systems Architecture, Technology Architecture, Migration Planning) do not map to the work of building a prompt-evolution loop and testing it on a benchmark. TOGAF's scope far exceeds what is needed.
+**Design Science Research** (DSR) [@hevner2004; @peffers2007] is a paradigm for creating and evaluating IT artifacts. It prescribes a rigorous process: identify a problem, define objectives, design and develop an artifact, demonstrate it, evaluate it, and communicate results. DSR emphasizes the dual contribution of practical utility (the artifact works) and knowledge contribution (the artifact advances understanding). DSR provides strong theoretical grounding for framing the DPV framework as a design artifact, and its emphasis on evaluation against a baseline aligns with the three-condition experimental design (baseline, evolved, frontier). The framework's contribution to knowledge---demonstrating that prompt-level evolution works on multi-turn tool-calling benchmarks---maps naturally to DSR's knowledge contribution requirement. However, DSR prescribes artifact taxonomy, design theory, and formal knowledge contribution framing that exceed the scope of a project-based thesis; the methodology's emphasis on generalizable design theory is more appropriate for research dissertations than for project work aimed at solving a specific organizational problem.
 
-### SDLC Models (Waterfall, Agile, Scrum)
+**CRISP-DM** (Cross-Industry Standard Process for Data Mining) [@chapman2000] is a six-phase methodology for data mining and machine learning projects: business understanding, data understanding, data preparation, modeling, evaluation, and deployment. It is the most widely used methodology in applied ML, well-understood, and provides clear phase boundaries. However, the deliverable of this project is a software framework, not a trained model. CRISP-DM's core phases---data preparation, modeling, hyperparameter tuning---do not map to the work performed here. The DPV framework does not train a model; it edits prompts and tool schemas. Forcing the project into CRISP-DM's phase structure would misrepresent what was actually done.
 
-Software Development Life Cycle models govern the process of delivering production software. Waterfall prescribes sequential phases (requirements, design, implementation, testing, deployment). Agile and Scrum organize work into iterative sprints with continuous delivery and stakeholder feedback.
-
-**Limitations for this project:** SDLC models structure the software delivery process---sprints, releases, CI/CD pipelines, user stories, backlog management. This project is not delivering production software to end users; it is building a framework prototype and evaluating it against a benchmark. The project has no deployment phase, no user acceptance testing, and no maintenance releases. SDLC models would govern how the code is written but would not structure the evaluation of the framework as a research artifact---which is the core of the thesis.
-
-### Design Science Research (DSR)
-
-Design Science Research [@hevner2004; @peffers2007] is a paradigm for creating and evaluating IT artifacts. It prescribes a rigorous process: identify a problem, define objectives, design and develop an artifact, demonstrate it, evaluate it, and communicate results. DSR emphasizes the dual contribution of practical utility (the artifact works) and knowledge contribution (the artifact advances understanding).
-
-**Strengths for this project:** DSR provides strong theoretical grounding for framing the DPV framework as a design artifact. Its emphasis on evaluation against a baseline aligns with the three-condition experimental design (baseline, evolved, frontier). The framework's contribution to knowledge---demonstrating that prompt-level evolution works on multi-turn tool-calling benchmarks---maps naturally to DSR's knowledge contribution requirement.
-
-**Limitations for this project:** DSR prescribes artifact taxonomy, design theory, and formal knowledge contribution framing that exceed the scope of a project-based thesis. The methodology's emphasis on generalizable design theory is more appropriate for research dissertations than for project work aimed at solving a specific organizational problem.
-
-### CRISP-DM
-
-The Cross-Industry Standard Process for Data Mining (CRISP-DM) [@chapman2000] is a six-phase methodology for data mining and machine learning projects: business understanding, data understanding, data preparation, modeling, evaluation, and deployment. It is the most widely used methodology in applied ML.
-
-**Strengths for this project:** CRISP-DM is well-understood, widely cited, and provides clear phase boundaries.
-
-**Limitations for this project:** The deliverable of this project is a software framework, not a trained model. CRISP-DM's core phases---data preparation, modeling, hyperparameter tuning---do not map to the work performed here. The DPV framework does not train a model; it edits prompts and tool schemas. Forcing the project into CRISP-DM's phase structure would misrepresent what was actually done.
-
-### Engineering Design Process (EDP)
-
-The Engineering Design Process [@dym2005] is a systematic methodology for developing engineering artifacts through iterative design-test cycles. Its seven phases---define the problem, do background research, specify requirements, brainstorm and evaluate solutions, develop and prototype, test, and communicate results---provide a natural structure for building and evaluating a software framework.
-
-**Strengths for this project:** EDP places the engineering artifact at center. Its iterative test-redesign cycle directly mirrors the DPV framework's own evolve-evaluate loop: both operate by testing, identifying failures, and iterating. EDP emphasizes requirements specification and alternative evaluation, which map to the benchmark selection and three-condition experimental design. The methodology is explicitly practical and deliverable-focused, fitting a project-based thesis.
-
-**Limitations for this project:** EDP lacks the formal knowledge contribution framing of DSR. It does not explicitly prescribe statistical evaluation methods or theoretical positioning.
-
-### Project Design Methodology Selection
+The **Engineering Design Process** (EDP) [@dym2005] is a systematic methodology for developing engineering artifacts through iterative design-test cycles. Its seven phases---define the problem, do background research, specify requirements, brainstorm and evaluate solutions, develop and prototype, test, and communicate results---provide a natural structure for building and evaluating a software framework. EDP places the engineering artifact at center. Its iterative test-redesign cycle directly mirrors the DPV framework's own evolve-evaluate loop: both operate by testing, identifying failures, and iterating. EDP emphasizes requirements specification and alternative evaluation, which map to the benchmark selection and three-condition experimental design. The methodology is explicitly practical and deliverable-focused, fitting a project-based thesis. Its limitation is the lack of formal knowledge contribution framing of DSR; it does not explicitly prescribe statistical evaluation methods or theoretical positioning.
 
 @Tbl:methodology-comparison summarizes the comparison.
 
@@ -74,25 +46,11 @@ The design science perspective is not discarded; it informs the evaluation desig
 
 Section 7.5.3 of the thesis requirements calls for a diagnostic study of the organization's internal and external environment. Three analytical frameworks were considered for this purpose.
 
-### SWOT Analysis
+**SWOT analysis** identifies an organization's Strengths, Weaknesses, Opportunities, and Threats by examining internal capabilities and external factors [@humphrey2005]. It is the most widely taught strategic analysis tool. However, SWOT is descriptive rather than analytical: it classifies observations into four quadrants but does not generate causal relationships or directional conclusions. The framework's output---lists of strengths, weaknesses, opportunities, and threats---does not directly constrain solution design. SWOT is also commonly criticized for subjectivity: the same observation can be classified as a strength or weakness depending on framing [@helms2010]. For a project that needs the diagnostic study to produce specific requirements for the technical solution, SWOT's output is too open-ended.
 
-SWOT analysis identifies an organization's Strengths, Weaknesses, Opportunities, and Threats by examining internal capabilities and external factors [@humphrey2005]. It is the most widely taught strategic analysis tool.
+**PESTEL analysis** scans the macro-environment across six dimensions: Political, Economic, Social, Technological, Environmental, and Legal factors [@aguilar1967]. It is designed for understanding the broad external context in which an organization operates, typically for market entry or strategic planning decisions. PESTEL's breadth is a liability when the problem is already well-scoped. The organizational problem---TargetAI's agent maintenance bottleneck---is an internal operational issue driven by technology and economics, not by political, environmental, or legal factors. A PESTEL analysis would produce tangential observations (e.g., Russian data localization laws, environmental impact of compute) that do not constrain the solution design. The framework is more suitable for market entry analysis than for diagnosing a specific value-chain bottleneck.
 
-**Limitations for this project:** SWOT is descriptive rather than analytical: it classifies observations into four quadrants but does not generate causal relationships or directional conclusions. The framework's output---lists of strengths, weaknesses, opportunities, and threats---does not directly constrain solution design. SWOT is also commonly criticized for subjectivity: the same observation can be classified as a strength or weakness depending on framing [@helms2010]. For a project that needs the diagnostic study to produce specific requirements for the technical solution, SWOT's output is too open-ended.
-
-### PESTEL Analysis
-
-PESTEL analysis scans the macro-environment across six dimensions: Political, Economic, Social, Technological, Environmental, and Legal factors [@aguilar1967]. It is designed for understanding the broad external context in which an organization operates, typically for market entry or strategic planning decisions.
-
-**Limitations for this project:** PESTEL's breadth is a liability when the problem is already well-scoped. The organizational problem---TargetAI's agent maintenance bottleneck---is an internal operational issue driven by technology and economics, not by political, environmental, or legal factors. A PESTEL analysis would produce tangential observations (e.g., Russian data localization laws, environmental impact of compute) that do not constrain the solution design. The framework is more suitable for market entry analysis than for diagnosing a specific value-chain bottleneck.
-
-### Porter's Five Forces + Value Chain Analysis + Cost Structure Analysis
-
-Porter's Five Forces [@porter1980] analyzes industry structure through five competitive forces (buyer power, supplier power, substitutes, new entrants, rivalry). Porter's Value Chain Analysis [@porter1985] decomposes a firm's activities into value-creating and supporting activities, identifying where competitive advantage or disadvantage originates. Cost structure analysis quantifies the unit economics of current versus proposed operations.
-
-**Strengths for this project:** The three frameworks operate at complementary levels of abstraction. Five Forces characterizes the industry-level pressures that make automated maintenance a competitive necessity. Value Chain Analysis maps TargetAI's operations to locate the specific activity (maintenance) that is the highest-cost, lowest-automation bottleneck. Cost structure analysis quantifies the economic case for automation by comparing the linear cost of manual maintenance against the near-fixed cost of the proposed framework. Each framework produces conclusions that directly constrain the solution requirements developed in Section 2.2.
-
-### Diagnostic Methodology Selection
+**Porter's Five Forces** [@porter1980] analyzes industry structure through five competitive forces (buyer power, supplier power, substitutes, new entrants, rivalry). **Porter's Value Chain Analysis** [@porter1985] decomposes a firm's activities into value-creating and supporting activities, identifying where competitive advantage or disadvantage originates. **Cost structure analysis** quantifies the unit economics of current versus proposed operations. The three frameworks operate at complementary levels of abstraction. Five Forces characterizes the industry-level pressures that make automated maintenance a competitive necessity. Value Chain Analysis maps TargetAI's operations to locate the specific activity (maintenance) that is the highest-cost, lowest-automation bottleneck. Cost structure analysis quantifies the economic case for automation by comparing the linear cost of manual maintenance against the near-fixed cost of the proposed framework. Each framework produces conclusions that directly constrain the solution requirements developed in Section 2.2.
 
 @Tbl:diagnostic-comparison summarizes the comparison.
 
@@ -135,8 +93,6 @@ The EDP consists of seven phases:
 6. **Test Solution.** Evaluate the prototype against the requirements using structured tests. Collect data, analyze results, and determine whether the solution meets the success criteria. If not, the process iterates back to earlier phases.
 
 7. **Communicate Results.** Document the design process, test results, conclusions, and recommendations. This includes both the technical documentation of the solution and the communication of findings to stakeholders.
-
-### Iterative Nature
 
 A defining feature of the EDP is its iterative structure. The process is not strictly linear: test results in Phase 6 may reveal deficiencies that require returning to Phase 4 (choosing a different approach), Phase 5 (modifying the prototype), or even Phase 3 (revising requirements based on what testing reveals is feasible). This iterative loop---design, test, learn, redesign---is what distinguishes engineering design from a waterfall process.
 

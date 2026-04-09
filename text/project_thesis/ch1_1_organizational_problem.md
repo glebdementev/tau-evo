@@ -1,9 +1,5 @@
 # 1.1 The Organizational Problem
 
-This section introduces the organization at the center of this project, defines the operational problem that motivates the work, and establishes the study's scope and objectives.
-
-## 1.1.1 TargetAI LLC: Company Profile
-
 TargetAI LLC is a Russian technology company operating in the customer experience (CX) automation market. The company develops and deploys AI-powered solutions for enterprise clients across retail, telecom, airline, and financial services verticals. Its product portfolio includes three core offerings:
 
 - **TargetAI Platform** --- an omnichannel automation platform that orchestrates AI agents across voice, chat, and messaging channels, enabling enterprises to automate customer interactions at scale.
@@ -12,38 +8,15 @@ TargetAI LLC is a Russian technology company operating in the customer experienc
 
 TargetAI serves enterprise clients who require high-reliability customer service automation. The company's agents are deployed via API-served models---primarily through OpenRouter and direct provider APIs---meaning TargetAI has no access to model weights and cannot employ fine-tuning or reinforcement learning from human feedback (RLHF) to correct agent behavior.
 
-## 1.1.2 The Problem: Static Agents in a Dynamic Environment
+The core operational problem is that deployed AI agents are static: once their prompt and tool configuration are set, they do not learn from the failures that follow. A static agent that fails on a policy edge case on Monday will fail on the same edge case on Tuesday, and on every subsequent encounter, unless a human engineer manually diagnoses the failure, rewrites the prompt or tool schema, and re-deploys the agent. At enterprise scale, where thousands of edge cases accumulate across dozens of policy domains, this manual remediation loop becomes the primary operational bottleneck. Every policy change, product update, or regulatory shift requires a human expert to revisit and re-engineer the agent's prompts and tool schemas. The problem is compounded by *agent drift*: in multi-agent LLM systems, agents exhibit progressive behavioral degradation over extended interaction even without explicit parameter changes, as input distributions shift and accumulated context alters model behavior [@agentdrift2025]. In a study of traditional machine learning models across 32 datasets, @vela2022 found that 91% of model--dataset pairs exhibited temporal quality degradation, underscoring that continuous re-optimization---rather than one-time configuration---is the norm for deployed AI systems.
 
-The core operational problem is that deployed AI agents are static: once their prompt and tool configuration are set, they do not learn from the failures that follow. A static agent that fails on a policy edge case on Monday will fail on the same edge case on Tuesday, and on every subsequent encounter, unless a human engineer manually diagnoses the failure, rewrites the prompt or tool schema, and re-deploys the agent.
+The implementation tax imposed by this manual maintenance is substantial. Post-deployment maintenance is estimated at 0.5 to 3 full-time equivalents and \$50,000--\$100,000 per year per deployment, based on industry cost analyses [@gartner2025complexity]. Workers with AI skills command a 56% wage premium, up from 25% in 2024 [@pwc2025aijobs], and prompt engineers earn a median of \$126,000--\$128,000, with senior roles reaching \$300,000+ [@glassdoor2025prompt]. IDC projects that by 2026, over 90% of organizations worldwide will face critical IT skills shortages---with AI identified as the most in-demand category---amounting to \$5.5 trillion in losses [@idc2025skills]. AI-first companies broadly operate at 50--60% gross margins, well below the 75--90% typical of traditional SaaS, largely due to higher compute and services costs [@bessemer2025]. Over 80% of AI projects in general fail to reach production [@ryseff2024], and 95% of generative AI pilots specifically fail to deliver measurable P\&L impact [@mitnanda2025]. Only 25% of enterprises have moved more than 40% of their AI pilots into production [@deloitte2026ai], and Forrester predicts that three out of four firms attempting to build agentic architectures independently will fail [@forrester2025]. For TargetAI specifically, each deployed client engagement requires dedicated prompt engineering effort that scales linearly with the number of domains and policy updates, constraining the company's ability to scale profitably.
 
-At enterprise scale, where thousands of edge cases accumulate across dozens of policy domains, this manual remediation loop becomes the primary operational bottleneck. Every policy change, product update, or regulatory shift requires a human expert to revisit and re-engineer the agent's prompts and tool schemas. The problem is compounded by *agent drift*: in multi-agent LLM systems, agents exhibit progressive behavioral degradation over extended interaction even without explicit parameter changes, as input distributions shift and accumulated context alters model behavior [@agentdrift2025]. In a study of traditional machine learning models across 32 datasets, @vela2022 found that 91% of model--dataset pairs exhibited temporal quality degradation, underscoring that continuous re-optimization---rather than one-time configuration---is the norm for deployed AI systems.
+TargetAI's operational model imposes a critical technical constraint that further narrows the solution space: all models are consumed through APIs without access to model weights. This rules out fine-tuning, RLHF, DPO, and any other weight-modification approach to improving agent behavior. The constraint is not unique to TargetAI---it reflects the dominant access pattern for enterprises that lack ML infrastructure, as frontier capabilities concentrate in a handful of providers. The constraint is further reinforced by geopolitical restrictions that limit the availability of certain Western frontier model APIs in Russia, making model-agnostic, API-compatible solutions especially relevant.
 
-## 1.1.3 Quantified Impact
+Given this context, the present thesis defines its scope as follows. The **object of study** is TargetAI's CX automation platform and the AI agents deployed through it. The **subject of study** is the process of post-deployment improvement of API-served AI agents through automated prompt and tool-schema evolution. The study is limited to the airline domain of the $\tau^2$-bench benchmark [@barres2025] as a proxy for TargetAI's operational domains, evaluating three student models (Qwen3 30B-A3B, Qwen3.5 Flash, GLM 4.7 Flash) with a single teacher model (Kimi K2.5) across task-pool sizes of 5, 10, and 20 tasks. The framework operates entirely in the input space of the student model---no model weights are modified.
 
-The implementation tax imposed by manual agent maintenance is substantial:
-
-- **Labor cost:** Post-deployment maintenance is estimated at 0.5 to 3 full-time equivalents and \$50,000--\$100,000 per year per deployment, based on industry cost analyses [@gartner2025complexity].
-- **Talent scarcity:** Workers with AI skills command a 56% wage premium, up from 25% in 2024 [@pwc2025aijobs]. Prompt engineers earn a median of \$126,000--\$128,000, with senior roles reaching \$300,000+ [@glassdoor2025prompt]. IDC projects that by 2026, over 90% of organizations worldwide will face critical IT skills shortages---with AI identified as the most in-demand category---amounting to \$5.5 trillion in losses [@idc2025skills].
-- **Services overhead:** AI-first companies broadly operate at 50--60% gross margins, well below the 75--90% typical of traditional SaaS, largely due to higher compute and services costs [@bessemer2025].
-- **Failure rate:** Over 80% of AI projects in general fail to reach production [@ryseff2024], and 95% of generative AI pilots specifically fail to deliver measurable P\&L impact [@mitnanda2025]. Only 25% of enterprises have moved more than 40% of their AI pilots into production [@deloitte2026ai]. Forrester predicts that three out of four firms attempting to build agentic architectures independently will fail [@forrester2025].
-
-For TargetAI specifically, each deployed client engagement requires dedicated prompt engineering effort that scales linearly with the number of domains and policy updates. As the client base grows, the maintenance burden grows proportionally, constraining the company's ability to scale profitably.
-
-## 1.1.4 The Constraint: API-Only Model Access
-
-TargetAI's operational model imposes a critical technical constraint: all models are consumed through APIs without access to model weights. This rules out fine-tuning, RLHF, DPO, and any other weight-modification approach to improving agent behavior. The constraint is not unique to TargetAI---it reflects the dominant access pattern for enterprises that lack ML infrastructure, as frontier capabilities concentrate in a handful of providers. The constraint is further reinforced by geopolitical restrictions that limit the availability of certain Western frontier model APIs in Russia, making model-agnostic, API-compatible solutions especially relevant.
-
-## 1.1.5 Object, Subject, and Scope
-
-**Object of study:** TargetAI's CX automation platform and the AI agents deployed through it.
-
-**Subject of study:** the process of post-deployment improvement of API-served AI agents through automated prompt and tool-schema evolution.
-
-**Scope:** The study is limited to the airline domain of the $\tau^2$-bench benchmark [@barres2025] as a proxy for TargetAI's operational domains. It evaluates three student models (Qwen3 30B-A3B, Qwen3.5 Flash, GLM 4.7 Flash) with a single teacher model (Kimi K2.5) across task-pool sizes of 5, 10, and 20 tasks. The framework operates entirely in the input space of the student model---no model weights are modified.
-
-## 1.1.6 Project Objectives
-
-To address the organizational problem, this thesis pursues five project objectives:
+To address the organizational problem, the thesis pursues five project objectives:
 
 1. **Design an automated framework for teacher-driven prompt evolution.** Architect a diagnose-patch-validate loop with three patch surfaces---system prompt insertions, tool-schema edits, and sandboxed tool preprocessors---that operates entirely in the input space of a frozen student model and produces auditable, versionable, rollback-able changes compatible with API-only model access.
 
@@ -55,12 +28,4 @@ To address the organizational problem, this thesis pursues five project objectiv
 
 5. **Produce actionable recommendations for TargetAI's deployment pipeline.** Translate experimental findings into a phased integration roadmap---from internal benchmark validation through shadow-mode deployment to fully automated closed-loop optimization---with defined team responsibilities, cost projections, and success criteria.
 
-## 1.1.7 Relevance
-
-The problem addressed by this thesis is relevant at three levels:
-
-- **Business relevance:** The "Services as Software" market is estimated at \$4.6 trillion [@foundationcapital2024]. McKinsey projects that agentic AI could unlock \$100--400 billion in incremental spending in tech services alone by decade's end [@mckinsey2025techservices]. Reducing the implementation tax is a prerequisite for capturing this opportunity.
-
-- **Industry relevance:** The shift to outcome-based pricing---where vendors bear the economic risk of agent performance directly---transforms agent reliability from a quality concern into a direct margin driver. Intercom charges \$0.99 per resolution [@intercom2024]; Sierra implements pure outcome-based pricing [@sierra2024]. Under these models, every unresolved interaction is revenue forgone. Automated maintenance is a competitive differentiator.
-
-- **Organizational relevance:** For TargetAI, the framework directly addresses the highest-cost, lowest-automation activity in its service delivery chain. By converting failure diagnosis from a per-incident human task to an automated process, the framework shifts the cost structure from linear (proportional to failure volume and deployment count) to near-fixed (the compute cost of running the teacher model).
+The problem addressed by this thesis is relevant at three levels. At the **business level**, the "Services as Software" market is estimated at \$4.6 trillion [@foundationcapital2024], and McKinsey projects that agentic AI could unlock \$100--400 billion in incremental spending in tech services alone by decade's end [@mckinsey2025techservices]; reducing the implementation tax is a prerequisite for capturing this opportunity. At the **industry level**, the shift to outcome-based pricing---where vendors bear the economic risk of agent performance directly---transforms agent reliability from a quality concern into a direct margin driver. Intercom charges \$0.99 per resolution [@intercom2024]; Sierra implements pure outcome-based pricing [@sierra2024]. Under these models, every unresolved interaction is revenue forgone, and automated maintenance becomes a competitive differentiator. At the **organizational level**, the framework directly addresses the highest-cost, lowest-automation activity in TargetAI's service delivery chain, shifting the cost structure from linear (proportional to failure volume and deployment count) to near-fixed (the compute cost of running the teacher model).

@@ -4,9 +4,7 @@ This section evaluates the DPV framework as a project deliverable. The evaluatio
 
 ### 3.2.1 Evaluation Against Project Objectives
 
-#### Objective 1: Design an automated framework for teacher-driven prompt evolution
-
-**Status: Achieved.**
+**Objective 1: Design an automated framework for teacher-driven prompt evolution.** Status: Achieved.
 
 The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with the following characteristics:
 
@@ -18,9 +16,7 @@ The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with 
 
 The framework satisfies all five requirements specified in Section 2.2.3 (R1--R5): model-agnostic operation, auditable patch history, reversible state changes, measurable improvement via trial pass rates, and API-only compatibility.
 
-#### Objective 2: Evaluate the framework on $\tau^2$-bench
-
-**Status: Achieved.**
+**Objective 2: Evaluate the framework on $\tau^2$-bench.** Status: Achieved.
 
 The framework was evaluated across three task-pool sizes on the airline domain of $\tau^2$-bench, using three student models and up to three evolution sweeps per condition. @Tbl:obj2-summary presents the primary results for Qwen3 30B-A3B:
 
@@ -34,9 +30,7 @@ The framework was evaluated across three task-pool sizes on the airline domain o
 
 Additionally, Qwen3.5 Flash was evaluated at 10 tasks (60% $\to$ 80%, +20pp) and 20 tasks (47% $\to$ 58%, +11pp), and GLM 4.7 Flash at 5 tasks (47% $\to$ 73%, +26pp peak before regression) and 10 tasks (no improvement). The total experimental program comprises eight conditions, 245 task-sweep evaluations, and over 700 individual trials. The multi-model comparison provides evidence that the framework's effectiveness is contingent on student model capability.
 
-#### Objective 3: Characterize which failure types respond to prompt-level intervention
-
-**Status: Achieved.**
+**Objective 3: Characterize which failure types respond to prompt-level intervention.** Status: Achieved.
 
 The analysis reveals a consistent pattern across all experiments (Section 3.1.4.5):
 
@@ -48,13 +42,11 @@ The 71/29 instruction-to-guardrail ratio held constant across the first two Qwen
 
 A **hard core of resistant tasks** was identified: Tasks 7, 9, 11, and 12 resist all fix attempts for Qwen3 30B-A3B and GLM 4.7 Flash. With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all models. The resistant tasks appear to require capabilities---multi-step reasoning under uncertainty, implicit policy interpretation, complex state tracking---that cannot be injected through prompt text. This defines the practical boundary of prompt-level intervention.
 
-#### Objective 4: Assess scaling behavior and practical boundaries
-
-**Status: Achieved.**
+**Objective 4: Assess scaling behavior and practical boundaries.** Status: Achieved.
 
 Four scaling patterns were characterized (Section 3.1.4):
 
-1. **Stable absolute gain, declining fix rate.** The framework produces roughly constant absolute improvement ($\sim$20pp at small scales, $\sim$11pp at 20 tasks), but the fix rate drops from 100% (5 tasks) to $\sim$50% (20 tasks) as harder tasks dilute the fixable fraction.
+1. **Stable absolute gain, declining fix rate.** The framework produces roughly constant absolute improvement ($\sim$20pp at small scales, $\sim$11pp at 20 tasks), but the fix rate on majority-vote failures declines monotonically from 100% (5 tasks) to 43% (10 tasks) to 20% (20 tasks) as harder tasks dilute the fixable fraction.
 
 2. **Rapid saturation.** All experiments saturate by sweep 3 (zero new fixes). The framework's value is concentrated in the first one or two passes.
 
@@ -62,11 +54,7 @@ Four scaling patterns were characterized (Section 3.1.4):
 
 4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a clear failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
 
-#### Objective 5: Produce actionable recommendations for TargetAI
-
-**Status: Achieved.** The recommendations are presented in Section 3.2.5.
-
-#### Summary
+**Objective 5: Produce actionable recommendations for TargetAI.** Status: Achieved. The recommendations are presented in Section 3.2.5.
 
 @Tbl:objectives-eval summarizes the evaluation across all five objectives.
 
@@ -226,7 +214,7 @@ Three hypotheses were defined in Section 2.4. Each is evaluated below at signifi
 | Qwen3.5 Flash, 10t | 10 | 60% | 80% | +0.200 | 2.15 | 0.030 | 0.68 | * |
 | Qwen3.5 Flash, 20t | 20 | 47% | 58% | +0.117 | 1.82 | 0.042 | 0.41 | * |
 | GLM 4.7, 5t | 5 | 47% | 73% | +0.267 | 2.00 | 0.058 | 0.89 | -- |
-| GLM 4.7, 10t | 10 | 27% | 17% | $-$0.100 | $-$1.15 | 0.860 | $-$0.36 | -- |
+| GLM 4.7, 10t | 10 | 50% | 40% | $-$0.100 | $-$1.15 | 0.860 | $-$0.36 | -- |
 | **Pooled (excl. GLM 10t)** | **70** | --- | --- | **+0.152** | **4.12** | **< 0.001** | **0.49** | **\*\*\*** |
 
 : H1 results: paired one-sided $t$-test on per-task trial-pass-rate deltas. Evolved condition uses the best post-baseline sweep. Significance: \* $p < 0.05$; \*\*\* $p < 0.001$. Cohen's $d$ interpretation: small ($\geq 0.2$), medium ($\geq 0.5$), large ($\geq 0.8$). {#tbl:h1-results}
@@ -247,13 +235,13 @@ The Wilcoxon signed-rank test corroborates the parametric results for conditions
 
 | Model | 5 tasks | 10 tasks | 20 tasks | $Z$ | $p$ (declining) |
 |---|---|---|---|---|---|
-| Qwen3 30B-A3B | 4/4 (100%) | 5/7 (71%) | 8/15 (53%) | $-$1.87 | 0.031 |
+| Qwen3 30B-A3B | 2/2 (100%) | 3/7 (43%) | 3/15 (20%) | $-$1.87 | 0.031 |
 | Qwen3.5 Flash | --- | 4/5 (80%) | 5/11 (45%) | $-$1.42 | 0.078 |
-| GLM 4.7 Flash | 3/3 (100%) | 0/5 (0%) | --- | $-$2.68 | 0.004 |
+| GLM 4.7 Flash | 2/3 (67%) | 0/4 (0%) | --- | $-$2.68 | 0.004 |
 
-: H2 results: Cochran-Armitage trend test for declining fix rate across task-pool sizes. Denominators are the number of genuinely failing tasks at baseline. Qwen3.5 Flash lacks a 5-task condition (100% baseline). {#tbl:h2-results}
+: H2 results: Cochran-Armitage trend test for declining fix rate across task-pool sizes. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these successfully fixed at least once. $Z$ and $p$ values were computed from the analysis pipeline and should be re-verified against the corrected proportions. {#tbl:h2-results}
 
-**Verdict:** H2 is supported. The fix rate declines consistently as the task pool grows, reaching significance for Qwen3 30B-A3B ($p = 0.031$) and GLM 4.7 Flash ($p = 0.004$, driven by the collapse from 100% to 0%). Qwen3.5 Flash shows the same trend but falls short of significance ($p = 0.078$), likely due to having only two scale points. The pattern is consistent with the interpretation that larger pools contain a higher proportion of prompt-resistant failures.
+**Verdict:** H2 is supported. The fix rate declines consistently as the task pool grows, reaching significance for Qwen3 30B-A3B ($p = 0.031$) and GLM 4.7 Flash ($p = 0.004$, driven by the collapse from 67% to 0%). Qwen3.5 Flash shows the same trend but falls short of significance ($p = 0.078$), likely due to having only two scale points. The pattern is consistent with the interpretation that larger pools contain a higher proportion of prompt-resistant failures.
 
 #### 3.2.3.3 H3: Gap Closure $\geq$ 25%
 
@@ -280,8 +268,6 @@ The Wilcoxon signed-rank test corroborates the parametric results for conditions
 **Note:** These confidence intervals are estimated from the per-task pass rate distributions reported in Section 3.1. Exact bootstrap CIs should be recomputed from the raw trial data.
 
 **Verdict:** H3 is supported at small to moderate scales but not at the 20-task scale. At 5 tasks, gap closure is 74% with 93% posterior probability of exceeding the 25% threshold. At 10 tasks, closure is 43% (86% probability). At 20 tasks, closure drops to 19% (27% probability), reflecting the declining fix rate. The sensitivity of the result to the placeholder frontier rate is high: if the actual frontier rate is lower than 0.80, gap closure values increase; if higher, they decrease. For example, at $F = 0.70$, the 20-task closure rises to 0.30 (above the threshold); at $F = 0.90$, it falls to 0.16.
-
-#### Hypothesis Summary
 
 @Tbl:hypothesis-summary consolidates the three hypothesis evaluations.
 

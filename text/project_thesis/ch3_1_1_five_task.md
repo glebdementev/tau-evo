@@ -6,8 +6,6 @@ This chapter presents the results of testing the DPV framework (EDP Phase 6: Tes
 
 #### 3.1.1.1 Qwen3 30B-A3B
 
-##### Baseline and Evolution
-
 The baseline evaluates the unmodified student on five airline tasks with three trials each. @Fig:exp1-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp1-passrate summarises pass rates.
 
 | Sweep | T0 | T1 | T3 | T4 | T5 | Trial rate | Maj. rate |
@@ -23,8 +21,6 @@ The baseline evaluates the unmodified student on five airline tasks with three t
 ![Per-task, per-trial pass/fail heatmap for Qwen3 30B-A3B across three sweeps (5 tasks). Green cells indicate passing trials, red cells indicate failures.](../../runs/5/sweep_heatmap_print.svg){#fig:exp1-heatmap}
 
 The baseline is non-trivial: the student already passes 60% of tasks by majority vote without any intervention. This confirms that the student is not helplessly incapable---the teacher is refining, not teaching from scratch. The headroom for improvement is 40 percentage points (two tasks: 0 and 3).
-
-##### Evolution Trajectory
 
 The evolution loop ran three sweeps. @Tbl:exp1-outcomes shows the per-sweep breakdown of task outcomes during the evolution process.
 
@@ -56,8 +52,6 @@ Sweep 1 is the most productive: all four failing tasks are repaired, three by in
 
 : Individual fix attempts for Qwen3 30B-A3B on 5 tasks. {#tbl:exp1-fixes}
 
-##### Fix Type Analysis
-
 @Fig:exp1-fix-attempts shows the number of tasks fixed per attempt and tier across sweeps.
 
 ![Fix attempts by tier and sweep for Qwen3 30B-A3B on 5 tasks.](../../runs/5/fix_attempts_print.svg){#fig:exp1-fix-attempts}
@@ -66,13 +60,9 @@ Of seven successful fixes across sweeps 1 and 2, five (71%) were instruction-tie
 
 The dominance of instruction-tier patches supports the Superficial Alignment Hypothesis [@zhou2023lima]: the student model's failures are primarily failures of instruction following, not of capability.
 
-##### Patch Interference and Regression
-
 The most notable negative result is the regression of Task 5 between sweeps 2 and 3. In sweep 2, Task 5 passes all three trials (3/3). In sweep 3, it passes only one (1/3). Since no patches targeted Task 5 between sweeps 2 and 3 (it was already passing), the regression is attributable either to stochastic variation or to interference from patches accumulated during sweep 2's fixes of other tasks.
 
-##### Summary
-
-The aggregate trial pass rate rises from 53% (baseline) to 73% (after two sweeps of evolution). Instruction-level patches account for the majority of successful fixes. However, the five-task setting saturates quickly: by sweep 3, no further fixes are possible, and patch interference introduces mild regression.
+In summary, the aggregate trial pass rate rises from 53% (baseline) to 73% (after two sweeps of evolution). Instruction-level patches account for the majority of successful fixes. However, the five-task setting saturates quickly: by sweep 3, no further fixes are possible, and patch interference introduces mild regression.
 
 #### 3.1.1.2 Qwen3.5 Flash
 
@@ -81,8 +71,6 @@ The same five tasks (0, 1, 3, 4, 5) were evaluated with Qwen3.5 Flash as the stu
 This result establishes a ceiling reference: the five-task airline configuration is within the unassisted capability of a stronger non-thinking model. The evolution framework's contribution on these tasks is to bridge the gap between a weaker model's capability and this ceiling---a gap that a stronger student does not have.
 
 #### 3.1.1.3 GLM 4.7 Flash
-
-##### Baseline and Evolution
 
 @Tbl:glm5-passrate summarises pass rates across sweeps for GLM 4.7 Flash on five tasks. @Fig:glm47-5-heatmap visualises the per-task, per-trial results.
 
@@ -97,8 +85,6 @@ This result establishes a ceiling reference: the five-task airline configuration
 ![Per-task, per-trial pass/fail heatmap for GLM 4.7 Flash across three sweeps (5 tasks).](../../runs/glm47_5/sweep_heatmap_print.svg){#fig:glm47-5-heatmap}
 
 The baseline is comparable to Qwen3 30B-A3B's: 47% trial rate and 40% majority rate, with Tasks 0 and 4 passing by majority vote. The three failing tasks (1, 3, 5) represent the headroom for evolution.
-
-##### Evolution Trajectory
 
 | Sweep | Already passing | Fixed (instruction) | Fixed (guardrail) | Unfixed |
 |-------|----------------|--------------------|--------------------|---------|
@@ -130,15 +116,11 @@ Sweep 1 fixes three tasks (all instruction-tier): Tasks 1, 5, and 0. Task 3 resi
 
 Total fixes: 4 (3 instruction, 1 guardrail). Of the three genuinely failing tasks at baseline (1, 3, 5), two were fixed---a 67% fix rate, comparable to Qwen3 30B-A3B's performance.
 
-##### Catastrophic Regression in Sweep 3
-
 The defining result for GLM 4.7 Flash at five tasks is the catastrophic regression between sweeps 2 and 3. The majority pass rate drops from 80% (4/5) to 40% (2/5)---a 40-percentage-point collapse. The trial rate drops from 73% to 47%, returning exactly to the baseline. Tasks 0 and 3, which had improved in sweep 2, revert to their baseline state. Even Task 4, which passed perfectly at baseline (3/3), degrades to 2/3.
 
 This regression is far more severe than anything observed with Qwen3 30B-A3B (which lost only one task between sweeps 2 and 3) or Qwen3.5 Flash at ten tasks (which lost 10 percentage points). It suggests that GLM 4.7 Flash is particularly vulnerable to patch interference: the accumulated patches from sweeps 1 and 2 create conflicting directives that the model cannot reconcile.
 
-##### Summary
-
-GLM 4.7 Flash achieves a strong peak improvement (+40pp majority, +26pp trial at sweep 2), demonstrating that the evolution framework can work with this model. However, the gains are entirely erased by sweep 3, indicating that the model lacks the robustness to maintain improvements under patch accumulation. Task 3 is never fixed across either sweep, remaining the sole resistant task.
+In summary, GLM 4.7 Flash achieves a strong peak improvement (+40pp majority, +26pp trial at sweep 2), demonstrating that the evolution framework can work with this model. However, the gains are entirely erased by sweep 3, indicating that the model lacks the robustness to maintain improvements under patch accumulation. Task 3 is never fixed across either sweep, remaining the sole resistant task.
 
 #### 3.1.1.4 Comparative Analysis at Five Tasks
 

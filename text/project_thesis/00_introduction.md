@@ -8,22 +8,8 @@ TargetAI LLC is a Russian technology company operating in the customer experienc
 
 The present thesis is a project-based study that addresses this operational bottleneck.
 
-**Object of study:** TargetAI's CX automation platform and the AI agents deployed through it.
+**Object of study:** TargetAI's CX automation platform and the AI agents deployed through it. **Subject of study:** the process of post-deployment improvement of API-served AI agents through automated prompt and tool-schema evolution.
 
-**Subject of study:** the process of post-deployment improvement of API-served AI agents through automated prompt and tool-schema evolution.
-
-**Aim:** to design, implement, and evaluate an automated diagnose-patch-validate (DPV) framework that uses a stronger "teacher" model to analyze failures in a weaker "student" agent's conversation traces, generate structured patches to the student's prompts and tool schemas, and validate each patch through re-simulation---all without modifying any model weights.
-
-To achieve this aim, the thesis pursues five project objectives:
-
-1. **Design an automated framework for teacher-driven prompt evolution.** Architect a diagnose-patch-validate loop with three patch surfaces---system prompt insertions, tool-schema edits, and sandboxed tool preprocessors---that operates entirely in the input space of a frozen student model and produces auditable, versionable, rollback-able changes compatible with API-only model access.
-
-2. **Evaluate the framework on $\tau^2$-bench as a proxy for TargetAI's operational domains.** Run baseline and post-evolution evaluations of a small open-source student model (Qwen3 30B-A3B) on the $\tau^2$-bench airline domain across increasing task-pool sizes (5, 10, and 20 tasks) to measure effectiveness under controlled conditions.
-
-3. **Characterize which failure types respond to prompt-level intervention.** Analyze the distribution of successful and unsuccessful patches across the failure taxonomy (tool misuse, policy violation, reasoning error, communication error) to identify the boundaries of what prompt-level evolution can and cannot fix.
-
-4. **Assess scaling behavior and practical boundaries.** Determine whether the fix rate holds as the task pool grows or degrades, establishing the practical limits of the approach and identifying where complementary methods (e.g., fine-tuning, architectural changes) would be needed.
-
-5. **Produce actionable recommendations for TargetAI's deployment pipeline.** Translate experimental findings into a phased integration roadmap---from internal benchmark validation through shadow-mode deployment to fully automated closed-loop optimization---with defined team responsibilities, cost projections, and success criteria.
+**Aim:** to design, implement, and evaluate an automated diagnose-patch-validate (DPV) framework that uses a stronger "teacher" model to analyze failures in a weaker "student" agent's conversation traces, generate structured patches to the student's prompts and tool schemas, and validate each patch through re-simulation---all without modifying any model weights. The aim is pursued through five project objectives---designing the framework, evaluating it on the $\tau^2$-bench airline domain, characterizing which failure types respond to prompt-level intervention, assessing scaling behavior, and producing actionable recommendations for TargetAI---detailed in Section 1.1.6.
 
 The thesis is structured as follows. **Chapter 1** establishes the theoretical foundations and problem analysis: the organizational problem at TargetAI (Section 1.1), a review of relevant literature and industry practice (Section 1.2), and a diagnostic study of the CX automation market and TargetAI's competitive position using Porter's Five Forces, Value Chain Analysis, and cost structure analysis (Section 1.3). **Chapter 2** presents the implementation methodology: the selection and justification of the Engineering Design Process as the project methodology (Section 2.1), a phase-by-phase implementation plan mapping EDP stages to project activities (Section 2.2), the DPV framework architecture (Section 2.3), and implementation details and experimental setup (Section 2.4). **Chapter 3** covers the experimental results and evaluation: results across three scales and three models (Section 3.1), and effectiveness evaluation against project objectives, economic analysis, and recommendations for TargetAI (Section 3.2). The **Conclusion** summarizes findings, contributions, limitations, and directions for further research.

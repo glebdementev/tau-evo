@@ -16,15 +16,9 @@ The source code is publicly available at github.com/glebdementev/tau-evo.
 
 ## 2.4.2 Benchmark: $\tau^2$-bench Airline Domain
 
-### Selection rationale
-
 $\tau^2$-bench was selected over four alternative benchmarks (AgentBench, SWE-bench, GAIA, ToolBench) because it is the only benchmark that combines: (1) multi-turn conversations with an LLM-simulated user providing partial information, (2) domain-specific policies, (3) tool-calling APIs that modify database state, and (4) the pass$^k$ reliability metric. Customer service is the natural evaluation domain because it represents the largest addressable market for AI agent automation: approximately 17 million contact center agents globally, with labor constituting up to 95% of operating costs [@gartner2022labor].
 
-### Domain configuration
-
 The experiments use the airline domain (50 tasks total). Each task defines a user scenario, expected agent actions, post-conversation database state assertions, and natural-language assertions. A task passes if and only if the agent satisfies all criteria simultaneously---the strict binary pass$^1$ metric standard in $\tau$-bench publications.
-
-### Conversation mechanics
 
 A simulated orchestrator manages turn-by-turn conversation between the agent and user simulator. On each turn the agent may either send a text message or invoke a tool. Tool calls are executed against a simulated database. The conversation ends when the user simulator signals completion or a maximum step count is reached. The full trace is preserved for analysis by the teacher model.
 
@@ -42,19 +36,13 @@ All models are accessed through OpenRouter using a single API key.
 
 : Model assignments and access methods. {#tbl:models}
 
-### Student model: Qwen3 30B-A3B
-
 The primary student model is Qwen3 30B-A3B [@qwen2025], a Mixture-of-Experts Transformer with 30.5 billion total parameters but only 3.3 billion active per token. It employs 128 experts with top-8 routing across 48 layers and supports 32,768 native context tokens. Despite activating barely 10% of its parameters per forward pass, the model outperforms Qwen2.5-14B on all reported benchmarks and leads the Berkeley Function Calling Leaderboard (BFCL v3).
 
 The selection reflects a trade-off that mirrors the real enterprise deployment decision: organizations choose cost-efficient models precisely because frontier models are prohibitively expensive at production volumes, then need a mechanism to close the resulting performance gap.
 
 Alternative student models---Qwen3.5 Flash and GLM 4.7 Flash---are evaluated for cross-student comparison.
 
-### Teacher model: Kimi K2.5
-
 The teacher model is Kimi K2.5 [@kimi2026], a MoE Transformer with approximately one trillion total parameters and 32 billion active per token. Its 256K-token context window accommodates full conversation traces, the system prompt, all tool schemas, and task requirements in a single prompt. The teacher was chosen for significantly stronger performance than the student, strong tool-calling comprehension, a long context window, architectural independence from the student (Moonshot AI, not Alibaba), and cost-effectiveness for hundreds of reflection calls.
-
-### User simulator
 
 The user simulator uses Qwen3 30B-A3B. $\tau^2$-bench's user simulator follows scripted scenarios and does not require frontier-level capabilities.
 
@@ -88,8 +76,6 @@ The scaling sequence is deliberate: if gains are task-specific, they should be l
 
 ## 2.4.6 Evaluation Metrics
 
-### Primary metric: pass$^1$
-
 The primary metric is pass$^1$---the fraction of tasks achieving a perfect reward of 1.0:
 
 $$\text{pass}^1 = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[r_i = 1.0]$$
@@ -98,23 +84,19 @@ This is the standard metric in $\tau$-bench publications. Any reward below 1.0 c
 
 ![Reward breakdown for a sample task: the binary pass$^1$ metric aggregates sub-criteria scores into a single pass/fail outcome.](figures/fig_09_reward_breakdown.png){#fig:reward-breakdown}
 
-### Gap closure
-
 To normalize for domain difficulty:
 
 $$G = \frac{K - B}{F - B} \times 100\%$$
 
 where $K$ is the evolved pass rate, $B$ the baseline, and $F$ the frontier ceiling. A gap closure of 50% means the evolved prompt captured half the teacher's advantage through prompt patching alone.
 
-### Fix success rate
+The fix success rate is defined as:
 
 $$\text{FSR} = \frac{|\{i : \text{fix}_i \text{ succeeds}\}|}{M}$$
 
 where $M$ is the number of attempted fixes. A fix succeeds when the patched student passes the task unanimously across all trials.
 
-### Statistical analysis plan
-
-- **H1 (Effectiveness):** Paired t-test on per-task trial-pass-rate deltas (evolved minus baseline), one-sided at $\alpha = 0.05$. Sensitivity checks via McNemar's exact test and Wilcoxon signed-rank test.
+The statistical analysis plan comprises three hypothesis tests. **H1 (Effectiveness):** Paired t-test on per-task trial-pass-rate deltas (evolved minus baseline), one-sided at $\alpha = 0.05$. Sensitivity checks via McNemar's exact test and Wilcoxon signed-rank test.
 - **H2 (Diminishing returns):** Cochran-Armitage trend test [@cochran1954; @armitage1955] on fix success rate across ordered pool sizes (5, 10, 20 tasks).
 - **H3 (Gap closure $\geq$ 25%):** Cluster bootstrap confidence interval [@field2007] with 10,000 resamples, preserving the nested structure (all trials within a task kept together).
 - **Confidence intervals:** Exact Clopper-Pearson intervals for pass rates, following @bowyer2025 for evaluations with fewer than 300 data points.
@@ -135,20 +117,8 @@ The complete evolution state is serialized to JSON after each iteration: the cur
 
 ## 2.4.8 Threats to Validity
 
-### Internal validity
+Regarding **internal validity**, three trials per task with a unanimous-pass criterion reduces the probability of accepting fragile patches, though more trials would tighten estimates at higher cost. The teacher's patches reflect Kimi K2.5's capabilities; only patches that demonstrably improve performance enter the global state, mitigating teacher model bias. The string-matching failure taxonomy is heuristic and may misclassify some failures, but this affects per-category analysis rather than primary pass-rate results.
 
-- **Stochastic generation variance:** Three trials per task with unanimous-pass criterion reduces the probability of accepting fragile patches. More trials would tighten estimates but at higher cost.
-- **Teacher model bias:** The teacher's patches reflect Kimi K2.5's capabilities. Mitigation: only patches that demonstrably improve performance enter the global state.
-- **Heuristic failure classification:** String-matching taxonomy may misclassify some failures. This affects per-category analysis but not primary pass-rate results.
+Regarding **external validity**, $\tau^2$-bench tasks are simulated, while production interactions are more diverse and adversarial. The framework is evaluated with one teacher and three student models; generalization to other pairs is untested. Patches are domain-specific by design, and cross-domain transfer is not claimed. Each $\tau^2$-bench task is a unique scenario, not a draw from a homogeneous distribution---the contribution is the framework, not the specific patches. The teacher prompt prohibits task-specific hardcoding, and unanimous validation guards against brittle patches.
 
-### External validity
-
-- **Benchmark versus production:** $\tau^2$-bench tasks are simulated; production interactions are more diverse and adversarial.
-- **Model generalization:** The framework is evaluated with one teacher and three student models. Generalization to other pairs is untested.
-- **Domain specificity:** Patches are domain-specific by design. Cross-domain transfer is not claimed.
-- **Absence of train/test split:** Each $\tau^2$-bench task is a unique scenario, not a draw from a homogeneous distribution. The contribution is the framework, not the specific patches. The teacher prompt prohibits task-specific hardcoding, and unanimous validation guards against brittle patches.
-
-### Construct validity
-
-- **pass$^1$ as reliability proxy:** The metric treats all failures equally. @rabanser2025 decompose reliability into four dimensions; pass$^1$ captures only consistency.
-- **Prompt evolution as distillation:** Patches may encode surface-level heuristics without transferring deep domain understanding; their durability under distribution shift is untested.
+Regarding **construct validity**, the pass$^1$ metric treats all failures equally, whereas @rabanser2025 decompose reliability into four dimensions; pass$^1$ captures only consistency. Patches may encode surface-level heuristics without transferring deep domain understanding, and their durability under distribution shift is untested.

@@ -133,19 +133,11 @@ The framework operates on three distinct patch surfaces, each targeting a differ
 
 ![Patch surfaces and failure type mapping: different failure categories are addressed by different patch surfaces.](figures/fig_06_patch_surfaces.png){#fig:patch-surfaces}
 
-### Prompt patches
+**Prompt patches** modify the agent's system prompt, typically adding concrete behavioral rules the student was not following. When `old_text` is empty, `new_text` is appended to the prompt's end. The Superficial Alignment Hypothesis [@zhou2023lima] suggests this should work: alignment primarily teaches style and format, which prompt text can supply. @sclar2023 demonstrated up to 76 accuracy points of variation from meaning-preserving formatting changes alone, confirming that models are highly sensitive to prompt content.
 
-Prompt patches modify the agent's system prompt, typically adding concrete behavioral rules the student was not following. When `old_text` is empty, `new_text` is appended to the prompt's end. The Superficial Alignment Hypothesis [@zhou2023lima] suggests this should work: alignment primarily teaches style and format, which prompt text can supply. @sclar2023 demonstrated up to 76 accuracy points of variation from meaning-preserving formatting changes alone, confirming that models are highly sensitive to prompt content.
+**Tool schema patches** modify the JSON schemas that define how the agent calls each tool. Common modifications include clarifying parameter descriptions (adding "must start with #" to a reservation_id field), expanding tool descriptions to note when a tool should or should not be used, and adding constraint notes. After each edit, the JSON string is parsed to ensure syntactic validity; patches producing invalid JSON are rejected.
 
-### Tool schema patches
-
-Tool schema patches modify the JSON schemas that define how the agent calls each tool. Common modifications include clarifying parameter descriptions (adding "must start with #" to a reservation_id field), expanding tool descriptions to note when a tool should or should not be used, and adding constraint notes. After each edit, the JSON string is parsed to ensure syntactic validity; patches producing invalid JSON are rejected.
-
-### Tool preprocessors
-
-Tool preprocessors are sandboxed Python functions that transform tool-call arguments before execution. Every tool starts with an identity preprocessor. The teacher can modify the code to add defensive input coercion---ensuring an ID field has the correct prefix, casting strings to integers, normalizing date formats. Preprocessors are sandboxed: a static analysis pass rejects forbidden constructs (imports, eval, exec, file I/O), the execution namespace restricts available builtins, and runtime exceptions fall back to the original arguments.
-
-### Patch application and merging
+**Tool preprocessors** are sandboxed Python functions that transform tool-call arguments before execution. Every tool starts with an identity preprocessor. The teacher can modify the code to add defensive input coercion---ensuring an ID field has the correct prefix, casting strings to integers, normalizing date formats. Preprocessors are sandboxed: a static analysis pass rejects forbidden constructs (imports, eval, exec, file I/O), the execution namespace restricts available builtins, and runtime exceptions fall back to the original arguments.
 
 Patches are applied sequentially using first-occurrence-only string replacement. Failed patches (old_text not found) are logged and skipped. When multiple tasks are fixed in a single sweep, winning patches are consolidated by a dedicated merger LLM session that resolves conflicts, deduplicates redundant edits, and compacts overlapping changes. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code.
 

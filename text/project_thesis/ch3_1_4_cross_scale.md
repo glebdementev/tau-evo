@@ -6,13 +6,13 @@
 
 | Tasks | Base trial | Best trial | Gain (pp) | Failing | Fixed | Fix rate |
 |-------|------------|------------|-----------|---------|-------|----------|
-| 5 | 53% (8/15) | 73% (11/15) | +20 | 4 | 4 | 100% |
-| 10 | 27% (8/30) | 50% (15/30) | +23 | 9 | 5 | 56% |
-| 20 | 22% (13/60) | 33% (20/60) | +11 | 15 | 8 | 53% |
+| 5 | 53% (8/15) | 73% (11/15) | +20 | 2 | 2 | 100% |
+| 10 | 27% (8/30) | 50% (15/30) | +23 | 7 | 3 | 43% |
+| 20 | 22% (13/60) | 33% (20/60) | +11 | 15 | 3 | 20% |
 
-: Cross-scale summary for Qwen3 30B-A3B. Improvement is measured in percentage points of trial pass rate. Fix rate is the fraction of unique failing tasks that were successfully fixed at least once across sweeps 1--2. {#tbl:cross-experiment-qwen3}
+: Cross-scale summary for Qwen3 30B-A3B. Improvement is measured in percentage points of trial pass rate. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these failing tasks successfully fixed at least once across sweeps 1--2. The teacher also produced verified fixes for additional tasks that passed by majority but failed individual trials (see Section 3.1 per-experiment details). {#tbl:cross-experiment-qwen3}
 
-The scaling curve reveals two regimes. From 5 to 10 tasks, the absolute improvement is remarkably stable (+20pp to +23pp), and the fix rate drops sharply (100% to 56%) as harder tasks enter the pool. From 10 to 20 tasks, the absolute improvement halves (+23pp to +11pp) while the fix rate stabilises (56% to 53%). This suggests that the framework reaches a capacity ceiling around 5--8 fixable tasks regardless of pool size, and additional tasks primarily contribute unfixable failures that consume teacher effort.
+The scaling curve reveals a consistent pattern: the absolute improvement is stable at small scales (+20pp to +23pp from 5 to 10 tasks) but halves at 20 tasks (+11pp), while the fix rate declines monotonically---from 100% (5 tasks) to 43% (10 tasks) to 20% (20 tasks). Each doubling of the task pool brings a larger proportion of majority-vote failures that resist prompt-level repair, and additional tasks primarily contribute unfixable failures that consume teacher effort.
 
 The number of successful fixes is also instructive: 7 at 5 tasks, 7 at 10 tasks, and 10 at 20 tasks. While the absolute count grows slightly with scale, the growth is sub-linear---doubling the task set from 10 to 20 yields only 3 additional fixes. The framework does not discover fundamentally more failure modes at larger scales; it mostly encounters more instances of the same resistant patterns.
 
@@ -50,7 +50,7 @@ The contrast between scales is stark. At 5 tasks, the model can absorb three ins
 | 5 | Qwen3 30B-A3B | 60% | 80% | 100% | 5/2/0 | 0 |
 | 5 | Qwen3.5 Flash | 100% | 100% | N/A | 0/0/0 | 0 |
 | 5 | GLM 4.7 Flash | 40% | 80% | 67% | 3/1/0 | 1 |
-| 10 | Qwen3 30B-A3B | 30% | 50% | 71% | 5/2/0 | 4 |
+| 10 | Qwen3 30B-A3B | 30% | 50% | 43% | 5/2/0 | 4 |
 | 10 | Qwen3.5 Flash | 50% | 80% | 80% | 4/1/0 | 1 |
 | 10 | GLM 4.7 Flash | 60% | 60% | 0% | 3/1/0 | 4 |
 
@@ -62,15 +62,15 @@ At 20 tasks, only two models are compared:
 |--------|---------------|---------------|
 | Baseline majority | 25% | 45% |
 | Best majority | 30% | 65% |
-| Fix rate (failing) | 53% | 45% |
+| Fix rate (failing) | 20% | 45% |
 | Fixes (instr/guard/tools) | 7/1/2 | 11/1/0 |
-| Unfixable tasks | 11 | 5 |
+| Unfixable tasks | 12 | 5 |
 
 : Cross-model comparison at 20 tasks. {#tbl:cross-model-20}
 
 ![Knowledge transfer effectiveness: fix rates and improvement by model and scale, illustrating model-dependent framework utility.](figures/fig_14_knowledge_transfer.png){#fig:knowledge-transfer}
 
-The most important finding is that the set of unfixable tasks is model-dependent, not task-intrinsic. At 10 tasks, Qwen3 30B-A3B and GLM 4.7 Flash share the same four unfixable tasks (7, 9, 11, 12). With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models. At 20 tasks, the unfixable set shrinks further for Qwen3.5 Flash (5 tasks vs 11), with Tasks 7, 9, 14, 23, and 33 forming the persistent hard core.
+The most important finding is that the set of unfixable tasks is model-dependent, not task-intrinsic. At 10 tasks, Qwen3 30B-A3B and GLM 4.7 Flash share the same four unfixable tasks (7, 9, 11, 12). With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models. At 20 tasks, the unfixable set shrinks further for Qwen3.5 Flash (5 tasks vs 12), with Tasks 7, 9, 14, 23, and 33 forming the persistent hard core.
 
 #### 3.1.4.5 Instruction vs Guardrail Ratio Across All Experiments
 
