@@ -1,10 +1,22 @@
 # 2.1 Methodology Choice and Rationale
 
-This section selects and justifies the project methodology. Section 2.1.1 reviews three candidate methodologies relevant to designing and evaluating a software framework. Section 2.1.2 presents the selection rationale.
+This section selects and justifies the methodologies used in this project. Two distinct methodological choices are required: (1) a project design methodology that structures the overall work of building and evaluating the framework (Section 2.1.1), and (2) a diagnostic methodology for analyzing the organization's internal and external environment (Section 2.1.2). Section 2.1.3 describes the selected project design methodology in detail.
 
-## 2.1.1 Candidate Methodologies
+## 2.1.1 Project Design Methodology
 
-Three methodologies were considered for this project. Each is well-suited to a different class of technical work; the question is which best fits a project whose deliverable is a software framework evaluated empirically against a benchmark.
+Five methodologies were considered for structuring the project. Each is suited to a different class of technical work; the question is which best fits a project whose deliverable is a software framework evaluated empirically against a benchmark.
+
+### TOGAF (The Open Group Architecture Framework)
+
+TOGAF is the most widely used framework for enterprise architecture [@togaf2022]. It provides a comprehensive approach for designing, planning, implementing, and governing enterprise IT architecture, structured around four domains (Business, Application, Data, Technology) and an iterative Architecture Development Method (ADM). TOGAF is designed for multi-system enterprise transformations where the deliverable is an architecture governing multiple interacting systems.
+
+**Limitations for this project:** TOGAF addresses enterprise-scale IT governance across business, application, data, and technology domains. This project develops and evaluates a single software framework, not an enterprise architecture. The ADM's phases (Architecture Vision, Business Architecture, Information Systems Architecture, Technology Architecture, Migration Planning) do not map to the work of building a prompt-evolution loop and testing it on a benchmark. TOGAF's scope far exceeds what is needed.
+
+### SDLC Models (Waterfall, Agile, Scrum)
+
+Software Development Life Cycle models govern the process of delivering production software. Waterfall prescribes sequential phases (requirements, design, implementation, testing, deployment). Agile and Scrum organize work into iterative sprints with continuous delivery and stakeholder feedback.
+
+**Limitations for this project:** SDLC models structure the software delivery process---sprints, releases, CI/CD pipelines, user stories, backlog management. This project is not delivering production software to end users; it is building a framework prototype and evaluating it against a benchmark. The project has no deployment phase, no user acceptance testing, and no maintenance releases. SDLC models would govern how the code is written but would not structure the evaluation of the framework as a research artifact---which is the core of the thesis.
 
 ### Design Science Research (DSR)
 
@@ -30,19 +42,19 @@ The Engineering Design Process [@dym2005] is a systematic methodology for develo
 
 **Limitations for this project:** EDP lacks the formal knowledge contribution framing of DSR. It does not explicitly prescribe statistical evaluation methods or theoretical positioning.
 
-## 2.1.2 Methodology Selection
+### Project Design Methodology Selection
 
 @Tbl:methodology-comparison summarizes the comparison.
 
-| Criterion | Design Science Research | CRISP-DM | Engineering Design Process |
-|-----------|----------------------|----------|---------------------------|
-| Artifact focus | IT artifacts with theory | ML models | Engineering artifacts |
-| Iterative design | Yes (evaluate → refine) | Yes (model → evaluate) | Yes (test → redesign) |
-| Fit to deliverable | Partial (framework, not theory) | Poor (framework, not model) | **Strong** (framework) |
-| Requirements emphasis | Moderate | Low | **High** |
-| Alternative evaluation | Design alternatives | Model alternatives | **Solution alternatives** |
-| Practical orientation | Research-oriented | Industry-oriented | **Project-oriented** |
-| Thesis scope fit | Exceeds scope | Misaligned phases | **Appropriate scope** |
+| Criterion | TOGAF | SDLC (Agile/Waterfall) | DSR | CRISP-DM | EDP |
+|-----------|-------|------------------------|-----|----------|-----|
+| Artifact focus | Enterprise architecture | Production software | IT artifacts with theory | ML models | Engineering artifacts |
+| Iterative design | Yes (ADM cycle) | Yes (sprints/phases) | Yes (evaluate -> refine) | Yes (model -> evaluate) | Yes (test -> redesign) |
+| Fit to deliverable | Poor (enterprise scope) | Poor (delivery process) | Partial (framework, not theory) | Poor (framework, not model) | **Strong** (framework) |
+| Requirements emphasis | High (enterprise-level) | Moderate (user stories) | Moderate | Low | **High** |
+| Evaluation emphasis | Low (governance focus) | Low (delivery focus) | **High** (artifact evaluation) | High (model metrics) | **High** (test against criteria) |
+| Practical orientation | Enterprise governance | Software delivery | Research-oriented | Industry-oriented | **Project-oriented** |
+| Thesis scope fit | Far exceeds scope | Misaligned focus | Exceeds scope | Misaligned phases | **Appropriate scope** |
 
 : Methodology comparison for the DPV framework project. {#tbl:methodology-comparison}
 
@@ -50,10 +62,90 @@ The Engineering Design Process [@dym2005] is a systematic methodology for develo
 
 The selection is justified on three grounds:
 
-1. **Deliverable alignment.** The project's deliverable is a software framework (the DPV loop), not a trained model (CRISP-DM) or a generalizable design theory (DSR). EDP is designed for exactly this class of artifact: an engineered system that must meet specified requirements and be evaluated against measurable criteria.
+1. **Deliverable alignment.** The project's deliverable is a software framework (the DPV loop), not an enterprise architecture (TOGAF), production software (SDLC), a trained model (CRISP-DM), or a generalizable design theory (DSR). EDP is designed for exactly this class of artifact: an engineered system that must meet specified requirements and be evaluated against measurable criteria.
 
 2. **Structural mirror.** The EDP's test-redesign cycle directly mirrors the framework's own operation. The framework iterates by evaluating agents, identifying failures, and applying patches; the project methodology iterates by prototyping the framework, testing it on benchmarks, and refining the design. This structural alignment means the methodology description naturally explains the work that was actually done.
 
-3. **Scope appropriateness.** EDP provides sufficient rigor for a project-based thesis without the theoretical apparatus (artifact taxonomy, design theory formalization, knowledge base contribution) that DSR would require. Design science provides useful grounding---the framework is a design artifact evaluated against a baseline and ceiling---but EDP is the operational methodology that structures the actual work.
+3. **Scope appropriateness.** EDP provides sufficient rigor for a project-based thesis without the theoretical apparatus (artifact taxonomy, design theory formalization, knowledge base contribution) that DSR would require, the enterprise governance scope of TOGAF, or the delivery-process focus of SDLC. Design science provides useful grounding---the framework is a design artifact evaluated against a baseline and ceiling---but EDP is the operational methodology that structures the actual work.
 
 The design science perspective is not discarded; it informs the evaluation design (three-condition floor-intervention-ceiling comparison per @hevner2004's evaluation guideline). But the project follows EDP as its primary methodology, with design science as a complementary theoretical lens.
+
+## 2.1.2 Diagnostic Methodology
+
+Section 7.5.3 of the thesis requirements calls for a diagnostic study of the organization's internal and external environment. Three analytical frameworks were considered for this purpose.
+
+### SWOT Analysis
+
+SWOT analysis identifies an organization's Strengths, Weaknesses, Opportunities, and Threats by examining internal capabilities and external factors [@humphrey2005]. It is the most widely taught strategic analysis tool.
+
+**Limitations for this project:** SWOT is descriptive rather than analytical: it classifies observations into four quadrants but does not generate causal relationships or directional conclusions. The framework's output---lists of strengths, weaknesses, opportunities, and threats---does not directly constrain solution design. SWOT is also commonly criticized for subjectivity: the same observation can be classified as a strength or weakness depending on framing [@helms2010]. For a project that needs the diagnostic study to produce specific requirements for the technical solution, SWOT's output is too open-ended.
+
+### PESTEL Analysis
+
+PESTEL analysis scans the macro-environment across six dimensions: Political, Economic, Social, Technological, Environmental, and Legal factors [@aguilar1967]. It is designed for understanding the broad external context in which an organization operates, typically for market entry or strategic planning decisions.
+
+**Limitations for this project:** PESTEL's breadth is a liability when the problem is already well-scoped. The organizational problem---TargetAI's agent maintenance bottleneck---is an internal operational issue driven by technology and economics, not by political, environmental, or legal factors. A PESTEL analysis would produce tangential observations (e.g., Russian data localization laws, environmental impact of compute) that do not constrain the solution design. The framework is more suitable for market entry analysis than for diagnosing a specific value-chain bottleneck.
+
+### Porter's Five Forces + Value Chain Analysis + Cost Structure Analysis
+
+Porter's Five Forces [@porter1980] analyzes industry structure through five competitive forces (buyer power, supplier power, substitutes, new entrants, rivalry). Porter's Value Chain Analysis [@porter1985] decomposes a firm's activities into value-creating and supporting activities, identifying where competitive advantage or disadvantage originates. Cost structure analysis quantifies the unit economics of current versus proposed operations.
+
+**Strengths for this project:** The three frameworks operate at complementary levels of abstraction. Five Forces characterizes the industry-level pressures that make automated maintenance a competitive necessity. Value Chain Analysis maps TargetAI's operations to locate the specific activity (maintenance) that is the highest-cost, lowest-automation bottleneck. Cost structure analysis quantifies the economic case for automation by comparing the linear cost of manual maintenance against the near-fixed cost of the proposed framework. Each framework produces conclusions that directly constrain the solution requirements developed in Section 2.2.
+
+### Diagnostic Methodology Selection
+
+@Tbl:diagnostic-comparison summarizes the comparison.
+
+| Criterion | SWOT | PESTEL | Porter's Five Forces + VCA + Cost Analysis |
+|-----------|------|--------|-------------------------------------------|
+| Output type | Descriptive lists | Environmental scan | **Causal conclusions** |
+| Analytical rigor | Low (subjective classification) | Moderate (structured dimensions) | **High** (structural analysis) |
+| Fit to problem scope | Generic (any organization) | Macro-level (market entry) | **Targeted** (industry + firm + economics) |
+| Solution design linkage | Indirect | Indirect | **Direct** (each conclusion constrains a requirement) |
+| Level of abstraction | Single (internal/external) | Single (macro-environment) | **Three levels** (industry, firm operations, unit economics) |
+
+: Diagnostic methodology comparison. {#tbl:diagnostic-comparison}
+
+**Selected diagnostic methodology: Porter's Five Forces combined with Value Chain Analysis and Cost Structure Analysis.**
+
+The selection is justified on two grounds:
+
+1. **Actionable output.** Each framework produces conclusions that directly feed into the solution requirements: Five Forces establishes that the market demands automated agent improvement; Value Chain Analysis identifies maintenance as the single binding constraint on profitable scaling; Cost Structure Analysis quantifies the economic viability threshold. SWOT and PESTEL produce observations that would require additional interpretation to derive requirements.
+
+2. **Complementary levels of abstraction.** The three frameworks cover industry structure (external), firm operations (internal), and unit economics (quantitative) without redundancy or filler quadrants. This provides the complete diagnostic arc from market context to investment justification that the thesis requires, while remaining focused on the specific problem.
+
+The diagnostic frameworks are applied in Chapter 1, Section 1.3.
+
+## 2.1.3 The Engineering Design Process
+
+The Engineering Design Process is a systematic, iterative methodology for developing engineering solutions to defined problems [@dym2005]. It is widely used in engineering education and practice, recognized by ABET accreditation criteria, and provides a structured yet flexible framework for projects where the deliverable is a functional artifact evaluated against measurable requirements.
+
+The EDP consists of seven phases:
+
+1. **Define the Problem.** Clearly articulate the problem to be solved, including constraints, stakeholders, and success criteria. The problem definition must be specific enough to guide the design process and measurable enough to evaluate the solution.
+
+2. **Do Background Research.** Review existing solutions, relevant literature, available technologies, and prior art. Understand what has been tried, what works, what does not, and why. This phase establishes the knowledge base from which design decisions are made.
+
+3. **Specify Requirements.** Translate the problem definition and background research into concrete requirements that the solution must satisfy. Requirements should be measurable, testable, and prioritized. They constrain the design space and provide the criteria against which the solution will be evaluated.
+
+4. **Brainstorm, Evaluate, and Choose Solution.** Generate multiple candidate solutions, evaluate each against the specified requirements, and select the most promising approach. This phase involves systematic comparison (e.g., decision matrices) rather than ad-hoc selection.
+
+5. **Develop and Prototype Solution.** Implement the chosen solution as a working prototype. The prototype must be functional enough to test against the requirements specified in Phase 3.
+
+6. **Test Solution.** Evaluate the prototype against the requirements using structured tests. Collect data, analyze results, and determine whether the solution meets the success criteria. If not, the process iterates back to earlier phases.
+
+7. **Communicate Results.** Document the design process, test results, conclusions, and recommendations. This includes both the technical documentation of the solution and the communication of findings to stakeholders.
+
+### Iterative Nature
+
+A defining feature of the EDP is its iterative structure. The process is not strictly linear: test results in Phase 6 may reveal deficiencies that require returning to Phase 4 (choosing a different approach), Phase 5 (modifying the prototype), or even Phase 3 (revising requirements based on what testing reveals is feasible). This iterative loop---design, test, learn, redesign---is what distinguishes engineering design from a waterfall process.
+
+The iterative nature of EDP is particularly well-suited to this project for two reasons:
+
+1. **The framework itself is iterative.** The DPV framework operates through repeated sweeps: evaluate the agent, identify failures, apply patches, re-evaluate. The project methodology mirrors the artifact's operation---both iterate by testing, learning from failures, and improving.
+
+2. **The experimental design evolved during the project.** Initial experiments at 5 tasks informed the design of 10-task experiments, which in turn shaped the 20-task evaluation. The three-model comparison (Qwen3 30B-A3B, Qwen3.5 Flash, GLM 4.7 Flash) was expanded as early results revealed model-dependent behavior. This adaptive experimental design is natural within EDP's iterative framework but would be awkward to justify under a strictly sequential methodology.
+
+@Fig:edp-cycle illustrates the iterative EDP cycle and its application to this project.
+
+![The Engineering Design Process cycle applied to this project. Solid arrows show the primary flow; dashed arrows show iteration paths triggered by test results.](figures/fig_edp_cycle.png){#fig:edp-cycle}

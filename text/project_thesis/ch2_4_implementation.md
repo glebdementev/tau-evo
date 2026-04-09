@@ -1,8 +1,8 @@
-# 3.2 Implementation and Experimental Setup
+# 2.4 Implementation and Experimental Setup
 
 This section describes the technology stack, benchmark configuration, model choices, experimental conditions, evaluation metrics, and reproducibility provisions.
 
-## 3.2.1 Technology Stack
+## 2.4.1 Technology Stack
 
 The framework is implemented in Python 3.12 with the following key dependencies:
 
@@ -14,7 +14,7 @@ The framework is implemented in Python 3.12 with the following key dependencies:
 
 The source code is publicly available at github.com/glebdementev/tau-evo.
 
-## 3.2.2 Benchmark: $\tau^2$-bench Airline Domain
+## 2.4.2 Benchmark: $\tau^2$-bench Airline Domain
 
 ### Selection rationale
 
@@ -30,7 +30,7 @@ A simulated orchestrator manages turn-by-turn conversation between the agent and
 
 ![Conversation mechanics in $\tau^2$-bench: turn-by-turn interaction between agent and user simulator.](figures/fig_07_conversation_mechanics.png){#fig:conversation-mechanics}
 
-## 3.2.3 Model Selection
+## 2.4.3 Model Selection
 
 All models are accessed through OpenRouter using a single API key.
 
@@ -58,7 +58,7 @@ The teacher model is Kimi K2.5 [@kimi2026], a MoE Transformer with approximately
 
 The user simulator uses Qwen3 30B-A3B. $\tau^2$-bench's user simulator follows scripted scenarios and does not require frontier-level capabilities.
 
-## 3.2.4 Experimental Conditions
+## 2.4.4 Experimental Conditions
 
 Three conditions are evaluated, differing only in the agent's model and prompt configuration:
 
@@ -70,7 +70,7 @@ Three conditions are evaluated, differing only in the agent's model and prompt c
 
 ![Experimental conditions: baseline (B), evolved (K), and frontier (F) with gap closure metric.](figures/fig_05_three_conditions.png){#fig:three-conditions}
 
-## 3.2.5 Experimental Design: Three Scales $\times$ Three Models
+## 2.4.5 Experimental Design: Three Scales $\times$ Three Models
 
 The experiments span three task-pool sizes and three student models:
 
@@ -86,7 +86,7 @@ Each experiment runs the evolution loop for up to three sweeps with up to two re
 
 The scaling sequence is deliberate: if gains are task-specific, they should be largest at small scale and diminish as the denominator grows. The multi-model comparison tests whether a stronger student benefits differently from evolution.
 
-## 3.2.6 Evaluation Metrics
+## 2.4.6 Evaluation Metrics
 
 ### Primary metric: pass$^1$
 
@@ -95,6 +95,8 @@ The primary metric is pass$^1$---the fraction of tasks achieving a perfect rewar
 $$\text{pass}^1 = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[r_i = 1.0]$$
 
 This is the standard metric in $\tau$-bench publications. Any reward below 1.0 constitutes failure.
+
+![Reward breakdown for a sample task: the binary pass$^1$ metric aggregates sub-criteria scores into a single pass/fail outcome.](figures/fig_09_reward_breakdown.png){#fig:reward-breakdown}
 
 ### Gap closure
 
@@ -117,7 +119,7 @@ where $M$ is the number of attempted fixes. A fix succeeds when the patched stud
 - **H3 (Gap closure $\geq$ 25%):** Cluster bootstrap confidence interval [@field2007] with 10,000 resamples, preserving the nested structure (all trials within a task kept together).
 - **Confidence intervals:** Exact Clopper-Pearson intervals for pass rates, following @bowyer2025 for evaluations with fewer than 300 data points.
 
-## 3.2.7 Reproducibility
+## 2.4.7 Reproducibility
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
@@ -131,7 +133,7 @@ where $M$ is the number of attempted fixes. A fix succeeds when the patched stud
 
 The complete evolution state is serialized to JSON after each iteration: the current system prompt, all tool schemas, all preprocessor source, iteration history, and metadata. Task IDs are locked after the first evaluation.
 
-## 3.2.8 Threats to Validity
+## 2.4.8 Threats to Validity
 
 ### Internal validity
 

@@ -1,12 +1,8 @@
 # 1.3 Diagnostic Study of the CX Automation Market and TargetAI's Competitive Position
 
-This section applies three strategic analysis frameworks to diagnose the competitive environment in which TargetAI operates and to identify the specific value-chain bottleneck that the proposed solution must address. Section 1.3.1 justifies the choice of frameworks. Section 1.3.2 uses Porter's Five Forces to characterize the structural pressures in the CX automation market. Section 1.3.3 maps TargetAI's value chain to locate the highest-cost, lowest-automation activity. Section 1.3.4 quantifies the cost structure of manual versus automated agent maintenance. Section 1.3.5 synthesizes the three analyses into requirements for the solution developed in Chapter 3.
+This section applies the diagnostic frameworks selected and justified in Section 2.1.2---Porter's Five Forces, Value Chain Analysis, and Cost Structure Analysis---to diagnose the competitive environment in which TargetAI operates and to identify the specific value-chain bottleneck that the proposed solution must address. Section 1.3.1 uses Porter's Five Forces to characterize the structural pressures in the CX automation market. Section 1.3.2 maps TargetAI's value chain to locate the highest-cost, lowest-automation activity. Section 1.3.3 quantifies the cost structure of manual versus automated agent maintenance. Section 1.3.4 synthesizes the three analyses into requirements for the solution developed in Chapter 2.
 
-## 1.3.1 Framework Selection and Justification
-
-The diagnostic study employs three complementary frameworks: Porter's Five Forces [@porter1980], Value Chain Analysis [@porter1985], and cost structure analysis. The combination is chosen over alternatives such as SWOT or PESTEL for two reasons. First, each framework produces conclusions that directly constrain the solution design: Five Forces identifies the competitive pressures that make automated maintenance a strategic necessity; Value Chain Analysis locates the specific operational bottleneck the framework must target; and cost structure analysis quantifies the economic case for automation. Second, the three frameworks operate at different levels of abstraction---industry structure, firm operations, and unit economics---providing a complete diagnostic arc from market context to investment justification, without the redundancy that broader frameworks introduce when the problem is already well-scoped.
-
-## 1.3.2 Porter's Five Forces: CX Automation Market
+## 1.3.1 Porter's Five Forces: CX Automation Market
 
 @Fig:five-forces summarizes the Five Forces analysis. Each force is assessed below.
 
@@ -18,7 +14,7 @@ Enterprise buyers hold substantial bargaining power in the CX automation market.
 
 First, switching costs are declining. CX automation platforms consume LLMs through APIs, and the underlying models are increasingly interchangeable: a vendor built on GPT-4 can migrate to Claude or an open-source alternative with modest integration effort. Buyers know this, and use it to negotiate pricing and service-level commitments. The shift to outcome-based pricing---Intercom charges \$0.99 per resolution [@intercom2024], Sierra implements pure outcome-based pricing [@sierra2024]---transfers performance risk directly to the vendor. Under this model, every unresolved customer interaction is revenue the vendor does not collect.
 
-Second, buyers demand measurable SLAs. Enterprise operations typically require four-nines reliability (99.99% task success) before the human safety net can be removed [@rabanser2025]. Vendors that cannot demonstrate and maintain this reliability lose contracts to competitors that can, or worse, buyers revert to human agents entirely---Gartner predicts that 50% of organizations will abandon plans to reduce their customer-service workforce through AI by 2027 [@gartner2025abandon].
+Second, buyers demand measurable SLAs. Autonomous enterprise operation would require three-to-five nines of reliability (99.9--99.999% task success) [@rabanser2025]. Vendors that cannot demonstrate and maintain this reliability lose contracts to competitors that can, or worse, buyers revert to human agents entirely---Gartner predicts that 50% of organizations will abandon plans to reduce their customer-service workforce through AI by 2027 [@gartner2025abandon].
 
 Third, the buyer market is consolidating around large enterprise accounts. The contact center AI market is growing at 21--25% CAGR, from roughly \$2 billion in 2024 to a projected \$7--13 billion by 2030--2034 [@grandviewresearch2024; @fortunebi2025], but deal sizes are increasing as the industry moves beyond pilot deployments. Large accounts amplify buyer power: losing a single enterprise client can represent a significant share of annual revenue.
 
@@ -54,7 +50,7 @@ On the other hand, two factors create durable moats. First, evaluation infrastru
 
 Competition in the CX automation market is intense and accelerating. Globally, players such as Intercom, Sierra, Zendesk AI, and Salesforce Agentforce compete on agent quality, cost per resolution, and integration breadth. In the Russian market, Yandex, Sber AI, and smaller players add local competitive pressure.
 
-The competitive dynamics are shaped by the economics reviewed in Section 1.2.1: AI-first companies operate at 50--60% gross margins, well below the 75--90% typical of traditional SaaS [@bessemer2025], and professional services account for 60--70% of total project cost versus only 30--40% for platform licensing [@opexengine2024]. This services-heavy cost structure means that the vendor with the lowest per-client maintenance cost has a structural advantage---it can offer lower prices, higher margins, or both.
+The competitive dynamics are shaped by the economics reviewed in Section 1.2.1: AI-first companies broadly operate at 50--60% gross margins, well below the 75--90% typical of traditional SaaS, due to higher compute and services costs [@bessemer2025]. This cost structure means that the vendor with the lowest per-client maintenance cost has a structural advantage---it can offer lower prices, higher margins, or both.
 
 The Klarna case illustrates the stakes: an AI assistant handled 2.3 million conversations in its first month, projecting \$40 million in annual savings, but within a year customer satisfaction had declined and the company began rehiring human agents [@klarna2025; @forrester2025regret]. Competitors that solve the reliability-maintenance problem avoid Klarna's trajectory.
 
@@ -64,7 +60,7 @@ The Klarna case illustrates the stakes: an AI assistant handled 2.3 million conv
 
 All five forces converge on a single conclusion: **the CX automation market structurally demands automated agent improvement**. Buyer power prevents passing maintenance costs to clients. Supplier power demands model-agnostic, cost-efficient solutions. Substitutes are held at bay only while AI agents outperform humans on cost *and* reliability. New entrants are deterred by evaluation infrastructure, not by API access. Rivalry rewards the vendor with the lowest maintenance overhead per deployment. Manual maintenance---0.5 to 3 FTEs and \$50,000--\$100,000 per year per deployment [@gartner2025complexity]---is unsustainable under these pressures.
 
-## 1.3.3 Value Chain Analysis: TargetAI's Service Delivery
+## 1.3.2 Value Chain Analysis: TargetAI's Service Delivery
 
 Porter's Value Chain Analysis [@porter1985] decomposes a firm's activities into those that create value and those that support them, identifying where competitive advantage---or competitive disadvantage---originates. @Fig:value-chain maps TargetAI's service delivery process.
 
@@ -102,13 +98,13 @@ As TargetAI's client base grows, every other activity amortizes across deploymen
 
 **Conclusion:** The Diagnose-Patch-Validate framework targets the single highest-cost, lowest-automation activity in TargetAI's value chain. By automating the diagnosis-fix-test cycle, it converts maintenance from a linear cost (proportional to deployments) into a near-fixed cost (the compute required to run the teacher model), directly addressing the scaling constraint.
 
-## 1.3.4 Cost Structure Analysis
+## 1.3.3 Cost Structure Analysis
 
 The Five Forces analysis established that the market demands automated maintenance; the Value Chain analysis identified maintenance as the operational bottleneck. This section quantifies the cost differential between the current manual process and the proposed automated alternative.
 
 ### Current state: manual maintenance
 
-Industry data places the cost of post-deployment agent maintenance at \$50,000--\$100,000 per year per deployment, requiring 0.5--3 FTEs [@gartner2025complexity]. Enterprise implementations routinely cost three to five times the initially advertised price once integration and maintenance are included [@acceldata2025]. Professional services account for 60--70% of total project cost versus only 30--40% for platform licensing [@opexengine2024].
+Industry estimates place the cost of post-deployment agent maintenance at \$50,000--\$100,000 per year per deployment, requiring 0.5--3 FTEs [@gartner2025complexity].
 
 For a vendor like TargetAI with $N$ active deployments, the annual maintenance cost is approximately:
 
@@ -152,7 +148,7 @@ The shift from labor-driven to compute-driven costs has a second-order effect on
 
 The framework is economically viable when the cost of running automated evolution sweeps is less than the cost of the human labor it displaces. Given that a single senior prompt engineer costs \$50,000--\$100,000+ per year and can maintain approximately 2--5 deployments, the framework needs to maintain a deployment for less than \$10,000--\$50,000 per year in compute costs to break even. At current API pricing for reasoning models, this threshold is comfortably achievable: even intensive evolution runs (multiple sweeps over dozens of tasks) consume token volumes that cost hundreds to low thousands of dollars per domain. The margin of safety is large and growing as inference costs decline.
 
-## 1.3.5 Synthesis
+## 1.3.4 Synthesis
 
 The three analyses converge on a unified diagnostic conclusion:
 

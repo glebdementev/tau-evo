@@ -1,6 +1,6 @@
-### 3.3.4 Twenty-Task Experiments
+### 3.1.3 Twenty-Task Experiments
 
-#### 3.3.4.1 Qwen3 30B-A3B
+#### 3.1.3.1 Qwen3 30B-A3B
 
 Experiment 3 doubles the task set again to twenty, introducing ten additional tasks (14, 15, 17, 20, 21, 23, 27, 28, 33, 34) alongside the original ten. This tests whether the framework's gains continue to scale and how the teacher's strategy adapts to a larger and more diverse failure surface.
 
@@ -128,7 +128,7 @@ The fix success rate continues its decline with scale: $\text{FSR}_{20} = 8/19 \
 
 The twenty-task experiment confirms the diminishing returns hypothesis. The evolution framework produces a smaller absolute improvement (+8pp trial rate from baseline to best sweep) compared to 10 tasks (+23pp) and 5 tasks (+20pp). The fix success rate drops to 42%. The hard core of resistant tasks expands from 4 (at 10 tasks) to 11 (at 20 tasks). Tool-schema fixes emerge as a new category, but their frequency (2 of 10 fixes) is too low to offset the growing proportion of unfixable failures. The practical implication is clear: at 20 tasks, the teacher spends the vast majority of its time and tokens on tasks it cannot repair.
 
-#### 3.3.4.2 Qwen3.5 Flash
+#### 3.1.3.2 Qwen3.5 Flash
 
 ##### Baseline Performance
 
@@ -241,7 +241,7 @@ The most notable regression is **Task 34**, which is fixed in sweep 1 (1/3 → 2
 
 Qwen3.5 Flash at 20 tasks achieves a +20pp majority improvement (45% → 65%) and +10pp trial improvement (47% → 57%), both substantially larger than Qwen3 30B-A3B's gains at the same scale (+5pp majority, +11pp trial). The fix breakdown is overwhelmingly instruction-tier (92%), with no tool-schema fixes needed. Unlike the severe sweep-3 regression observed at 10 tasks (-17pp trial, -10pp majority), the 20-task experiment shows remarkable stability between sweeps 2 and 3, with the majority rate holding at 65% despite individual task-level churn.
 
-#### 3.3.4.3 Comparative Analysis at Twenty Tasks
+#### 3.1.3.3 Comparative Analysis at Twenty Tasks
 
 @Tbl:20task-comparison summarises the key metrics for both models at twenty tasks. GLM 4.7 Flash is excluded, having been dropped at this scale due to poor performance at ten tasks.
 

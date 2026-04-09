@@ -1,6 +1,6 @@
-### 3.3.5 Cross-Scale and Cross-Model Comparison
+### 3.1.4 Cross-Scale and Cross-Model Comparison
 
-#### 3.3.5.1 Scaling Curve: Qwen3 30B-A3B
+#### 3.1.4.1 Scaling Curve: Qwen3 30B-A3B
 
 @Tbl:cross-experiment-qwen3 summarises the key metrics across all three scales for Qwen3 30B-A3B.
 
@@ -16,7 +16,7 @@ The scaling curve reveals two regimes. From 5 to 10 tasks, the absolute improvem
 
 The number of successful fixes is also instructive: 7 at 5 tasks, 7 at 10 tasks, and 10 at 20 tasks. While the absolute count grows slightly with scale, the growth is sub-linear---doubling the task set from 10 to 20 yields only 3 additional fixes. The framework does not discover fundamentally more failure modes at larger scales; it mostly encounters more instances of the same resistant patterns.
 
-#### 3.3.5.2 Scaling Curve: Qwen3.5 Flash
+#### 3.1.4.2 Scaling Curve: Qwen3.5 Flash
 
 | Tasks | Base trial | Best trial | Gain (pp) | Failing | Fixed | Fix rate |
 |-------|------------|------------|-----------|---------|-------|----------|
@@ -30,7 +30,7 @@ The scaling curve for Qwen3.5 Flash shows a pattern distinct from Qwen3 30B-A3B.
 
 A notable difference is the regression profile. At 10 tasks, Qwen3.5 Flash shows severe sweep-3 regression (-17pp trial, -10pp majority). At 20 tasks, this regression disappears: the majority rate holds steady at 65% across sweeps 2 and 3, with only marginal trial-rate improvement (+1pp). The larger task pool may have a stabilising effect, diluting the impact of any single conflicting patch across more tasks.
 
-#### 3.3.5.3 Scaling Curve: GLM 4.7 Flash
+#### 3.1.4.3 Scaling Curve: GLM 4.7 Flash
 
 | Tasks | Base trial | Best trial | Gain (pp) | Failing | Fixed | Fix rate |
 |-------|------------|------------|-----------|---------|-------|----------|
@@ -43,7 +43,7 @@ GLM 4.7 Flash presents a cautionary tale. At 5 tasks, the framework produces a s
 
 The contrast between scales is stark. At 5 tasks, the model can absorb three instruction patches and one guardrail patch without destabilisation. At 10 tasks, the larger patch surface creates enough interference to prevent any gains. This scale-dependent collapse motivated the decision to drop GLM 4.7 Flash from the 20-task experiment.
 
-#### 3.3.5.4 Cross-Model Comparison at Matched Scales
+#### 3.1.4.4 Cross-Model Comparison at Matched Scales
 
 | Scale | Model | Base maj. | Best maj. | Fix rate | Fixes (I/G/T) | Unfixable |
 |-------|-------|-----------|-----------|----------|---------------|-----------|
@@ -68,9 +68,11 @@ At 20 tasks, only two models are compared:
 
 : Cross-model comparison at 20 tasks. {#tbl:cross-model-20}
 
+![Knowledge transfer effectiveness: fix rates and improvement by model and scale, illustrating model-dependent framework utility.](figures/fig_14_knowledge_transfer.png){#fig:knowledge-transfer}
+
 The most important finding is that the set of unfixable tasks is model-dependent, not task-intrinsic. At 10 tasks, Qwen3 30B-A3B and GLM 4.7 Flash share the same four unfixable tasks (7, 9, 11, 12). With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models. At 20 tasks, the unfixable set shrinks further for Qwen3.5 Flash (5 tasks vs 11), with Tasks 7, 9, 14, 23, and 33 forming the persistent hard core.
 
-#### 3.3.5.5 Instruction vs Guardrail Ratio Across All Experiments
+#### 3.1.4.5 Instruction vs Guardrail Ratio Across All Experiments
 
 | Experiment | Total fixes | Instruction | Tools | Guardrail |
 |------------|------------|-------------|-------|-----------|
@@ -86,7 +88,7 @@ The most important finding is that the set of unfixable tasks is model-dependent
 
 Instruction-level patching dominates across all experiments (70--92% of fixes), confirming it as the primary mechanism of improvement. Two trends stand out. First, the stronger student (Qwen3.5 Flash) shows a progressively higher instruction-tier share as scale increases (80% at 10 tasks, 92% at 20 tasks), suggesting that stronger instruction-following capability reduces the need for guardrail or tool-level interventions. Second, tool-schema patches appear only for Qwen3 30B-A3B at 20 tasks (2 of 10 fixes)---neither Qwen3.5 Flash nor GLM 4.7 Flash required tool-level intervention at any scale.
 
-#### 3.3.5.6 Saturation Analysis
+#### 3.1.4.6 Saturation Analysis
 
 All experiments saturate by sweep 3 (zero new fixes). However, the improvement timeline and regression pattern vary markedly:
 

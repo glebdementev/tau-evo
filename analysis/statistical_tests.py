@@ -107,6 +107,7 @@ class ExperimentRun:
         return self.sweeps[-1]
 
 
+
 def load_run(run_id: str, model: str) -> ExperimentRun:
     path = RUNS_DIR / f"{run_id}.json"
     d = json.loads(path.read_text())
@@ -583,6 +584,131 @@ def print_sweep_progression(experiments: dict[tuple, ExperimentRun]):
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+def collect_results_json(experiments: dict[tuple, ExperimentRun]) -> dict:
+    """Collect all statistical test results into a JSON-serializable dict."""
+    FRONTIER_RATE = 0.80  # placeholder
+
+    results = {"h1": {}, "h2": {}, "h3": {}, "meta": {
+        "frontier_rate": FRONTIER_RATE,
+        "frontier_rate_note": "PLACEHOLDER — replace with actual Kimi K2.5 airline rate",
+        "comparison": "sweep 1 (baseline) vs sweep 3 (final evolved)",
+    }}
+
+    # H1 per-condition
+    all_deltas_improving = []
+    for (model, n_tasks), run in sorted(experiments.items()):
+        if len(run.sweeps) < 2:
+            continue
+        label = f"{MODEL_LABELS[model]} ({n_tasks}t)"
+        r = paired_ttest_per_task(run.baseline, run.evolved)
+        wx = wilcoxon_per_task(run.baseline, run.evolved)
+        mc = mcnemar_task_level(run.baseline, run.evolved)
+
+        entry = {
+            "model": MODEL_LABELS[model], "n_tasks": n_tasks,
+            "n": r["n"],
+            "base_rate": round(run.baseline.trial_pass_rate(), 4),
+            "evol_rate": round(run.evolved.trial_pass_rate(), 4),
+            "mean_delta": round(r["mean_delta"], 4),
+            "t": round(r["t"], 4),
+            "p_one_sided": round(r["p_one_sided"], 4),
+            "cohens_d": round(r["cohens_d"], 4),
+            "sig": "***" if r["p_one_sided"] < 0.001 else
+                   "**" if r["p_one_sided"] < 0.01 else
+                   "*" if r["p_one_sided"] < 0.05 else "",
+        }
+        # Wilcoxon
+        if "p_one_sided" in wx:
+            entry["wilcoxon_p"] = round(wx["p_one_sided"], 4)
+        else:
+            entry["wilcoxon_note"] = wx.get("note", "N/A")
+        # McNemar
+        entry["mcnemar_fixed"] = mc["fixed"]
+        entry["mcnemar_regressed"] = mc["regressed"]
+        entry["mcnemar_p"] = round(mc["p_one_sided"], 4)
+
+        results["h1"][label] = entry
+
+        if "deltas" in r:
+            all_deltas_improving.extend(r["deltas"])
+
+    # H1 pooled
+    if all_deltas_improving:
+        d = np.array(all_deltas_improving)
+        t_stat, p_two = stats.ttest_1samp(d, 0.0)
+        p_one = p_two / 2 if t_stat > 0 else 1 - p_two / 2
+        results["h1"]["_pooled"] = {
+            "n": len(d),
+            "mean_delta": round(float(d.mean()), 4),
+            "t": round(float(t_stat), 4),
+            "p_one_sided": round(float(p_one), 4),
+            "cohens_d": round(float(d.mean() / d.std(ddof=1)), 4),
+        }
+
+    # H2
+    for model_key in ["qwen3", "qwen3.5", "glm4.7"]:
+        sizes, successes, totals = [], [], []
+        for nt in [5, 10, 20]:
+            key = (model_key, nt)
+            if key not in experiments:
+                continue
+            run = experiments[key]
+            all_fixes = [f for sweep_fixes in run.fixes for f in sweep_fixes]
+            if not all_fixes:
+                continue
+            s = sum(1 for f in all_fixes if f.fixed)
+            t = len(all_fixes)
+            sizes.append(nt)
+            successes.append(s)
+            totals.append(t)
+
+        if len(sizes) < 2:
+            continue
+
+        entry = {"model": MODEL_LABELS[model_key], "points": []}
+        for sz, s, t in zip(sizes, successes, totals):
+            entry["points"].append({"pool_size": sz, "fixed": s, "total": t,
+                                    "rate": round(s / t, 4) if t else 0})
+
+        if len(sizes) >= 3:
+            ca = cochran_armitage_trend(successes, totals, scores=sizes)
+            entry["test"] = "cochran_armitage"
+            entry["Z"] = round(ca["Z"], 4)
+            entry["p_declining"] = round(ca["p_declining"], 4)
+        else:
+            table = [[successes[0], totals[0] - successes[0]],
+                     [successes[1], totals[1] - successes[1]]]
+            _, p = stats.fisher_exact(table, alternative="greater")
+            entry["test"] = "fisher_exact"
+            entry["p_declining"] = round(p, 4)
+
+        results["h2"][MODEL_LABELS[model_key]] = entry
+
+    # H3
+    for (model, n_tasks), run in sorted(experiments.items()):
+        if len(run.sweeps) < 2:
+            continue
+        label = f"{MODEL_LABELS[model]} ({n_tasks}t)"
+        gc = bootstrap_gap_closure(run.baseline, run.evolved, FRONTIER_RATE)
+        entry = {
+            "model": MODEL_LABELS[model], "n_tasks": n_tasks,
+            "B": round(gc["B"], 4),
+            "K": round(gc["K"], 4),
+            "F": gc["F"],
+        }
+        if not np.isnan(gc["G"]):
+            entry["G"] = round(gc["G"], 4)
+            entry["ci_lo"] = round(gc["ci_95"][0], 4)
+            entry["ci_hi"] = round(gc["ci_95"][1], 4)
+            entry["P_gt_25"] = round(gc["P(G > 0.25)"], 4)
+        else:
+            entry["G"] = None
+            entry["note"] = "undefined (F <= B)"
+        results["h3"][label] = entry
+
+    return results
+
+
 def main():
     experiments = {}
     for (model, n_tasks), run_id in EXPERIMENTS.items():
@@ -597,10 +723,21 @@ def main():
 
     print(f"Loaded {len(experiments)} experiments.\n")
 
+    if not experiments:
+        print("No experiments loaded. Exiting.")
+        return
+
     print_sweep_progression(experiments)
     print_h1_results(experiments)
     print_h2_results(experiments)
     print_h3_results(experiments)
+
+    # Save to JSON
+    results = collect_results_json(experiments)
+    out_path = RESULTS_DIR / "statistical_tests.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False))
+    print(f"\nResults saved to {out_path}")
 
 
 if __name__ == "__main__":

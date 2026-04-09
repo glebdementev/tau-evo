@@ -98,10 +98,9 @@ text/project_thesis/
 ### 1.3 — Diagnostic Study (7.5.3) → `ch1_3_diagnostic_study.md`
 
 **Framework choice:** Porter's Five Forces (external) + Value Chain Analysis (internal) + Cost Structure Analysis (quantitative).
-Rationale: all three produce conclusions that directly feed into the solution design. No filler quadrants.
+Framework selection and justification moved to Chapter 2, Section 2.1.2 (per 7.5.4 requirements).
 
 **Sections:**
-- **Framework selection and justification** — why Porter's Five Forces + Value Chain over SWOT/PESTEL (more analytical rigor, conclusions drive solution requirements)
 - **Porter's Five Forces — CX Automation Market:**
   - Buyer power: enterprises can switch vendors, demand SLAs and outcome-based pricing → vendors must automate maintenance to protect margins
   - Supplier power: model providers (OpenAI, Anthropic, open-source via OpenRouter) control API access/pricing; sanctions limit foreign provider availability in Russia → need for model-agnostic solutions
@@ -130,18 +129,28 @@ Rationale: all three produce conclusions that directly feed into the solution de
 
 ### 2.1 — Methodology Choice and Rationale → `ch2_1_methodology_choice.md`
 
-Compare three candidates relevant to building and evaluating a software framework:
+Two methodology selections:
+
+**§2.1.1 Project Design Methodology** — compare five candidates:
 
 | Methodology | Focus | Fit |
 |-------------|-------|-----|
-| Design Science Research (Hevner et al. 2004) | IT artifacts evaluated rigorously | Strong theoretical grounding, but prescribes artifact taxonomy and knowledge contribution framing that exceeds thesis scope |
-| CRISP-DM | Data mining/ML model lifecycle | Deliverable is a framework, not a trained model — CRISP-DM phases (data prep, modelling) don't map to the work |
-| **Engineering Design Process** | **Engineering artifacts via iterative design-test cycles** | **Best fit: deliverable is a software framework; iterative test→redesign mirrors the evolution loop; emphasizes requirements and alternative evaluation** |
+| TOGAF | Enterprise architecture governance | Far exceeds scope — designed for multi-system enterprise transformations |
+| SDLC (Waterfall/Agile) | Software delivery process | Misaligned — governs sprints/releases, not research artifact evaluation |
+| Design Science Research (Hevner et al. 2004) | IT artifacts evaluated rigorously | Strong theoretical grounding, but prescribes artifact taxonomy that exceeds thesis scope |
+| CRISP-DM | Data mining/ML model lifecycle | Deliverable is a framework, not a trained model |
+| **Engineering Design Process** | **Engineering artifacts via iterative design-test cycles** | **Best fit: deliverable is a software framework; iterative test→redesign mirrors the evolution loop** |
 
-Justification: EDP places the engineering artifact at center, is explicitly iterative, and its test→redesign cycle directly mirrors the framework's own evolve→evaluate loop. Design Science Research provides theoretical grounding (the framework as a design artifact) but EDP is the operational methodology.
+**§2.1.2 Diagnostic Methodology** — compare three candidates (moved from ch1_3 §1.3.1):
 
-**Reuse ~30%:** `ch3_methodology.md` §3.1 (design science rationale)
-**New:** Comparison table with domain-relevant alternatives, rationale for each
+| Framework | Fit |
+|-----------|-----|
+| SWOT Analysis | Descriptive, not analytical; doesn't generate causal conclusions constraining solution design |
+| PESTEL Analysis | Too broad; macro-environmental factors tangential to specific operational bottleneck |
+| **Porter's Five Forces + Value Chain + Cost Analysis** | **Each framework produces conclusions that directly feed into solution requirements** |
+
+**Reuse ~30%:** `ch3_methodology.md` §3.1 (design science rationale), `ch1_3` §1.3.1 (framework justification)
+**New:** TOGAF/SDLC comparison, diagnostic methodology comparison table
 
 ### 2.2 — The Engineering Design Process → `ch2_2_engineering_design_process.md`
 
