@@ -13,3 +13,4 @@ node_modules/
 *.tar.xz
 pandoc-crossref.1
 .~lock.*
+not-mine/

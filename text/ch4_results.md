@@ -14,11 +14,11 @@ The teacher model is Kimi K2.5 in all experiments, and the user simulator is Qwe
 
 The experiments span three scales and eight conditions:
 
-| Scale | Task IDs | Qwen3 30B-A3B | Qwen3.5 Flash | GLM 4.7 Flash |
-|-------|----------|---------------|---------------|---------------|
-| 5 | 0, 1, 3, 4, 5 | Complete | Complete (baseline only) | Complete |
-| 10 | 0, 1, 3, 4, 5, 7, 9, 10, 11, 12 | Complete | Complete | Complete |
-| 20 | 0, 1, 3, 4, 5, 7, 9, 10, 11, 12, 14, 15, 17, 20, 21, 23, 27, 28, 33, 34 | Complete | Complete | Dropped |
+| Scale | Task IDs | Qwen3 30B | Q3.5 Flash | GLM 4.7 |
+|-------|----------|-----------|------------|---------|
+| 5 | 0, 1, 3, 4, 5 | Done | Done (base only) | Done |
+| 10 | 0--5, 7, 9--12 | Done | Done | Done |
+| 20 | 0--5, 7, 9--12, 14, 15, 17, 20, 21, 23, 27, 28, 33, 34 | Done | Done | Dropped |
 
 : Experimental conditions across scales and models. All other parameters (teacher, user simulator, seed, sweep count) are identical. GLM 4.7 Flash is dropped at 20 tasks due to poor performance at 10 tasks (see Section 4.3.3). {#tbl:conditions}
 
@@ -32,11 +32,11 @@ The scaling sequence is deliberate. If the evolution framework captures task-spe
 
 The baseline evaluates the unmodified student on five airline tasks with three trials each. @Fig:exp1-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp1-passrate summarises pass rates.
 
-| Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Trial pass rate | Majority-vote pass rate |
-|-------|--------|--------|--------|--------|--------|-----------------|-------------------------|
-| 1 (baseline) | 0/3 | 2/3 | 1/3 | 3/3 | 2/3 | 8/15 (53%) | 3/5 (60%) |
-| 2 (after sweep 1 patches) | 1/3 | 2/3 | 2/3 | 3/3 | 3/3 | 11/15 (73%) | 4/5 (80%) |
-| 3 (after sweep 2 patches) | 1/3 | 3/3 | 3/3 | 3/3 | 1/3 | 11/15 (73%) | 3/5 (60%) |
+| Sweep | T0 | T1 | T3 | T4 | T5 | Trial rate | Maj. rate |
+|-------|-----|-----|-----|-----|-----|------------|-----------|
+| 1 (base) | 0/3 | 2/3 | 1/3 | 3/3 | 2/3 | 8/15 (53%) | 3/5 (60%) |
+| 2 (post-S1) | 1/3 | 2/3 | 2/3 | 3/3 | 3/3 | 11/15 (73%) | 4/5 (80%) |
+| 3 (post-S2) | 1/3 | 3/3 | 3/3 | 3/3 | 1/3 | 11/15 (73%) | 3/5 (60%) |
 
 : Per-sweep evaluation results for Qwen3 30B-A3B on 5 tasks. Each cell shows trial passes out of three. {#tbl:exp1-passrate}
 
@@ -108,11 +108,11 @@ This result establishes a ceiling reference: the five-task airline configuration
 
 @Tbl:glm5-passrate summarises pass rates across sweeps for GLM 4.7 Flash on five tasks. @Fig:glm47-5-heatmap visualises the per-task, per-trial results.
 
-| Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Trial pass rate | Majority-vote pass rate |
-|-------|--------|--------|--------|--------|--------|-----------------|-------------------------|
-| 1 (baseline) | 2/3 | 1/3 | 1/3 | 3/3 | 0/3 | 7/15 (47%) | 2/5 (40%) |
-| 2 (after sweep 1 patches) | 3/3 | 3/3 | 2/3 | 2/3 | 1/3 | 11/15 (73%) | 4/5 (80%) |
-| 3 (after sweep 2 patches) | 1/3 | 2/3 | 1/3 | 2/3 | 1/3 | 7/15 (47%) | 2/5 (40%) |
+| Sweep | T0 | T1 | T3 | T4 | T5 | Trial rate | Maj. rate |
+|-------|-----|-----|-----|-----|-----|------------|-----------|
+| 1 (base) | 2/3 | 1/3 | 1/3 | 3/3 | 0/3 | 7/15 (47%) | 2/5 (40%) |
+| 2 (post-S1) | 3/3 | 3/3 | 2/3 | 2/3 | 1/3 | 11/15 (73%) | 4/5 (80%) |
+| 3 (post-S2) | 1/3 | 2/3 | 1/3 | 2/3 | 1/3 | 7/15 (47%) | 2/5 (40%) |
 
 : Per-sweep evaluation results for GLM 4.7 Flash on 5 tasks. {#tbl:glm5-passrate}
 
@@ -188,11 +188,11 @@ Three patterns emerge. First, both weaker models reach the same peak performance
 
 Experiment 2 doubles the task set from five to ten, introducing five additional tasks (7, 9, 10, 11, 12). @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
 
-| Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Task 7 | Task 9 | Task 10 | Task 11 | Task 12 | Trial pass rate | Majority-vote pass rate |
-|-------|--------|--------|--------|--------|--------|--------|--------|---------|---------|---------|-----------------|-------------------------|
-| 1 (baseline) | 0/3 | 2/3 | 0/3 | 3/3 | 2/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 8/30 (27%) | 3/10 (30%) |
-| 2 (after sweep 1 patches) | 1/3 | 2/3 | 0/3 | 3/3 | 2/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 9/30 (30%) | 3/10 (30%) |
-| 3 (after sweep 2 patches) | 3/3 | 3/3 | 2/3 | 3/3 | 3/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 15/30 (50%) | 5/10 (50%) |
+| Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
+|-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
+| 1 (base) | 0/3 | 2/3 | 0/3 | 3/3 | 2/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 8/30 (27%) | 3/10 (30%) |
+| 2 (post-S1) | 1/3 | 2/3 | 0/3 | 3/3 | 2/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 9/30 (30%) | 3/10 (30%) |
+| 3 (post-S2) | 3/3 | 3/3 | 2/3 | 3/3 | 3/3 | 0/3 | 0/3 | 1/3 | 0/3 | 0/3 | 15/30 (50%) | 5/10 (50%) |
 
 : Per-sweep evaluation results for Qwen3 30B-A3B on 10 tasks. {#tbl:exp2-passrate}
 
@@ -263,11 +263,11 @@ The trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-pe
 
 The same ten tasks were evaluated with Qwen3.5 Flash as the student model. @Tbl:exp2-flash-passrate summarises pass rates across sweeps.
 
-| Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Task 7 | Task 9 | Task 10 | Task 11 | Task 12 | Trial pass rate | Majority-vote pass rate |
-|-------|--------|--------|--------|--------|--------|--------|--------|---------|---------|---------|-----------------|-------------------------|
-| 1 (baseline) | 3/3 | 3/3 | 3/3 | 3/3 | 1/3 | 0/3 | 0/3 | 3/3 | 1/3 | 1/3 | 18/30 (60%) | 5/10 (50%) |
-| 2 (after sweep 1 patches) | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 0/3 | 0/3 | 3/3 | 3/3 | 3/3 | 24/30 (80%) | 8/10 (80%) |
-| 3 (after sweep 2 patches) | 3/3 | 3/3 | 3/3 | 2/3 | 2/3 | 0/3 | 1/3 | 2/3 | 0/3 | 3/3 | 19/30 (63%) | 7/10 (70%) |
+| Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
+|-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
+| 1 (base) | 3/3 | 3/3 | 3/3 | 3/3 | 1/3 | 0/3 | 0/3 | 3/3 | 1/3 | 1/3 | 18/30 (60%) | 5/10 (50%) |
+| 2 (post-S1) | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 0/3 | 0/3 | 3/3 | 3/3 | 3/3 | 24/30 (80%) | 8/10 (80%) |
+| 3 (post-S2) | 3/3 | 3/3 | 3/3 | 2/3 | 2/3 | 0/3 | 1/3 | 2/3 | 0/3 | 3/3 | 19/30 (63%) | 7/10 (70%) |
 
 : Per-sweep evaluation results for Qwen3.5 Flash on 10 tasks. {#tbl:exp2-flash-passrate}
 
@@ -325,11 +325,11 @@ The likely explanation is patch interference compounded by the stronger model's 
 
 @Tbl:glm10-passrate summarises pass rates across sweeps. @Fig:glm47-10-heatmap visualises the per-task, per-trial results.
 
-| Sweep | Task 0 | Task 1 | Task 3 | Task 4 | Task 5 | Task 7 | Task 9 | Task 10 | Task 11 | Task 12 | Trial pass rate | Majority-vote pass rate |
-|-------|--------|--------|--------|--------|--------|--------|--------|---------|---------|---------|-----------------|-------------------------|
-| 1 (baseline) | 3/3 | 2/3 | 3/3 | 3/3 | 2/3 | 0/3 | 0/3 | 2/3 | 0/3 | 0/3 | 15/30 (50%) | 6/10 (60%) |
-| 2 (after sweep 1 patches) | 3/3 | 1/3 | 3/3 | 2/3 | 2/3 | 0/3 | 0/3 | 2/3 | 0/3 | 0/3 | 13/30 (43%) | 5/10 (50%) |
-| 3 (after sweep 2 patches) | 2/3 | 2/3 | 2/3 | 2/3 | 1/3 | 0/3 | 0/3 | 2/3 | 1/3 | 0/3 | 12/30 (40%) | 5/10 (50%) |
+| Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
+|-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
+| 1 (base) | 3/3 | 2/3 | 3/3 | 3/3 | 2/3 | 0/3 | 0/3 | 2/3 | 0/3 | 0/3 | 15/30 (50%) | 6/10 (60%) |
+| 2 (post-S1) | 3/3 | 1/3 | 3/3 | 2/3 | 2/3 | 0/3 | 0/3 | 2/3 | 0/3 | 0/3 | 13/30 (43%) | 5/10 (50%) |
+| 3 (post-S2) | 2/3 | 2/3 | 2/3 | 2/3 | 1/3 | 0/3 | 0/3 | 2/3 | 1/3 | 0/3 | 12/30 (40%) | 5/10 (50%) |
 
 : Per-sweep evaluation results for GLM 4.7 Flash on 10 tasks. {#tbl:glm10-passrate}
 
@@ -424,11 +424,11 @@ Experiment 3 doubles the task set again to twenty, introducing ten additional ta
 
 @Tbl:exp3-passrate summarises pass rates across sweeps.
 
-| Sweep | Trial pass rate | Majority-vote pass rate |
-|-------|-----------------|-------------------------|
-| 1 (baseline) | 13/60 (22%) | 5/20 (25%) |
-| 2 (after sweep 1 patches) | 20/60 (33%) | 5/20 (25%) |
-| 3 (after sweep 2 patches) | 18/60 (30%) | 6/20 (30%) |
+| Sweep | Trial rate | Maj. rate |
+|-------|------------|-----------|
+| 1 (base) | 13/60 (22%) | 5/20 (25%) |
+| 2 (post-S1) | 20/60 (33%) | 5/20 (25%) |
+| 3 (post-S2) | 18/60 (30%) | 6/20 (30%) |
 
 : Per-sweep pass rates for Qwen3 30B-A3B on 20 tasks. {#tbl:exp3-passrate}
 
@@ -550,11 +550,11 @@ The twenty-task experiment confirms the diminishing returns hypothesis. The evol
 
 @Tbl:flash20-passrate summarises pass rates across sweeps. @Fig:flash20-heatmap visualises the per-task, per-trial results.
 
-| Sweep | Trial pass rate | Majority-vote pass rate |
-|-------|-----------------|-------------------------|
-| 1 (baseline) | 28/60 (47%) | 9/20 (45%) |
-| 2 (after sweep 1 patches) | 34/60 (57%) | 13/20 (65%) |
-| 3 (after sweep 2 patches) | 35/60 (58%) | 13/20 (65%) |
+| Sweep | Trial rate | Maj. rate |
+|-------|------------|-----------|
+| 1 (base) | 28/60 (47%) | 9/20 (45%) |
+| 2 (post-S1) | 34/60 (57%) | 13/20 (65%) |
+| 3 (post-S2) | 35/60 (58%) | 13/20 (65%) |
 
 : Per-sweep pass rates for Qwen3.5 Flash on 20 tasks. {#tbl:flash20-passrate}
 
@@ -690,8 +690,8 @@ Three key findings emerge:
 
 @Tbl:cross-experiment-qwen3 summarises the key metrics across all three scales for Qwen3 30B-A3B.
 
-| Tasks | Baseline trial rate | Best trial rate | Improvement (pp) | Failing tasks | Fixed | Fix rate |
-|-------|---------------------|-----------------|-------------------|---------------|-------|----------|
+| Tasks | Base trial | Best trial | Gain (pp) | Failing | Fixed | Fix rate |
+|-------|------------|------------|-----------|---------|-------|----------|
 | 5 | 53% (8/15) | 73% (11/15) | +20 | 4 | 4 | 100% |
 | 10 | 27% (8/30) | 50% (15/30) | +23 | 9 | 5 | 56% |
 | 20 | 22% (13/60) | 33% (20/60) | +11 | 15 | 8 | 53% |
@@ -704,8 +704,8 @@ The number of successful fixes is also instructive: 7 at 5 tasks, 7 at 10 tasks,
 
 ### 4.5.2 Scaling Curve: Qwen3.5 Flash
 
-| Tasks | Baseline trial rate | Best trial rate | Improvement (pp) | Failing tasks | Fixed | Fix rate |
-|-------|---------------------|-----------------|-------------------|---------------|-------|----------|
+| Tasks | Base trial | Best trial | Gain (pp) | Failing | Fixed | Fix rate |
+|-------|------------|------------|-----------|---------|-------|----------|
 | 5 | 100% (15/15) | 100% (15/15) | 0 | 0 | 0 | N/A |
 | 10 | 60% (18/30) | 80% (24/30) | +20 | 5 | 4 | 80% |
 | 20 | 47% (28/60) | 58% (35/60) | +11 | 11 | 5 | 45% |
@@ -718,8 +718,8 @@ A notable difference is the regression profile. At 10 tasks, Qwen3.5 Flash shows
 
 ### 4.5.3 Scaling Curve: GLM 4.7 Flash
 
-| Tasks | Baseline trial rate | Best trial rate | Improvement (pp) | Failing tasks | Fixed (on failing) | Fix rate |
-|-------|---------------------|-----------------|-------------------|---------------|---------------------|----------|
+| Tasks | Base trial | Best trial | Gain (pp) | Failing | Fixed | Fix rate |
+|-------|------------|------------|-----------|---------|-------|----------|
 | 5 | 47% (7/15) | 73% (11/15) | +26 | 3 | 2 | 67% |
 | 10 | 50% (15/30) | 50% (15/30) | 0 | 4 | 0 | 0% |
 
@@ -731,16 +731,16 @@ The contrast between scales is stark. At 5 tasks, the model can absorb three ins
 
 ### 4.5.4 Cross-Model Comparison at Matched Scales
 
-| Metric | 5 tasks | | | 10 tasks | | |
-|--------|---------|--|--|----------|--|--|
-| | Qwen3 30B | Q3.5 Flash | GLM 4.7 | Qwen3 30B | Q3.5 Flash | GLM 4.7 |
-| Baseline majority | 60% | 100% | 40% | 30% | 50% | 60% |
-| Best majority | 80% | 100% | 80% | 50% | 80% | 60% |
-| Fix rate (failing) | 100% | N/A | 67% | 71% | 80% | 0% |
-| Fixes (instr/guard/tools) | 5/2/0 | 0/0/0 | 3/1/0 | 5/2/0 | 4/1/0 | 3/1/0 |
-| Unfixable tasks | 0 | 0 | 1 | 4 | 1 | 4 |
+| Scale | Model | Base maj. | Best maj. | Fix rate | Fixes (I/G/T) | Unfixable |
+|-------|-------|-----------|-----------|----------|---------------|-----------|
+| 5 | Qwen3 30B-A3B | 60% | 80% | 100% | 5/2/0 | 0 |
+| 5 | Qwen3.5 Flash | 100% | 100% | N/A | 0/0/0 | 0 |
+| 5 | GLM 4.7 Flash | 40% | 80% | 67% | 3/1/0 | 1 |
+| 10 | Qwen3 30B-A3B | 30% | 50% | 71% | 5/2/0 | 4 |
+| 10 | Qwen3.5 Flash | 50% | 80% | 80% | 4/1/0 | 1 |
+| 10 | GLM 4.7 Flash | 60% | 60% | 0% | 3/1/0 | 4 |
 
-: Cross-model comparison at matched scales (5 and 10 tasks). {#tbl:cross-model}
+: Cross-model comparison at matched scales (5 and 10 tasks). Fixes column shows instruction/guardrail/tools counts. {#tbl:cross-model}
 
 At 20 tasks, only two models are compared:
 

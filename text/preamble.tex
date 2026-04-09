@@ -17,6 +17,16 @@
 
 % Prevent Pandoc's parskip package from removing indentation
 \usepackage{etoolbox}
+\usepackage{adjustbox}
+
+% --- Table fixes: fit wide Pandoc longtables to page width ---
+% Shrink table font, tighten column padding, and centre.
+\AtBeginEnvironment{longtable}{%
+  \footnotesize%
+  \setlength{\tabcolsep}{3pt}%
+  \setlength{\LTleft}{0pt plus 1fill}%
+  \setlength{\LTright}{0pt plus 1fill}%
+}
 \AtEndPreamble{%
   \setlength{\parindent}{1.25cm}%
   \setlength{\parskip}{0pt}%
