@@ -1,8 +1,8 @@
-# 2.1 Methodology Choice and Rationale
+## 2.1 Methodology Choice and Rationale
 
 This section selects and justifies the methodologies used in this project. Two distinct methodological choices are required: (1) a project design methodology that structures the overall work of building and evaluating the framework (Section 2.1.1), and (2) a diagnostic methodology for analyzing the organization's internal and external environment (Section 2.1.2). Section 2.1.3 describes the selected project design methodology in detail.
 
-## 2.1.1 Project Design Methodology
+### 2.1.1 Project Design Methodology
 
 Five methodologies were considered for structuring the project. Each is suited to a different class of technical work; the question is which best fits a project whose deliverable is a software framework evaluated empirically against a benchmark.
 
@@ -18,17 +18,26 @@ The **Engineering Design Process** (EDP) [@dym2005] is a systematic methodology 
 
 @Tbl:methodology-comparison summarizes the comparison.
 
-| Criterion | TOGAF | SDLC (Agile/Waterfall) | DSR | CRISP-DM | EDP |
-|-----------|-------|------------------------|-----|----------|-----|
-| Artifact focus | Enterprise architecture | Production software | IT artifacts with theory | ML models | Engineering artifacts |
-| Iterative design | Yes (ADM cycle) | Yes (sprints/phases) | Yes (evaluate -> refine) | Yes (model -> evaluate) | Yes (test -> redesign) |
-| Fit to deliverable | Poor (enterprise scope) | Poor (delivery process) | Partial (framework, not theory) | Poor (framework, not model) | **Strong** (framework) |
-| Requirements emphasis | High (enterprise-level) | Moderate (user stories) | Moderate | Low | **High** |
-| Evaluation emphasis | Low (governance focus) | Low (delivery focus) | **High** (artifact evaluation) | High (model metrics) | **High** (test against criteria) |
-| Practical orientation | Enterprise governance | Software delivery | Research-oriented | Industry-oriented | **Project-oriented** |
-| Thesis scope fit | Far exceeds scope | Misaligned focus | Exceeds scope | Misaligned phases | **Appropriate scope** |
-
-: Methodology comparison for the DPV framework project. {#tbl:methodology-comparison}
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Methodology comparison for the DPV framework project.\label{tbl:methodology-comparison}}
+\begin{tabularx}{\textwidth}{@{}l *{5}{>{\raggedright\arraybackslash}X}@{}}
+\toprule
+\textbf{Criterion} & \textbf{TOGAF} & \textbf{SDLC (Agile/ Waterfall)} & \textbf{DSR} & \textbf{CRISP-DM} & \textbf{EDP} \\
+\midrule
+Artifact focus        & Enterprise architecture & Production software     & IT artifacts with theory            & ML models                    & Engineering artifacts \\
+Iterative design      & Yes (ADM cycle)         & Yes (sprints/phases)    & Yes (evaluate $\to$ refine)         & Yes (model $\to$ evaluate)   & Yes (test $\to$ redesign) \\
+Fit to deliverable    & Poor (enterprise scope) & Poor (delivery process) & Partial (framework, not theory)     & Poor (framework, not model)  & \textbf{Strong} (framework) \\
+Requirements emphasis & High (enterprise-level) & Moderate (user stories) & Moderate                            & Low                          & \textbf{High} \\
+Evaluation emphasis   & Low (governance focus)  & Low (delivery focus)    & \textbf{High} (artifact evaluation) & High (model metrics)         & \textbf{High} (test against criteria) \\
+Practical orientation & Enterprise governance   & Software delivery       & Research-oriented                   & Industry-oriented            & \textbf{Project-oriented} \\
+Thesis scope fit      & Far exceeds scope       & Misaligned focus        & Exceeds scope                       & Misaligned phases            & \textbf{Appropriate scope} \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 **Selected methodology: Engineering Design Process.**
 
@@ -42,13 +51,13 @@ The selection is justified on three grounds:
 
 The design science perspective is not discarded; it informs the evaluation design (paired baseline-versus-intervention comparison per @hevner2004's evaluation guideline). But the project follows EDP as its primary methodology, with design science as a complementary theoretical lens.
 
-## 2.1.2 Diagnostic Methodology
+### 2.1.2 Diagnostic Methodology
 
 Section 7.5.3 of the thesis requirements calls for a diagnostic study of the organization's internal and external environment. Three analytical frameworks were considered for this purpose.
 
 **SWOT analysis** identifies an organization's Strengths, Weaknesses, Opportunities, and Threats by examining internal capabilities and external factors [@humphrey2005]. It is the most widely taught strategic analysis tool. However, SWOT is descriptive rather than analytical: it classifies observations into four quadrants but does not generate causal relationships or directional conclusions. The framework's output---lists of strengths, weaknesses, opportunities, and threats---does not directly constrain solution design. SWOT is also commonly criticized for subjectivity: the same observation can be classified as a strength or weakness depending on framing [@helms2010]. For a project that needs the diagnostic study to produce specific requirements for the technical solution, SWOT's output is too open-ended.
 
-**PESTEL analysis** scans the macro-environment across six dimensions: Political, Economic, Social, Technological, Environmental, and Legal factors [@aguilar1967]. It is designed for understanding the broad external context in which an organization operates, typically for market entry or strategic planning decisions. PESTEL's breadth is a liability when the problem is already well-scoped. The organizational problem---target ai's agent maintenance bottleneck---is an internal operational issue driven by technology and economics, not by political, environmental, or legal factors. A PESTEL analysis would produce tangential observations (e.g., Russian data localization laws, environmental impact of compute) that do not constrain the solution design. The framework is more suitable for market entry analysis than for diagnosing a specific value-chain bottleneck.
+**PESTEL analysis** scans the macro-environment across six dimensions: Political, Economic, Social, Technological, Environmental, and Legal factors [@aguilar1967]. It is designed for understanding the broad external context in which an organization operates, typically for market entry or strategic planning decisions. PESTEL's breadth is a liability when the problem is already well-scoped. The organizational problem---*target ai*'s agent maintenance bottleneck---is an internal operational issue driven by technology and economics, not by political, environmental, or legal factors. A PESTEL analysis would produce tangential observations (e.g., Russian data localization laws, environmental impact of compute) that do not constrain the solution design. The framework is more suitable for market entry analysis than for diagnosing a specific value-chain bottleneck.
 
 **Porter's Five Forces** [@porter1980] analyzes industry structure through five competitive forces (buyer power, supplier power, substitutes, new entrants, rivalry). **Porter's Value Chain Analysis** [@porter1985] decomposes a firm's activities into value-creating and supporting activities, identifying where competitive advantage or disadvantage originates. **Cost structure analysis** quantifies the unit economics of current versus proposed operations. The three frameworks operate at complementary levels of abstraction---industry structure, firm operations, and unit economics---and each produces conclusions that directly constrain the solution requirements developed in Section 2.2.
 
@@ -74,7 +83,7 @@ The selection is justified on two grounds:
 
 The diagnostic frameworks are applied in Chapter 1, Section 1.3.
 
-## 2.1.3 The Engineering Design Process
+### 2.1.3 The Engineering Design Process
 
 The Engineering Design Process is a systematic, iterative methodology for developing engineering solutions to defined problems [@dym2005]. It is widely used in engineering education and practice, recognized by ABET accreditation criteria, and provides a structured yet flexible framework for projects where the deliverable is a functional artifact evaluated against measurable requirements.
 

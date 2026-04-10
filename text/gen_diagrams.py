@@ -10,8 +10,6 @@ from diagram_style import *
 def fig_01_outer_loop():
     """Figure 3.1 — Evolution outer loop flowchart."""
     g = new_graph("fig_01_outer_loop", rankdir="TB")
-    g.attr(label="Figure 3.1: Evolution Outer Loop", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD)
 
     terminal_node(g, "start", "Start\n(sweep = 1)")
     process_node(g, "eval", "Evaluate student on\nall tasks (N trials each)")
@@ -40,8 +38,6 @@ def fig_01_outer_loop():
 def fig_02_inner_loop():
     """Figure 3.2 — Per-failure inner fix loop."""
     g = new_graph("fig_02_inner_loop", rankdir="TB")
-    g.attr(label="Figure 3.2: Per-Failure Fix Loop", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD)
 
     terminal_node(g, "start", "Failed task received")
     process_node(g, "copy", "Deep-copy current\nglobal state")
@@ -73,9 +69,7 @@ def fig_02_inner_loop():
 def fig_03_system_architecture():
     """Figure 3.3 — System architecture overview."""
     g = new_graph("fig_03_system_architecture", rankdir="LR")
-    g.attr(label="Figure 3.3: System Architecture", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.8", ranksep="1.2")
+    g.attr(nodesep="0.8", ranksep="1.2")
 
     # tau2-bench orchestrator cluster
     orch = cluster(g, "orch", "  tau2-bench Orchestrator  ")
@@ -112,9 +106,7 @@ def fig_03_system_architecture():
 def fig_04_teacher_session():
     """Figure 3.4 — Teacher session sequence (multi-round tool calling)."""
     g = new_graph("fig_04_teacher_session", rankdir="TB")
-    g.attr(label="Figure 3.4: Teacher Session Tool-Calling Sequence", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.5")
+    g.attr(nodesep="0.5")
 
     # Initial context
     data_node(g, "context", "Context Package\n"
@@ -157,9 +149,7 @@ def fig_04_teacher_session():
 def fig_05_three_conditions():
     """Figure 3.5 — Three experimental conditions with gap closure."""
     g = new_graph("fig_05_three_conditions", rankdir="TB")
-    g.attr(label="Figure 3.5: Experimental Conditions and Gap Closure",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.8", ranksep="0.7")
+    g.attr(nodesep="0.8", ranksep="0.7")
 
     # Same rank for B, K, F
     with g.subgraph() as s:
@@ -199,9 +189,7 @@ def fig_05_three_conditions():
 def fig_06_patch_surfaces():
     """Figure 3.6 — Three patch surfaces with failure type mapping."""
     g = new_graph("fig_06_patch_surfaces", rankdir="LR")
-    g.attr(label="Figure 3.6: Patch Surfaces and Failure Type Mapping",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.4", ranksep="1.0")
+    g.attr(nodesep="0.4", ranksep="1.0")
 
     # Failure types
     fails = cluster(g, "failures", "  Failure Types  ")
@@ -252,9 +240,7 @@ def fig_06_patch_surfaces():
 def fig_07_conversation_mechanics():
     """Figure 3.7 — tau2-bench conversation mechanics."""
     g = new_graph("fig_07_conversation_mechanics", rankdir="TB")
-    g.attr(label="Figure 3.7: Conversation Mechanics (per Task)",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.4")
+    g.attr(nodesep="0.4")
 
     terminal_node(g, "start", "Task begins\n(scenario loaded)")
 
@@ -288,9 +274,7 @@ def fig_07_conversation_mechanics():
 def fig_08_failure_taxonomy():
     """Figure 3.8 — Failure taxonomy tree."""
     g = new_graph("fig_08_failure_taxonomy", rankdir="LR")
-    g.attr(label="Figure 3.8: Failure Taxonomy", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.25", ranksep="0.9")
+    g.attr(nodesep="0.25", ranksep="0.9")
 
     # Root
     g.node("root", label="Agent\nFailure", shape="box",
@@ -330,9 +314,7 @@ def fig_08_failure_taxonomy():
 def fig_09_reward_breakdown():
     """Figure 3.9 — Reward evaluation components."""
     g = new_graph("fig_09_reward_breakdown", rankdir="TB")
-    g.attr(label="Figure 3.9: Task Evaluation and Reward Breakdown",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.5")
+    g.attr(nodesep="0.5")
 
     data_node(g, "trace", "Completed\nConversation Trace")
 
@@ -373,9 +355,7 @@ def fig_09_reward_breakdown():
 def fig_10_escalation():
     """Figure 3.10 — Teacher two-phase escalation strategy."""
     g = new_graph("fig_10_escalation", rankdir="TB")
-    g.attr(label="Figure 3.10: Two-Phase Teacher Escalation", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.4")
+    g.attr(nodesep="0.4")
 
     terminal_node(g, "start", "Task failure received")
 
@@ -422,9 +402,7 @@ def fig_10_escalation():
 def fig_11_parallel_architecture():
     """Figure 3.11 — Parallel execution architecture."""
     g = new_graph("fig_11_parallel_architecture", rankdir="TB")
-    g.attr(label="Figure 3.11: Parallel Execution Architecture",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.5")
+    g.attr(nodesep="0.5")
 
     process_node(g, "eval", "Evaluate all tasks\n(parallel via tau2)")
     process_node(g, "extract", "Extract N failures")
@@ -468,9 +446,7 @@ def fig_11_parallel_architecture():
 def fig_12_patch_pipeline():
     """Figure 3.12 — Patch application and validation pipeline."""
     g = new_graph("fig_12_patch_pipeline", rankdir="TB")
-    g.attr(label="Figure 3.12: Patch Application Pipeline",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.4", ranksep="0.6")
+    g.attr(nodesep="0.4", ranksep="0.6")
 
     process_node(g, "propose", "Teacher proposes patch\n(old_text, new_text)")
     decision_node(g, "type", "Patch\ntype?")
@@ -580,9 +556,6 @@ def fig_13_gap_closure():
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(False)
 
-    fig.suptitle("Figure 3.13: Gap Closure Metric", fontsize=13,
-                 fontweight="bold", fontfamily="serif", y=0.98)
-
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
     out = f"{OUTPUT_DIR}/fig_13_gap_closure.png"
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
@@ -593,9 +566,7 @@ def fig_13_gap_closure():
 def fig_14_knowledge_transfer():
     """Figure 3.14 — Knowledge transfer spectrum positioning."""
     g = new_graph("fig_14_knowledge_transfer", rankdir="LR")
-    g.attr(label="Figure 3.14: Knowledge Transfer Spectrum", labelloc="b",
-           fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.4", ranksep="1.2")
+    g.attr(nodesep="0.4", ranksep="1.2")
 
     levels = [
         ("w", "Weight-Level\nDistillation\n\nHinton et al. 2015\nSoft targets, KD loss",

@@ -1,8 +1,8 @@
-# 1.2 Literature and Practice Review
+## 1.2 Literature and Practice Review
 
 This section reviews how enterprises and researchers have addressed the reliability of AI agents in customer service, surveys the major approaches to automated improvement, and synthesizes four conclusions that shape the framework developed in Chapter 2.
 
-## 1.2.1 The Enterprise Agent Reliability Gap
+### 1.2.1 The Enterprise Agent Reliability Gap
 
 Even frontier models fail 30--50% of multi-turn tool-calling tasks. The τ-bench family of benchmarks [@yao2024; @barres2025] captures the full "tool-agent-user" interaction loop with binary pass/fail evaluation: a task passes only when every sub-criterion in the reward rubric scores 1.0. In τ²-bench [@barres2025], a simulated user reveals information incrementally across turns while the agent must follow domain-specific policies, call the correct tools with correct parameters, and modify database state accordingly. The benchmark spans airline, retail, and telecom domains with 50 to 114 tasks each. Even strong frontier models remain inconsistent across runs---a model scoring 85% on a domain does not make 15% "small" errors; it fails outright on 15% of customer interactions. GPT-4o failed 50%+ of tasks on the original τ-bench, and the probability of solving the same task 8 times consecutively was <25% in the retail domain [@yao2024].
 
@@ -26,7 +26,7 @@ The scale of the opportunity is commensurate: Foundation Capital estimates the "
 
 The reliability gap is compounded by *agent drift*---progressive behavioral degradation in multi-agent LLM systems even without explicit parameter changes [@agentdrift2025]---and by temporal quality degradation observed across 91% of model--dataset pairs in traditional ML deployments [@vela2022]. Both phenomena underscore that continuous re-optimization, rather than one-time configuration, is the norm for deployed AI systems. As documented in Section 1.1.3, post-deployment maintenance costs 0.5--3 FTEs and \$50,000--\$100,000 per year per deployment [@gartner2025complexity], and failures persist until manually diagnosed and fixed. At enterprise scale, where thousands of edge cases accumulate across dozens of policy domains, this manual remediation loop is the binding constraint on profitable scaling. The combination of massive market opportunity, structural cost advantages, and persistent implementation failure creates the business case for automated prompt evolution.
 
-## 1.2.2 Approaches to Automated Prompt and Agent Improvement
+### 1.2.2 Approaches to Automated Prompt and Agent Improvement
 
 Six broad approaches to improving agent performance have emerged in the literature, each addressing part of the problem but none addressing all of it.
 
@@ -76,7 +76,7 @@ Reasoning models deepened the paradigm further. OpenAI's o1 [@openai2024] solved
 
 The trajectory of distillation points toward a prompt-level gap. SPoT [@vu2022] showed that soft prompts learned for one task can initialize prompts for new tasks across 26 NLP tasks, establishing that knowledge encoded in prompts can transfer. The *Superficial Alignment Hypothesis* [@zhou2023lima]---that alignment primarily teaches style and format, not deep capability---suggests that prompt-level transfer may suffice for behavioral corrections. Each generation of distillation has gotten lighter, cheaper, and more reversible: from soft distributions (Hinton) through behavioral outputs (Alpaca) through failure-driven data (Lion) through reasoning distillation (DeepSeek-R1) to prompt initialization (SPoT). But no one has taken the next step: a teacher model iteratively diagnosing failures and editing the student's prompts and tool descriptions---knowledge transfer at the thinnest, most reversible layer.
 
-## 1.2.3 Synthesis: Conclusions Shaping the Solution Design
+### 1.2.3 Synthesis: Conclusions Shaping the Solution Design
 
 The review above converges on four conclusions that directly inform the framework developed in Chapter 2.
 

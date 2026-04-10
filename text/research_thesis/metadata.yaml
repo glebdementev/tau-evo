@@ -1,0 +1,34 @@
+---
+title: "Self-Evolving LLM Agents via Reflective Prompt and Tool-Schema Patching"
+author: "Gleb Dementev"
+bibliography: references.bib
+csl: apa.csl
+reference-section-title: "References"
+lang: en-US
+toc: true
+toc-depth: 2
+
+# --- GOST 7.32-2017 page layout ---
+documentclass: extarticle
+fontsize: 12pt
+papersize: a4
+geometry:
+  - left=30mm
+  - right=15mm
+  - top=20mm
+  - bottom=20mm
+linestretch: 1.5
+mainfont: "Times New Roman"
+
+# --- pandoc-crossref ---
+figPrefix: "Figure"
+tblPrefix: "Table"
+figureTitle: "Figure"
+tableTitle: "Table"
+titleDelim: ":"
+linkReferences: true
+lofTitle: "# List of Figures"
+lotTitle: "# List of Tables"
+
+# LaTeX preamble is loaded via defaults.yaml (include-in-header)
+---

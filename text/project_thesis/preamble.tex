@@ -1,0 +1,85 @@
+% Project-thesis preamble.
+% Mirrors ../preamble.tex but replaces the legacy `algorithmic` package with
+% `algpseudocode` (from algorithmicx), which is what the markdown algorithm
+% blocks actually use (\Require, \Ensure, \State, \For, ...).
+
+% Force a page break after the table of contents
+\AtBeginDocument{\let\oldtableofcontents\tableofcontents
+\renewcommand{\tableofcontents}{\oldtableofcontents\newpage}}
+
+% Prevent figures from floating past section boundaries
+\usepackage[section]{placeins}
+
+% Force figure placement to be near source text
+\usepackage{float}
+
+% Algorithm typesetting (algorithmicx style — provides \Require/\Ensure/\State/...)
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+% \ParFor / \EndParFor are not built-in; define them as styled \For variants.
+\algnewcommand\algorithmicparfor{\textbf{parallel for}}
+\algnewcommand\algorithmicparforend{\textbf{end\ parallel for}}
+\algdef{SE}[PARFOR]{ParFor}{EndParFor}[1]%
+  {\algorithmicparfor\ #1\ \algorithmicdo}%
+  {\algorithmicparforend}
+
+% Indent ALL first lines, including first paragraph after headings
+\usepackage{indentfirst}
+
+% Prevent Pandoc's parskip package from removing indentation
+\usepackage{etoolbox}
+\usepackage{adjustbox}
+
+% Robust column sizing for wide tables (used by raw-LaTeX tabularx tables
+% where pandoc's longtable auto-sizing produces lopsided columns).
+\usepackage{tabularx}
+\usepackage{booktabs}
+
+% --- Table fixes: fit wide Pandoc longtables to page width ---
+% Shrink table font, tighten column padding, and centre.
+\AtBeginEnvironment{longtable}{%
+  \footnotesize%
+  \setlength{\tabcolsep}{3pt}%
+  \setlength{\LTleft}{0pt plus 1fill}%
+  \setlength{\LTright}{0pt plus 1fill}%
+}
+\AtEndPreamble{%
+  \setlength{\parindent}{1.25cm}%
+  \setlength{\parskip}{0pt}%
+}
+\AtBeginDocument{%
+  \setlength{\parindent}{1.25cm}%
+  \setlength{\parskip}{0pt}%
+}
+
+% Redefine pandocbounded to leave room for caption + spacing
+% Default uses \textheight which doesn't account for caption/floatsep
+\makeatletter
+\renewcommand*\pandocbounded[1]{%
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{0.75\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi
+}
+\makeatother
+
+% Heading styles: all at normal text size, differentiated by boldness only
+% Indented like paragraph first lines (1.25cm)
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\normalsize\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\mdseries\itshape}{\thesubsubsection}{1em}{}
+\titlespacing*{\section}{\parindent}{1.5ex plus 0.5ex}{1ex plus 0.3ex}
+\titlespacing*{\subsection}{\parindent}{1.5ex plus 0.5ex}{0.8ex plus 0.2ex}
+\titlespacing*{\subsubsection}{\parindent}{1ex plus 0.3ex}{0.5ex plus 0.2ex}
+
+% Page numbers centered in footer (GOST)
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}

@@ -1,7 +1,0 @@
-from: markdown+superscript+subscript+implicit_figures
-to: pdf
-pdf-engine: xelatex
-filters:
-  - pandoc-crossref
-  - citeproc
-include-in-header: preamble.tex

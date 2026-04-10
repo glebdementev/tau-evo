@@ -56,9 +56,7 @@ def _save(fig, name: str):
 def fig_lr_01_argument_flow():
     """Six-step logical chain as a vertical flowchart."""
     g = new_graph("fig_lr_01_argument_flow", rankdir="TB")
-    g.attr(label="Figure 2.1: Argument Structure of the Literature Review",
-           labelloc="b", fontsize=FONT_SIZE_TITLE, fontname=FONT_BOLD,
-           nodesep="0.35", ranksep="0.5")
+    g.attr(nodesep="0.35", ranksep="0.5")
 
     steps = [
         ("s1", "Tool-using LLM agents\nare unreliable at\nenterprise scale", "2.1"),
@@ -182,9 +180,6 @@ def fig_lr_02_benchmark_gap():
     ax.set_axisbelow(True)
     ax.xaxis.grid(True, alpha=0.2)
 
-    fig.suptitle("Figure 2.2: Agent Benchmark Performance Gap",
-                 fontsize=12, fontweight="bold", y=1.01)
-
     _save(fig, "fig_lr_02_benchmark_gap")
 
 
@@ -245,9 +240,6 @@ def fig_lr_03_prompt_sensitivity():
     ax.plot([], [], "o", color=_OI["vermillion"], markersize=7, label="Worst format")
     ax.plot([], [], "o", color=_OI["green"], markersize=7, label="Best format")
     ax.legend(loc="lower right", fontsize=8, framealpha=0.9)
-
-    fig.suptitle("Figure 2.3: Prompt Format Sensitivity (Sclar et al., 2023)",
-                 fontsize=11, fontweight="bold", y=1.02)
 
     _save(fig, "fig_lr_03_prompt_sensitivity")
 
@@ -310,9 +302,6 @@ def fig_lr_04_finetuning_comparison():
             # Bold "This work" row
             if i == len(rows):
                 cell.set_text_props(fontweight="bold")
-
-    fig.suptitle("Figure 2.4: Fine-Tuning Approaches for Agent Improvement",
-                 fontsize=11, fontweight="bold", y=0.98)
 
     _save(fig, "fig_lr_04_finetuning_comparison")
 
@@ -420,9 +409,6 @@ def fig_lr_05_optimization_coverage():
     ax.set_xlim(-0.5, len(domains) - 0.5)
     ax.set_ylim(len(methods) - 0.5, -0.5)
 
-    fig.suptitle("Figure 2.5: Prompt Optimization Methods and Evaluation Domain Coverage",
-                 fontsize=11, fontweight="bold", y=0.98)
-
     _save(fig, "fig_lr_05_optimization_coverage")
 
 
@@ -506,9 +492,6 @@ def fig_lr_06_gap_matrix():
                 cell.get_text().set_fontweight("bold")
             if i == len(rows):
                 cell.set_text_props(fontweight="bold")
-
-    fig.suptitle("Figure 2.6: Research Gap \u2014 Positioning of Related Work",
-                 fontsize=11, fontweight="bold", y=0.99)
 
     # Footnote
     fig.text(0.12, 0.02, "* GEPA uses a stronger model implicitly but does not frame it as teacher-student.",
@@ -597,9 +580,6 @@ def fig_lr_07_timeline():
     ax.set_xticks([])
     ax.spines["left"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
-
-    fig.suptitle("Figure 2.7: Chronological Development of Key Work by Research Area",
-                 fontsize=11, fontweight="bold", y=1.02)
 
     _save(fig, "fig_lr_07_timeline")
 

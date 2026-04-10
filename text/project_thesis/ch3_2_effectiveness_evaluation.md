@@ -1,6 +1,10 @@
+```{=latex}
+\addtocontents{toc}{\protect\setcounter{tocdepth}{2}}
+```
+
 ## 3.2 Effectiveness Evaluation
 
-This section evaluates the DPV framework as a project deliverable. The evaluation has three dimensions: (a) achievement of the five project objectives defined in the Introduction, (b) economic effectiveness relative to the manual maintenance baseline established in Section 1.3.3, and (c) statistical credibility of the observed improvements. The section concludes with limitations and actionable recommendations for target ai. Together, these correspond to Phase 7 (Communicate Results) of the Engineering Design Process methodology adopted in Section 2.1.
+This section evaluates the DPV framework as a project deliverable. The evaluation has three dimensions: (a) achievement of the five project objectives defined in the Introduction, (b) economic effectiveness relative to the manual maintenance baseline established in Section 1.3.3, and (c) statistical credibility of the observed improvements. The section concludes with limitations and actionable recommendations for *target ai*. Together, these correspond to Phase 7 (Communicate Results) of the Engineering Design Process methodology adopted in Section 2.1.
 
 ### 3.2.1 Evaluation Against Project Objectives
 
@@ -54,7 +58,7 @@ Four scaling patterns were characterized (Section 3.1.4):
 
 4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a clear failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
 
-**Objective 5: Produce actionable recommendations for target ai.** Status: Achieved. The recommendations are presented in Section 3.2.5.
+**Objective 5: Produce actionable recommendations for *target ai*.** Status: Achieved. The recommendations are presented in Section 3.2.5.
 
 @Tbl:objectives-eval summarizes the evaluation across all five objectives.
 
@@ -202,7 +206,7 @@ Two hypotheses were defined in Section 2.4. Each is evaluated below at significa
 
 **Hypothesis:** The DPV-evolved agent achieves a higher trial pass rate than the unmodified baseline ($\mu_\Delta > 0$).
 
-**Test:** Paired one-sided $t$-test on per-task trial-pass-rate deltas, following @dror2018hitchhiker and @bowyer2025. Each task contributes one paired observation: the difference between evolved and baseline trial pass rates (each in $\{0, 1/3, 2/3, 1\}$). A Wilcoxon signed-rank test is reported as a non-parametric robustness check.
+**Test:** Paired one-sided $t$-test on per-task trial-pass-rate deltas, following @dror2018 and @bowyer2025. Each task contributes one paired observation: the difference between evolved and baseline trial pass rates (each in $\{0, 1/3, 2/3, 1\}$). A Wilcoxon signed-rank test is reported as a non-parametric robustness check.
 
 @Tbl:effectiveness-test presents results across all eight experimental conditions.
 
@@ -274,15 +278,15 @@ Several limitations constrain the generalizability of these findings.
 
 8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (particularly severe with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management---consolidation, regression-aware selection, and retirement---that was not tested in these experiments.
 
-### 3.2.5 Recommendations for target ai
+### 3.2.5 Recommendations for *target ai*
 
-This section translates the experimental findings into an actionable integration plan for target ai's deployment pipeline, addressing Objective 5.
+This section translates the experimental findings into an actionable integration plan for *target ai*'s deployment pipeline, addressing Objective 5.
 
 #### 3.2.5.1 Integration Into the Deployment Pipeline
 
-The DPV framework targets the systems-analyst layer in target ai's value chain (Section 1.3.2, @Fig:value-chain) --- requirements translation (activity 2) and downstream maintenance (activity 5), which share a single specialized headcount pool and together form the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
+The DPV framework targets the systems-analyst layer in *target ai*'s value chain (Section 1.3.2, @Fig:value-chain) --- requirements translation (activity 2) and downstream maintenance (activity 5), which share a single specialized headcount pool and together form the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
 
-1. **Evaluation pipeline.** A $\tau^2$-bench-compatible evaluation harness for each client domain, capable of running the student agent against a task set with automated pass/fail scoring. target ai's existing benchmark infrastructure (Section 1.3.2) provides the foundation.
+1. **Evaluation pipeline.** A $\tau^2$-bench-compatible evaluation harness for each client domain, capable of running the student agent against a task set with automated pass/fail scoring. *target ai*'s existing benchmark infrastructure (Section 1.3.2) provides the foundation.
 
 2. **Teacher model access.** API access to a teacher model (currently Kimi K2.5 via OpenRouter). The teacher need not be the same model used for client-facing inference. Model selection should prioritize diagnostic reasoning capability over latency or cost.
 
@@ -304,7 +308,7 @@ Estimated integration effort: **2--4 engineering weeks** to adapt the research p
 
 : Phased rollout plan for DPV framework integration. {#tbl:rollout-phases}
 
-Phase 1 validates the framework against target ai's specific domain configurations and model choices. Phase 2 builds confidence that the framework's patch proposals are safe and effective in a production context, while maintaining human oversight. Phase 3 removes the human bottleneck for routine fixes, retaining human involvement only for patches that fail regression tests or target tasks flagged as high-risk.
+Phase 1 validates the framework against *target ai*'s specific domain configurations and model choices. Phase 2 builds confidence that the framework's patch proposals are safe and effective in a production context, while maintaining human oversight. Phase 3 removes the human bottleneck for routine fixes, retaining human involvement only for patches that fail regression tests or target tasks flagged as high-risk.
 
 The transition from Phase 2 to Phase 3 requires a robust regression-testing framework that goes beyond what was tested in the experiments. Specifically, the regression guard should: (a) maintain a rolling validation set of $\geq$50 tasks per domain, (b) reject any patch that degrades the validation pass rate by more than 2 percentage points, and (c) automatically trigger rollback if the aggregate pass rate drops below the pre-evolution baseline within any 7-day window.
 
@@ -312,14 +316,14 @@ The transition from Phase 2 to Phase 3 requires a robust regression-testing fram
 
 The DPV framework is domain-agnostic by design: the outer loop, inner loop, patch surfaces, and validation mechanism do not depend on airline-specific knowledge (Section 2.3). Extending to retail, telecom, or financial services domains requires:
 
-- **Domain-specific task sets.** Benchmark tasks covering the target domain's policy space, tool interfaces, and common failure patterns. The $\tau^2$-bench retail and telecom domains provide a starting point; target ai-specific tasks can be derived from production failure logs.
-- **Domain-specific tool schemas.** The student's tool configuration for each domain. These already exist as part of target ai's deployment artifacts.
+- **Domain-specific task sets.** Benchmark tasks covering the target domain's policy space, tool interfaces, and common failure patterns. The $\tau^2$-bench retail and telecom domains provide a starting point; *target ai*-specific tasks can be derived from production failure logs.
+- **Domain-specific tool schemas.** The student's tool configuration for each domain. These already exist as part of *target ai*'s deployment artifacts.
 
-**Prioritization.** Domains should be prioritized by (a) failure rate (higher failure rates yield more fixable tasks per sweep) and (b) systems-analyst cost (higher-touch domains yield greater ROI per fix), with the target voice → TOS migration backlog and the TOS2 customer base as the natural first beachheads given that the author operates TOS2 single-handedly. The value chain analysis in Section 1.3.2 identified the systems-analyst layer as the binding constraint on scaling; the domains where this constraint binds hardest should be addressed first.
+**Prioritization.** Domains should be prioritized by (a) failure rate (higher failure rates yield more fixable tasks per sweep) and (b) systems-analyst cost (higher-touch domains yield greater ROI per fix), with the target voice → *tos* migration backlog and the *tos2* customer base as the natural first beachheads given that the author operates *tos2* single-handedly. The value chain analysis in Section 1.3.2 identified the systems-analyst layer as the binding constraint on scaling; the domains where this constraint binds hardest should be addressed first.
 
-**Patch consolidation.** To mitigate the patch interference documented in Section 3.1, target ai should implement periodic patch consolidation: after every 3--5 sweeps, the accumulated patches are rewritten into a single, coherent system prompt revision (potentially using the teacher model itself as the consolidator). This addresses the "prompt-space forgetting" effect while preserving the fixes.
+**Patch consolidation.** To mitigate the patch interference documented in Section 3.1, *target ai* should implement periodic patch consolidation: after every 3--5 sweeps, the accumulated patches are rewritten into a single, coherent system prompt revision (potentially using the teacher model itself as the consolidator). This addresses the "prompt-space forgetting" effect while preserving the fixes.
 
-**Stronger teachers.** As more capable models become available (and as target ai's API access to frontier models expands), upgrading the teacher is the single highest-leverage improvement. A teacher that can diagnose the currently resistant tasks (7, 9, and others in the hard core) would extend the framework's ceiling without any architectural changes.
+**Stronger teachers.** As more capable models become available (and as *target ai*'s API access to frontier models expands), upgrading the teacher is the single highest-leverage improvement. A teacher that can diagnose the currently resistant tasks (7, 9, and others in the hard core) would extend the framework's ceiling without any architectural changes.
 
 **Model compatibility screening.** The GLM 4.7 Flash results (Section 3.1.1, 3.1.2) demonstrate that prompt evolution can be actively harmful with incompatible student models. Before deploying the framework with any new student model, a brief pilot evaluation---5 tasks, 1 sweep---should be mandatory. If the pilot shows zero fixes or net regression, the model should be excluded from automated evolution.
 
@@ -329,4 +333,4 @@ The DPV framework is domain-agnostic by design: the outer loop, inner loop, patc
 
 **Multi-agent decomposition.** The patch interference finding (Section 3.1.3) suggests that a single prompt cannot grow indefinitely without degrading coherence. Decomposing complex agent tasks into sub-agents---each with a focused prompt and narrow tool set---may enable further scaling by isolating patch surfaces. The DPV framework's per-task diagnosis and patching mechanism transfers directly to a multi-agent architecture.
 
-**target skill as the integration template.** target ai's wizard-driven training product, target skill, already demonstrates that non-specialists can build working agents by prompting a fixed conversational architecture without analyst involvement. Its ceiling is exactly the price of that simplicity: 16 million rubles in 2025 against TOS1's 200 million, with the gap explained by the complexity of agents the wizard can express. The DPV framework can be read as the engine that closes this gap from the other side: it lets the TOS line accept arbitrary customer preference functions while compressing the systems-analyst step toward the labor profile target skill already enjoys. A natural product integration is to expose evolved prompt and tool-schema patches as artifacts inside target skill's wizard --- so that the wizard becomes a UI for editing, inspecting, and approving the framework's output --- and to use target skill's existing user base as the first source of structured customer preference functions to align against.
+**target skill as the integration template.** *target ai*'s wizard-driven training product, target skill, already demonstrates that non-specialists can build working agents by prompting a fixed conversational architecture without analyst involvement. Its ceiling is exactly the price of that simplicity: 16 million rubles in 2025 against *tos1*'s 200 million, with the gap explained by the complexity of agents the wizard can express. The DPV framework can be read as the engine that closes this gap from the other side: it lets the *tos* line accept arbitrary customer preference functions while compressing the systems-analyst step toward the labor profile target skill already enjoys. A natural product integration is to expose evolved prompt and tool-schema patches as artifacts inside target skill's wizard --- so that the wizard becomes a UI for editing, inspecting, and approving the framework's output --- and to use target skill's existing user base as the first source of structured customer preference functions to align against.
