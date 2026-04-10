@@ -1,11 +1,10 @@
 ---
-title: "Automatic Evolution of Multi-turn Customer Service AI Agents via Prompt Distillation"
-author: "Gleb Dementev"
 bibliography: references.bib
 csl: ../apa.csl
-reference-section-title: "References"
+reference-section-title: "REFERENCES"
 lang: en-US
 toc: true
+toc-title: "TABLE OF CONTENTS"
 toc-depth: 2
 
 # --- GOST 7.32-2017 page layout ---

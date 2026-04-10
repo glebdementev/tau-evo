@@ -12,6 +12,26 @@
 
 % Force figure placement to be near source text
 \usepackage{float}
+% Make every figure use [H] (no floating). With htbp, LaTeX may commit a
+% figure to the bottom of the current page when a preceding longtable has
+% eaten most of the vertical space, leaving the scaled image to overflow
+% into the footer. [H] sidesteps the float algorithm: the figure either
+% fits at the source position or LaTeX page-breaks before it.
+\floatplacement{figure}{H}
+
+% Relax LaTeX float-placement fractions so the float algorithm is willing to
+% defer a figure to its own page rather than committing it to a bottom slot
+% that the scaled image will then overflow. Symptom this fixes: a figure that
+% follows a multi-row pandoc longtable lands at the bottom of the table's last
+% page, then triggers `Overfull \vbox ... while \output is active` because the
+% remaining vertical space is smaller than the figure. Defaults are too strict
+% (textfraction=0.2, bottomfraction=0.3, floatpagefraction=0.5), which makes
+% LaTeX prefer cramming over deferring; loosening them lets it pick a clean
+% float page when the in-line slot won't fit.
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\floatpagefraction}{0.5}
 
 % Algorithm typesetting (algorithmicx style — provides \Require/\Ensure/\State/...)
 \usepackage{algorithm}
@@ -69,10 +89,10 @@
 % Heading styles: all at normal text size, differentiated by boldness only
 % Indented like paragraph first lines (1.25cm)
 \usepackage{titlesec}
-\titleformat{\section}{\normalfont\normalsize\bfseries}{\thesection}{1em}{}
+\titleformat{\section}[block]{\normalfont\normalsize\bfseries\filcenter}{\thesection}{1em}{}
 \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
 \titleformat{\subsubsection}{\normalfont\normalsize\mdseries\itshape}{\thesubsubsection}{1em}{}
-\titlespacing*{\section}{\parindent}{1.5ex plus 0.5ex}{1ex plus 0.3ex}
+\titlespacing*{\section}{0pt}{1.5ex plus 0.5ex}{1ex plus 0.3ex}
 \titlespacing*{\subsection}{\parindent}{1.5ex plus 0.5ex}{0.8ex plus 0.2ex}
 \titlespacing*{\subsubsection}{\parindent}{1ex plus 0.3ex}{0.5ex plus 0.2ex}
 

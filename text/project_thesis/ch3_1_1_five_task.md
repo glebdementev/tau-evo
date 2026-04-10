@@ -45,7 +45,7 @@ Sweep 1 is the most productive: all four failing tasks are repaired, three by in
 @Tbl:exp1-fixes details the individual fix attempts, including the teacher's patch tier, retry count, and session cost.
 
 | Sweep | Task | Base → Patch | Tier | Attempt | Teacher msgs | Tool calls | Duration |
-|-------|------|-------------|------|---------|-------------|------------|----------|
+|------:|-----:|:------------|:-----|--------:|------------:|-----------:|---------:|
 | 1 | 3 | Fail → Pass | instruction | 2 | 10 | 3 | 2m 26s |
 | 1 | 0 | Fail → Pass | instruction | 2 | 8 | 2 | 2m 33s |
 | 1 | 1 | Fail → Pass | instruction | 1 | 15 | 6 | 1m 13s |
@@ -105,7 +105,7 @@ Sweep 1 fixes three tasks (all instruction-tier): Tasks 1, 5, and 0. Task 3 resi
 @Tbl:glm5-fixes details the individual fix attempts.
 
 | Sweep | Task | Base → Patch | Tier | Attempt | Teacher msgs | Tool calls | Duration |
-|-------|------|-------------|------|---------|-------------|------------|----------|
+|------:|-----:|:------------|:-----|--------:|------------:|-----------:|---------:|
 | 1 | 1 | Fail → Pass | instruction | 1 | 8 | 3 | 2m 59s |
 | 1 | 5 | Fail → Pass | instruction | 1 | 8 | 3 | 3m 35s |
 | 1 | 0 | Fail → Pass | instruction | 1 | 4 | 1 | 5m 0s |

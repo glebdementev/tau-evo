@@ -37,7 +37,7 @@ A second notable difference is the delayed improvement in evaluation metrics. Sw
 @Tbl:exp2-fixes details the individual fix attempts.
 
 | Sweep | Task | Base → Patch | Tier | Attempt | Teacher msgs | Tool calls | Duration |
-|-------|------|-------------|------|---------|-------------|------------|----------|
+|------:|-----:|:------------|:-----|--------:|------------:|-----------:|---------:|
 | 1 | 0 | Fail → Pass | instruction | 1 | 10 | 4 | 51s |
 | 1 | 1 | Fail → Pass | instruction | 1 | 4 | 1 | 21s |
 | 1 | 5 | Fail → Pass | instruction | 2 | 16 | 6 | 5m 11s |
@@ -100,7 +100,7 @@ The evolution trajectory is markedly more efficient than Qwen3 30B-A3B's. In swe
 @Tbl:exp2-flash-fixes details the individual fix attempts.
 
 | Sweep | Task | Base → Patch | Tier | Attempt | Teacher msgs | Tool calls | Duration |
-|-------|------|-------------|------|---------|-------------|------------|----------|
+|------:|-----:|:------------|:-----|--------:|------------:|-----------:|---------:|
 | 1 | 11 | Fail → Pass | instruction | 1 | 6 | 2 | 42s |
 | 1 | 12 | Fail → Pass | instruction | 2 | 21 | 8 | 3m 25s |
 | 1 | 9 | Fail → Pass | instruction | 2 | 26 | 11 | 6m 34s |
@@ -152,7 +152,7 @@ The baseline is the strongest of any model at this scale: 50% trial rate and 60%
 The evolution trajectory tells a story of failure. @Tbl:glm10-fixes details the individual fix attempts.
 
 | Sweep | Task | Base → Patch | Tier | Attempt | Teacher msgs | Tool calls | Duration |
-|-------|------|-------------|------|---------|-------------|------------|----------|
+|------:|-----:|:------------|:-----|--------:|------------:|-----------:|---------:|
 | 1 | 10 | Fail → Pass | instruction | 2 | 18 | 7 | 4m 25s |
 | 1 | 1 | Fail → Pass | guardrail | 3 | 18 | 6 | 5m 53s |
 | 1 | 7 | Fail → Fail | --- | --- | 26 | 10 | 4m 0s |
@@ -173,7 +173,7 @@ The evolution trajectory tells a story of failure. @Tbl:glm10-fixes details the 
 
 ![Fix attempts by tier and sweep for GLM 4.7 Flash on 10 tasks.](../../runs/glm47_10/fix_attempts_print.svg){#fig:glm47-10-fix-attempts}
 
-The critical finding is that **all four successful fixes targeted tasks that were already passing by majority vote at baseline**. Tasks 10 and 1 (sweep 1) and Tasks 4 and 1 (sweep 2) all had majority-vote baselines of ≥2/3. The four genuinely failing tasks---7, 9, 11, 12---were attempted in both sweeps and failed every time, yielding a **0% fix rate on genuinely failing tasks**.
+The critical finding is that all four successful fixes targeted tasks that were already passing by majority vote at baseline. Tasks 10 and 1 (sweep 1) and Tasks 4 and 1 (sweep 2) all had majority-vote baselines of ≥2/3. The four genuinely failing tasks---7, 9, 11, 12---were attempted in both sweeps and failed every time, yielding a 0% fix rate on genuinely failing tasks.
 
 The evolution loop produces patches, and the teacher diagnoses failures correctly, but GLM 4.7 Flash cannot translate these patches into reliable execution at this scale. The patches fix one behaviour but introduce new errors elsewhere. This is visible in the progressive degradation of the trial rate across sweeps: 50% → 43% → 40%. Even tasks that were comfortably passing at baseline (e.g., Task 1 at 2/3, Task 5 at 2/3) become more fragile after patches are applied.
 
@@ -202,10 +202,10 @@ In summary, GLM 4.7 Flash at ten tasks represents the framework's clearest failu
 
 Four patterns emerge from the three-model comparison:
 
-**The framework is not universally beneficial.** GLM 4.7 Flash receives the same teacher patches as the other models but cannot convert them into durable improvements at this scale. The framework's value is contingent on the student model's ability to execute patched instructions reliably.
+The framework is not universally beneficial. GLM 4.7 Flash receives the same teacher patches as the other models but cannot convert them into durable improvements at this scale. The framework's value is contingent on the student model's ability to execute patched instructions reliably.
 
-**The stronger student benefits most from evolution.** Qwen3.5 Flash achieves the highest ceiling (80% majority) and the highest fix rate on genuinely failing tasks (80%). Qwen3 30B-A3B achieves moderate improvement (+20pp majority) with a 43% fix rate. GLM 4.7 Flash achieves none.
+The stronger student benefits most from evolution. Qwen3.5 Flash achieves the highest ceiling (80% majority) and the highest fix rate on genuinely failing tasks (80%). Qwen3 30B-A3B achieves moderate improvement (+20pp majority) with a 43% fix rate. GLM 4.7 Flash achieves none.
 
-**The hard core of resistant tasks is consistent.** Tasks 7, 9, 11, and 12 resist repair for both Qwen3 30B-A3B and GLM 4.7 Flash. With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models.
+The hard core of resistant tasks is consistent. Tasks 7, 9, 11, and 12 resist repair for both Qwen3 30B-A3B and GLM 4.7 Flash. With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models.
 
-**Regression risk varies by model architecture.** Qwen3.5 Flash shows discrete regression in sweep 3 (-17pp trial, -10pp majority). GLM 4.7 Flash shows continuous decline across all sweeps. Qwen3 30B-A3B shows the mildest regression. The relationship between instruction-following quality and regression severity is not monotonic---GLM 4.7 Flash's regression is the worst despite not being the strongest instruction follower.
+Regression risk varies by model architecture. Qwen3.5 Flash shows discrete regression in sweep 3 (-17pp trial, -10pp majority). GLM 4.7 Flash shows continuous decline across all sweeps. Qwen3 30B-A3B shows the mildest regression. The relationship between instruction-following quality and regression severity is not monotonic---GLM 4.7 Flash's regression is the worst despite not being the strongest instruction follower.

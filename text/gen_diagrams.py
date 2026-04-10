@@ -565,53 +565,36 @@ def fig_13_gap_closure():
 
 def fig_14_knowledge_transfer():
     """Figure 3.14 — Knowledge transfer spectrum positioning."""
+    # LR layout with very tight ranksep so the four levels pack horizontally
+    # without huge gaps. Mechanism descriptions are folded into the main
+    # box label so we don't need a second row of boxes hanging off the side
+    # (which previously turned the figure into a sparse stair-step).
     g = new_graph("fig_14_knowledge_transfer", rankdir="LR")
-    g.attr(nodesep="0.4", ranksep="1.2")
+    g.attr(nodesep="0.15", ranksep="0.18")
 
+    # Each level: id, label (with embedded mechanism line), fill colour.
     levels = [
-        ("w", "Weight-Level\nDistillation\n\nHinton et al. 2015\nSoft targets, KD loss",
-         "#F8D7DA", "Modifies\nweights"),
-        ("o", "Output-Level\nDistillation\n\nAlpaca, Vicuna\nGenerated training data",
-         "#FCF3CF", "Generates data\nfor fine-tuning"),
-        ("p", "Prompt-Level\nTransfer\n\nSPoT, GEPA\nPrompt optimization",
-         "#D6EAF8", "Modifies prompt\ntext only"),
-        ("t", "This Work\n\nPrompt + Schema\n+ Preprocessor patching",
-         "#D5F5E3", "Modifies prompt,\ntool schemas,\n& guardrail code"),
+        ("w", "Weight-Level\nDistillation\n\nHinton et al. 2015\nSoft targets, KD loss\n(modifies weights)",
+         "#F8D7DA"),
+        ("o", "Output-Level\nDistillation\n\nAlpaca, Vicuna\nGenerated training data\n(fine-tuning data)",
+         "#FCF3CF"),
+        ("p", "Prompt-Level\nTransfer\n\nSPoT, GEPA\nPrompt optimization\n(prompt text only)",
+         "#D6EAF8"),
+        ("t", "This Work\n\nPrompt + Schema\n+ Preprocessor patching\n(prompt, schemas,\nguardrail code)",
+         "#D5F5E3"),
     ]
 
     prev = None
-    for nid, label, color, mechanism in levels:
+    for nid, label, color in levels:
         g.node(nid, label=label, shape="box", style="filled,rounded",
-               fillcolor=color, width="2.5", height="1.6")
-        g.node(f"{nid}_m", label=mechanism, shape="box",
-               style="filled,rounded", fillcolor="#F8F9FA",
-               fontsize=FONT_SIZE_SMALL, fontcolor=GREY,
-               color="#DDDDDD", penwidth="0.8")
-        g.edge(nid, f"{nid}_m", style="dotted", arrowhead="none", color="#CCCCCC")
+               fillcolor=color, margin="0.10,0.08")
         if prev:
-            g.edge(prev, nid, label="  lighter  ", fontcolor=GREY,
+            g.edge(prev, nid, label=" lighter ", fontcolor=GREY,
                    color=GREY, style="dashed", arrowhead="vee")
         prev = nid
 
     # Highlight "this work"
     g.node("t", penwidth="2.5", color=GREEN)
-
-    # Direction labels
-    g.node("heavy", label="Heavier\nintervention", shape="plaintext",
-           fontsize=FONT_SIZE_SMALL, fontcolor=GREY, fontname=FONT,
-           style="")
-    g.node("light", label="Lighter\nintervention", shape="plaintext",
-           fontsize=FONT_SIZE_SMALL, fontcolor=GREY, fontname=FONT,
-           style="")
-
-    with g.subgraph() as s:
-        s.attr(rank="min")
-        s.node("heavy")
-        s.node("w")
-    with g.subgraph() as s:
-        s.attr(rank="max")
-        s.node("light")
-        s.node("t")
 
     render(g)
 

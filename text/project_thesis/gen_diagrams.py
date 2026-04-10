@@ -317,22 +317,27 @@ def fig_edp_cycle():
     """The seven EDP phases applied to this project. Solid arrows show the
     primary forward flow; dashed arrows show iteration paths from Test (6)
     back to Specify Requirements (3), Choose Solution (4), and Prototype (5)."""
+    # LR layout with very tight ranksep so the seven phases pack horizontally
+    # without huge gaps. Iteration arcs route under the chain via south ports.
     g = new_graph("fig_edp_cycle", rankdir="LR")
     g.attr(
-        nodesep="0.45",
-        ranksep="0.85",
+        nodesep="0.15",
+        ranksep="0.12",
+        splines="spline",
     )
 
     # Each phase: id, headline, project artifact (rendered as a smaller
     # second line inside the same node so the layout stays compact in LR mode).
+    # Headlines wrap to two lines and annotations are kept terse so seven
+    # boxes fit horizontally inside the column width without ballooning.
     phases = [
-        ("p1", "1. Define the Problem",       "Implementation tax at target ai"),
-        ("p2", "2. Background Research",      "Literature review &\ndiagnostic study (Ch. 1)"),
-        ("p3", "3. Specify Requirements",     "Five constraints\nfrom Section 1.3"),
-        ("p4", "4. Choose Solution",          "DPV framework\n(vs. RL, FT, KD)"),
-        ("p5", "5. Develop & Prototype",      "Build evolution loop\non τ²-bench"),
-        ("p6", "6. Test Solution",            "Three-scale experiments\n(5 / 10 / 20 tasks)"),
-        ("p7", "7. Communicate Results",      "This thesis &\nrecommendations"),
+        ("p1", "1. Define\nthe Problem",     "Impl. tax\nat target ai"),
+        ("p2", "2. Background\nResearch",    "Lit. review\n& DS (Ch. 1)"),
+        ("p3", "3. Specify\nRequirements",   "Five constraints\nfrom §1.3"),
+        ("p4", "4. Choose\nSolution",        "DPV framework\n(vs. RL/FT/KD)"),
+        ("p5", "5. Develop &\nPrototype",    "Evolution loop\non τ²-bench"),
+        ("p6", "6. Test\nSolution",          "5 / 10 / 20-task\nexperiments"),
+        ("p7", "7. Communicate\nResults",    "This thesis\n& recs"),
     ]
 
     # Two-line labels via HTML-like tables: bold headline, smaller annotation.
@@ -341,9 +346,9 @@ def fig_edp_cycle():
 
     for nid, headline, annot in phases:
         annot_html = _esc(annot).replace("\n", "<BR/>")
-        headline_html = _esc(headline)
+        headline_html = _esc(headline).replace("\n", "<BR/>")
         label = (
-            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"2\">"
+            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"1\">"
             f"<TR><TD><FONT POINT-SIZE=\"11\"><B>{headline_html}</B></FONT></TD></TR>"
             f"<TR><TD><FONT POINT-SIZE=\"9\" COLOR=\"#6B7B8D\">{annot_html}</FONT></TD></TR>"
             "</TABLE>>"
@@ -356,7 +361,7 @@ def fig_edp_cycle():
             fillcolor=NEUTRAL_FILL,
             color=NEUTRAL_BORDER,
             penwidth="1.6",
-            margin="0.15,0.08",
+            margin="0.10,0.06",
         )
 
     # Forward (solid) flow.
@@ -369,8 +374,8 @@ def fig_edp_cycle():
         )
 
     # Iteration loops from Test (p6) back to earlier phases.
-    # Route via south ports so the curves arc cleanly *under* the main chain
-    # rather than overlapping the forward arrows.
+    # In LR mode, route via south ports so the curves arc cleanly *under*
+    # the main chain rather than overlapping the forward arrows.
     iter_kwargs = dict(
         style="dashed",
         color=VERMILLION,
@@ -383,9 +388,12 @@ def fig_edp_cycle():
         tailport="s",
         headport="s",
     )
-    g.edge("p6", "p5", label="rebuild prototype", **iter_kwargs)
-    g.edge("p6", "p4", label="reconsider solution", **iter_kwargs)
-    g.edge("p6", "p3", label="revise requirements", **iter_kwargs)
+    # Iteration arrow labels are intentionally absent: with seven boxes
+    # crammed into a column-width LR layout, label glyphs steal precious
+    # horizontal space. The dashed arrows are documented in the caption.
+    g.edge("p6", "p5", **iter_kwargs)
+    g.edge("p6", "p4", **iter_kwargs)
+    g.edge("p6", "p3", **iter_kwargs)
 
     render(g)
 

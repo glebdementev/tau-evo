@@ -8,7 +8,7 @@ This section evaluates the DPV framework as a project deliverable. The evaluatio
 
 ### 3.2.1 Evaluation Against Project Objectives
 
-**Objective 1: Design an automated framework for teacher-driven prompt evolution.** Status: Achieved.
+Objective 1: Design an automated framework for teacher-driven prompt evolution. Status: Achieved.
 
 The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with the following characteristics:
 
@@ -20,7 +20,7 @@ The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with 
 
 The framework satisfies all seven requirements specified in Section 2.2.3: API-only compatibility, auditable and reversible patch history, measurable improvement via trial pass rates, multi-surface patching across prompt, tool schema, and preprocessor surfaces, scalability characterization across three task-pool sizes, model-agnostic operation across three student model families, and per-deployment cost well below the manual baseline (quantified in Section 3.2.2).
 
-**Objective 2: Evaluate the framework on $\tau^2$-bench.** Status: Achieved.
+Objective 2: Evaluate the framework on $\tau^2$-bench. Status: Achieved.
 
 The framework was evaluated across three task-pool sizes on the airline domain of $\tau^2$-bench, using three student models and up to three evolution sweeps per condition. @Tbl:obj2-summary presents the primary results for Qwen3 30B-A3B:
 
@@ -34,7 +34,7 @@ The framework was evaluated across three task-pool sizes on the airline domain o
 
 Additionally, Qwen3.5 Flash was evaluated at 10 tasks (60% $\to$ 80%, +20pp) and 20 tasks (47% $\to$ 58%, +11pp), and GLM 4.7 Flash at 5 tasks (47% $\to$ 73%, +26pp peak before regression) and 10 tasks (no improvement). The total experimental program comprises eight conditions, 245 task-sweep evaluations, and over 700 individual trials. The multi-model comparison provides evidence that the framework's effectiveness is contingent on student model capability.
 
-**Objective 3: Characterize which failure types respond to prompt-level intervention.** Status: Achieved.
+Objective 3: Characterize which failure types respond to prompt-level intervention. Status: Achieved.
 
 The analysis reveals a consistent pattern across all experiments (Section 3.1.4.5):
 
@@ -44,9 +44,9 @@ The analysis reveals a consistent pattern across all experiments (Section 3.1.4.
 
 The 71/29 instruction-to-guardrail ratio held constant across the first two Qwen3 30B-A3B experiments despite doubling the task pool, indicating a stable property of the framework rather than an artifact of specific tasks. The stronger student (Qwen3.5 Flash) shows an even higher instruction-tier share (80--92%), suggesting that stronger instruction-following capability reduces the need for guardrail-level intervention.
 
-A **hard core of resistant tasks** was identified: Tasks 7, 9, 11, and 12 resist all fix attempts for Qwen3 30B-A3B and GLM 4.7 Flash. With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all models. The resistant tasks appear to require capabilities---multi-step reasoning under uncertainty, implicit policy interpretation, complex state tracking---that cannot be injected through prompt text. This defines the practical boundary of prompt-level intervention.
+A hard core of resistant tasks was identified: Tasks 7, 9, 11, and 12 resist all fix attempts for Qwen3 30B-A3B and GLM 4.7 Flash. With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all models. The resistant tasks appear to require capabilities---multi-step reasoning under uncertainty, implicit policy interpretation, complex state tracking---that cannot be injected through prompt text. This defines the practical boundary of prompt-level intervention.
 
-**Objective 4: Assess scaling behavior and practical boundaries.** Status: Achieved.
+Objective 4: Assess scaling behavior and practical boundaries. Status: Achieved.
 
 Four scaling patterns were characterized (Section 3.1.4):
 
@@ -58,7 +58,7 @@ Four scaling patterns were characterized (Section 3.1.4):
 
 4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a clear failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
 
-**Objective 5: Produce actionable recommendations for *target ai*.** Status: Achieved. The recommendations are presented in Section 3.2.5.
+Objective 5: Produce actionable recommendations for *target ai*. Status: Achieved. The recommendations are presented in Section 3.2.5.
 
 @Tbl:objectives-eval summarizes the evaluation across all five objectives.
 
@@ -92,15 +92,15 @@ where $f$ is the FTE allocation per deployment and $w$ is the annual FTE cost. @
 
 : Annual manual maintenance cost scenarios. FTE costs reflect the Russian market for AI/ML specialists (\$30,000--\$60,000/year). Global market costs (\$80,000--\$150,000/year including the 56% AI wage premium) would increase all figures by 2--3$\times$. {#tbl:manual-cost-params}
 
-To ground the per-incident cost: an agent handling 1,000 interactions per day at a 5% failure rate generates 50 failures per day, or approximately 18,250 per year. Under the mid-range scenario, 1.5 FTEs at \$45,000 spend \$67,500 handling these failures, yielding a **per-incident cost of \$3.70** for the manual diagnosis-fix-test cycle. This figure is used as the manual baseline in the break-even analysis below.
+To ground the per-incident cost: an agent handling 1,000 interactions per day at a 5% failure rate generates 50 failures per day, or approximately 18,250 per year. Under the mid-range scenario, 1.5 FTEs at \$45,000 spend \$67,500 handling these failures, yielding a per-incident cost of \$3.70 for the manual diagnosis-fix-test cycle. This figure is used as the manual baseline in the break-even analysis below.
 
 #### 3.2.2.2 DPV Framework Cost Model
 
 The framework's cost has three components: teacher model inference, student model re-evaluation, and one-time integration. The analysis uses Kimi K2.5 pricing (\$0.60 per million input tokens, \$2.50 per million output tokens) as the teacher and Qwen3 30B-A3B (approximately \$0.10 per million tokens via OpenRouter) as the student.
 
-**Token estimation methodology.** Exact token counts were not logged during experiments. The estimates below are derived from teacher message counts (@Tbl:exp1-fixes, @Tbl:exp2-fixes, @Tbl:exp3-fixes) using the following assumptions: (a) each teacher message involves approximately 3,000 input tokens on average (system prompt context, accumulated conversation history, and the failed conversation trace) and approximately 800 output tokens (diagnosis, patch proposal, or validation reasoning); (b) tool calls add approximately 200 input tokens per call (tool results). These estimates carry uncertainty of approximately $\pm$50%, which the sensitivity analysis in Section 3.2.2.5 addresses.
+Token estimation methodology. Exact token counts were not logged during experiments. The estimates below are derived from teacher message counts (@Tbl:exp1-fixes, @Tbl:exp2-fixes, @Tbl:exp3-fixes) using the following assumptions: (a) each teacher message involves approximately 3,000 input tokens on average (system prompt context, accumulated conversation history, and the failed conversation trace) and approximately 800 output tokens (diagnosis, patch proposal, or validation reasoning); (b) tool calls add approximately 200 input tokens per call (tool results). These estimates carry uncertainty of approximately $\pm$50%, which the sensitivity analysis in Section 3.2.2.5 addresses.
 
-**A. Per-fix compute cost.** @Tbl:per-fix-cost estimates the teacher model API cost for each fix tier, based on median message counts from the experimental data.
+A. Per-fix compute cost. @Tbl:per-fix-cost estimates the teacher model API cost for each fix tier, based on median message counts from the experimental data.
 
 | Fix tier | Median messages | Est. input tokens | Est. output tokens | Teacher cost |
 |----------|:-:|--:|--:|--:|
@@ -110,9 +110,9 @@ The framework's cost has three components: teacher model inference, student mode
 
 : Estimated per-task teacher model cost by fix tier, at Kimi K2.5 pricing. {#tbl:per-fix-cost}
 
-Instruction-tier fixes are approximately 3$\times$ cheaper than guardrail-tier fixes---and given that 70--92% of successful fixes are instruction-tier, the average successful fix costs approximately **\$0.05**.
+Instruction-tier fixes are approximately 3$\times$ cheaper than guardrail-tier fixes---and given that 70--92% of successful fixes are instruction-tier, the average successful fix costs approximately \$0.05.
 
-**B. Per-sweep compute cost.** @Tbl:sweep-cost aggregates across all fix attempts (successful and failed) for each Qwen3 30B-A3B experiment.
+B. Per-sweep compute cost. @Tbl:sweep-cost aggregates across all fix attempts (successful and failed) for each Qwen3 30B-A3B experiment.
 
 | Experiment | Total teacher msgs | Est. total tokens (in + out) | Teacher API cost | Student eval cost | Total sweep cost |
 |------------|:-:|--:|--:|--:|--:|
@@ -124,13 +124,13 @@ Instruction-tier fixes are approximately 3$\times$ cheaper than guardrail-tier f
 
 The cost is dominated by failed attempts on resistant tasks. In the 20-task experiment, approximately 75% of teacher messages were spent on tasks that were never fixed (Section 3.1.3.1). An early-stopping heuristic that abandons a task after the first failed sweep would reduce teacher costs by approximately 40--50% with no loss in fix rate (since no task was first fixed in sweep 2 that had not been attempted in sweep 1, for Qwen3 30B-A3B).
 
-**C. Per-deployment annual cost.** Assuming monthly evolution sweeps (12 per year) on a 20-task domain:
+C. Per-deployment annual cost. Assuming monthly evolution sweeps (12 per year) on a 20-task domain:
 
 $$C_\text{auto}(N) = C_\text{fixed} + N \times 12 \times C_\text{sweep}$$
 
 where $C_\text{fixed}$ is the one-time integration cost (estimated \$5,000--\$15,000 for adapting the research prototype to a production service, including evaluation pipeline setup, patch storage, and CI/CD integration) and $C_\text{sweep} \approx \$4$ per domain per sweep.
 
-This yields an **annual per-deployment compute cost of approximately \$48** (12 sweeps $\times$ \$4/sweep). Even tripling this estimate to account for token estimation uncertainty gives \$144 per deployment per year---three orders of magnitude below the manual baseline.
+This yields an annual per-deployment compute cost of approximately \$48 (12 sweeps $\times$ \$4/sweep). Even tripling this estimate to account for token estimation uncertainty gives \$144 per deployment per year---three orders of magnitude below the manual baseline.
 
 @Tbl:auto-cost-summary presents the full cost breakdown.
 
@@ -149,9 +149,9 @@ This yields an **annual per-deployment compute cost of approximately \$48** (12 
 
 The break-even question is: at what point does the DPV framework's cost fall below the manual alternative?
 
-**Per-fix comparison.** A human prompt engineer diagnosing and fixing one agent failure takes approximately 1--4 hours (trace review, root cause analysis, patch writing, regression testing). At the Russian mid-range salary (\$45,000/year, or \$21.60/hour), one manual fix costs **\$22--\$86**. The DPV framework produces a successful fix for approximately **\$0.05** in teacher API cost, yielding a cost ratio of **440$\times$--1,720$\times$ cheaper per fix**. Adjusting for the framework's 42--100% fix rate (depending on scale), the effective cost per successful fix is \$0.05--\$0.12---still 180--1,720$\times$ cheaper than the manual alternative.
+Per-fix comparison. A human prompt engineer diagnosing and fixing one agent failure takes approximately 1--4 hours (trace review, root cause analysis, patch writing, regression testing). At the Russian mid-range salary (\$45,000/year, or \$21.60/hour), one manual fix costs \$22--\$86. The DPV framework produces a successful fix for approximately \$0.05 in teacher API cost, yielding a cost ratio of 440$\times$--1,720$\times$ cheaper per fix. Adjusting for the framework's 42--100% fix rate (depending on scale), the effective cost per successful fix is \$0.05--\$0.12---still 180--1,720$\times$ cheaper than the manual alternative.
 
-**Per-deployment break-even.** Under the mid-range scenario ($C_\text{manual}$ = \$67,500/year per deployment, $C_\text{auto}$ = \$3,102/year per deployment), the annual saving per deployment is **\$64,398**. The one-time integration cost of \$10,000 is recovered in:
+Per-deployment break-even. Under the mid-range scenario ($C_\text{manual}$ = \$67,500/year per deployment, $C_\text{auto}$ = \$3,102/year per deployment), the annual saving per deployment is \$64,398. The one-time integration cost of \$10,000 is recovered in:
 
 $$t_\text{break-even} = \frac{C_\text{fixed}}{C_\text{manual} - C_\text{auto}} = \frac{\$10{,}000}{\$64{,}398} \approx 1.9 \text{ months}$$
 
@@ -181,18 +181,31 @@ Two additional factors favor the automated approach over time:
 
 The economic model depends on several estimated parameters. @Tbl:sensitivity tests the five variables with the greatest potential impact on the net annual saving (computed for the medium scenario, $N = 10$).
 
-| Variable | Base case | Variation | Automated cost/yr | Net saving | $\Delta$ vs base |
-|----------|-----------|-----------|--:|--:|--:|
-| Teacher model cost | Kimi K2.5 (1$\times$) | 5$\times$ (mid-tier model) | \$43,220 | \$631,780 | $-$0.3% |
-| | | 13$\times$ (Claude Opus 4.6) | \$46,740 | \$628,260 | $-$0.9% |
-| Fix rate | 50% (observed) | 25% (pessimistic) | \$41,020 | \$633,980 | 0% |
-| Sweep frequency | Monthly (12/yr) | Weekly (52/yr) | \$62,540 | \$612,460 | $-$3.4% |
-| Human review overhead | 4 h/month | 16 h/month | \$72,660 | \$602,340 | $-$5.0% |
-| Token estimation error | 1$\times$ | 3$\times$ | \$42,100 | \$632,900 | $-$0.2% |
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Sensitivity analysis of annual saving to key parameters (medium scenario, $N = 10$, base saving = \$633,980).\label{tbl:sensitivity}}
+\begin{tabularx}{\textwidth}{@{}
+  >{\hsize=0.9\hsize\raggedright\arraybackslash}X
+  >{\hsize=0.9\hsize\raggedright\arraybackslash}X
+  >{\hsize=1.2\hsize\raggedright\arraybackslash}X
+  r r r@{}}
+\toprule
+\textbf{Variable} & \textbf{Base case} & \textbf{Variation} & \textbf{Automated cost/yr} & \textbf{Net saving} & \textbf{$\Delta$ vs base} \\
+\midrule
+Teacher model cost     & Kimi K2.5 (1$\times$) & 5$\times$ (mid-tier model)     & \$43,220 & \$631,780 & $-$0.3\% \\
+                       &                       & 13$\times$ (Claude Opus 4.6)   & \$46,740 & \$628,260 & $-$0.9\% \\
+Fix rate               & 50\% (observed)       & 25\% (pessimistic)             & \$41,020 & \$633,980 & 0\%      \\
+Sweep frequency        & Monthly (12/yr)       & Weekly (52/yr)                 & \$62,540 & \$612,460 & $-$3.4\% \\
+Human review overhead  & 4 h/month             & 16 h/month                     & \$72,660 & \$602,340 & $-$5.0\% \\
+Token estimation error & 1$\times$             & 3$\times$                      & \$42,100 & \$632,900 & $-$0.2\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-: Sensitivity analysis of annual saving to key parameters (medium scenario, $N = 10$, base saving = \$633,980). {#tbl:sensitivity}
-
-The analysis reveals that the economic case is **insensitive to all tested parameters**. Even the most extreme combination---using Claude Opus 4.6 as teacher, running weekly sweeps with 16 hours of monthly human review per deployment, and tripling the token estimate---yields an automated cost of approximately \$104,000/year for 10 deployments, still 6.5$\times$ cheaper than the manual baseline.
+The analysis reveals that the economic case is insensitive to all tested parameters. Even the most extreme combination---using Claude Opus 4.6 as teacher, running weekly sweeps with 16 hours of monthly human review per deployment, and tripling the token estimate---yields an automated cost of approximately \$104,000/year for 10 deployments, still 6.5$\times$ cheaper than the manual baseline.
 
 The dominant cost component under all variations is human patch review, not API compute. This suggests that the most impactful cost optimization is not cheaper models but a higher-confidence validation pipeline that reduces the human review burden---for instance, by expanding the regression test suite to enable automated patch approval for patches that pass all tests.
 
@@ -204,9 +217,9 @@ Two hypotheses were defined in Section 2.4. Each is evaluated below at significa
 
 #### 3.2.3.1 Effectiveness: Evolved Agent Outperforms Baseline
 
-**Hypothesis:** The DPV-evolved agent achieves a higher trial pass rate than the unmodified baseline ($\mu_\Delta > 0$).
+Hypothesis: The DPV-evolved agent achieves a higher trial pass rate than the unmodified baseline ($\mu_\Delta > 0$).
 
-**Test:** Paired one-sided $t$-test on per-task trial-pass-rate deltas, following @dror2018 and @bowyer2025. Each task contributes one paired observation: the difference between evolved and baseline trial pass rates (each in $\{0, 1/3, 2/3, 1\}$). A Wilcoxon signed-rank test is reported as a non-parametric robustness check.
+Test: Paired one-sided $t$-test on per-task trial-pass-rate deltas, following @dror2018 and @bowyer2025. Each task contributes one paired observation: the difference between evolved and baseline trial pass rates (each in $\{0, 1/3, 2/3, 1\}$). A Wilcoxon signed-rank test is reported as a non-parametric robustness check.
 
 @Tbl:effectiveness-test presents results across all eight experimental conditions.
 
@@ -223,17 +236,17 @@ Two hypotheses were defined in Section 2.4. Each is evaluated below at significa
 
 : Effectiveness test: paired one-sided $t$-test on per-task trial-pass-rate deltas. Evolved condition uses the best post-baseline sweep. Significance: \* $p < 0.05$; \*\*\* $p < 0.001$. Cohen's $d$ interpretation: small ($\geq 0.2$), medium ($\geq 0.5$), large ($\geq 0.8$). {#tbl:effectiveness-test}
 
-**Note:** The per-condition $t$ and $p$ values are approximate, computed from the per-task pass-rate deltas reported in Section 3.1. The 5-task conditions do not reach significance individually ($n = 5$ provides insufficient power), but show large effect sizes ($d > 0.8$). Exact values should be recomputed from the raw trial data when the experiment JSON files are available.
+Note: The per-condition $t$ and $p$ values are approximate, computed from the per-task pass-rate deltas reported in Section 3.1. The 5-task conditions do not reach significance individually ($n = 5$ provides insufficient power), but show large effect sizes ($d > 0.8$). Exact values should be recomputed from the raw trial data when the experiment JSON files are available.
 
 The Wilcoxon signed-rank test corroborates the parametric results for conditions with $n \geq 10$: Qwen3 30B at 10 tasks ($p = 0.023$) and 20 tasks ($p = 0.031$) reach significance. For conditions with $n = 5$, the Wilcoxon test has insufficient power (requires $\geq 6$ nonzero differences).
 
-**Verdict:** the effectiveness hypothesis is supported. Teacher-model-driven prompt evolution produces a statistically significant and practically meaningful improvement in trial pass rate. The effect is consistent across all conditions except GLM 4.7 Flash at 10 tasks, which shows degradation rather than improvement. The pooled analysis across improving conditions (excluding GLM 4.7 at 10 tasks) yields $p < 0.001$ with a medium effect size ($d = 0.49$).
+Verdict: the effectiveness hypothesis is supported. Teacher-model-driven prompt evolution produces a statistically significant and practically meaningful improvement in trial pass rate. The effect is consistent across all conditions except GLM 4.7 Flash at 10 tasks, which shows degradation rather than improvement. The pooled analysis across improving conditions (excluding GLM 4.7 at 10 tasks) yields $p < 0.001$ with a medium effect size ($d = 0.49$).
 
 #### 3.2.3.2 Diminishing Returns: Fix Rate Declines With Scale
 
-**Hypothesis:** The fix success rate declines monotonically as the task-pool size increases.
+Hypothesis: The fix success rate declines monotonically as the task-pool size increases.
 
-**Test:** Cochran-Armitage trend test for a declining proportion across ordered groups [@cochran1954; @armitage1955].
+Test: Cochran-Armitage trend test for a declining proportion across ordered groups [@cochran1954; @armitage1955].
 
 @Tbl:trend-test presents the fix rates and trend test results.
 
@@ -245,14 +258,14 @@ The Wilcoxon signed-rank test corroborates the parametric results for conditions
 
 : Diminishing-returns test: Cochran-Armitage trend test for declining fix rate across task-pool sizes. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these successfully fixed at least once. $Z$ and $p$ values were computed from the analysis pipeline and should be re-verified against the corrected proportions. {#tbl:trend-test}
 
-**Verdict:** the diminishing-returns hypothesis is supported. The fix rate declines consistently as the task pool grows, reaching significance for Qwen3 30B-A3B ($p = 0.031$) and GLM 4.7 Flash ($p = 0.004$, driven by the collapse from 67% to 0%). Qwen3.5 Flash shows the same trend but falls short of significance ($p = 0.078$), likely due to having only two scale points. The pattern is consistent with the interpretation that larger pools contain a higher proportion of prompt-resistant failures.
+Verdict: the diminishing-returns hypothesis is supported. The fix rate declines consistently as the task pool grows, reaching significance for Qwen3 30B-A3B ($p = 0.031$) and GLM 4.7 Flash ($p = 0.004$, driven by the collapse from 67% to 0%). Qwen3.5 Flash shows the same trend but falls short of significance ($p = 0.078$), likely due to having only two scale points. The pattern is consistent with the interpretation that larger pools contain a higher proportion of prompt-resistant failures.
 
 @Tbl:hypothesis-summary consolidates the two hypothesis evaluations.
 
 | Hypothesis | Test | Verdict | Conditions supported |
 |---|---|---|---|
-| Effectiveness: evolved $>$ baseline | Paired $t$-test | **Supported** | All except GLM 4.7 at 10 tasks |
-| Diminishing returns: declining fix rate | Cochran-Armitage | **Supported** | Qwen3 30B ($p = 0.031$), GLM 4.7 ($p = 0.004$) |
+| Effectiveness: evolved $>$ baseline | Paired $t$-test | Supported | All except GLM 4.7 at 10 tasks |
+| Diminishing returns: declining fix rate | Cochran-Armitage | Supported | Qwen3 30B ($p = 0.031$), GLM 4.7 ($p = 0.004$) |
 
 : Summary of statistical hypothesis evaluations. {#tbl:hypothesis-summary}
 
@@ -294,7 +307,7 @@ The DPV framework targets the systems-analyst layer in *target ai*'s value chain
 
 4. **Regression test suite.** A held-out set of tasks (distinct from the evolution training set) used to validate that patches do not degrade performance on previously passing cases. This is the most critical component for safe automated deployment.
 
-Estimated integration effort: **2--4 engineering weeks** to adapt the research prototype to a production-grade service, assuming the evaluation pipeline and benchmark tasks already exist for the target domain.
+Estimated integration effort: 2--4 engineering weeks to adapt the research prototype to a production-grade service, assuming the evaluation pipeline and benchmark tasks already exist for the target domain.
 
 #### 3.2.5.2 Phased Rollout Roadmap
 

@@ -22,13 +22,13 @@ The outer loop proceeds as follows for each sweep:
 4. All accepted patches are merged into the global state by a dedicated merger LLM session.
 5. The loop repeats with the full task set until no failures remain or the maximum sweep count is reached.
 
-Re-evaluating all tasks every sweep---rather than dropping attempted tasks---is deliberate: merged patches from multiple independent teacher sessions can interact, and re-evaluation catches regressions introduced by the merge step. @Fig:outer-loop visualizes this process.
+Re-evaluating all tasks every sweep---rather than dropping attempted tasks---is deliberate: merged patches from multiple independent teacher sessions can interact, and re-evaluation catches regressions introduced by the merge step. @Fig:outer-loop visualizes this process. The parallel fix phase uses a thread pool to process multiple failures concurrently: each thread operates on a deep copy of the global state, preventing interference between concurrent teacher sessions, and results are collected and merged after all threads complete (@fig:parallel-architecture).
 
+::: sidebyside
 ![Evolution outer loop: the student is evaluated on all tasks, failures are extracted, teacher sessions fix failures in parallel, winning patches are merged, and all tasks are re-evaluated in the next sweep.](figures/fig_01_outer_loop.png){#fig:outer-loop}
 
-The parallel fix phase uses a thread pool to process multiple failures concurrently. Each thread operates on a deep copy of the global state, preventing interference between concurrent teacher sessions. Results are collected and merged after all threads complete.
-
 ![Parallel execution architecture: failed tasks are distributed across threads, each with an independent copy of the evolved state.](figures/fig_11_parallel_architecture.png){#fig:parallel-architecture}
+:::
 
 Algorithm 1 formalizes the outer loop. Let $\sigma = (\pi, \mathcal{S}, \mathcal{C})$ denote the evolved state---the system prompt, the dictionary of tool schemas, and the dictionary of tool preprocessors, respectively. $\text{Pass}(\mathbf{r})$ holds if and only if all $T$ trials achieve a perfect reward: $\forall\, t \in \{1,\dots,T\}: r_t = 1.0$.
 
@@ -71,16 +71,18 @@ In the **reflection step**, the teacher receives a comprehensive prompt containi
 
 ![Example teacher session: the teacher receives the failed trace and reward breakdown, diagnoses the root cause, and proposes a structured patch via tool calls.](figures/fig_04_teacher_session.png){#fig:teacher-session}
 
-In the **validation step**, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted and the teacher receives the new conversation trace and reward breakdown, and is asked to try again.
+In the **validation step**, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted and the teacher receives the new conversation trace and reward breakdown, and is asked to try again. @Fig:inner-loop diagrams this per-failure fix loop.
 
-![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the task does not pass all trials, patches are reverted and the teacher retries.](figures/fig_02_inner_loop.png){#fig:inner-loop}
-
-The two-phase escalation strategy ensures lighter-weight interventions are attempted first:
+The two-phase escalation strategy ensures lighter-weight interventions are attempted first (@fig:escalation):
 
 - **Phase 1 (Teaching):** The teacher can only modify the prompt and tool schemas via `patch_prompt` and `patch_tool`. This addresses failures where the student needs clearer instructions or better tool descriptions.
 - **Phase 2 (Guardrails):** If Phase 1 exhausts its attempts, `patch_tool_code` is unlocked, allowing the teacher to add defensive preprocessors that transform tool-call arguments before execution. This addresses persistent formatting errors that survive instruction-level correction.
 
+::: sidebyside
+![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the task does not pass all trials, patches are reverted and the teacher retries.](figures/fig_02_inner_loop.png){#fig:inner-loop}
+
 ![Two-phase teacher escalation: Phase 1 restricts the teacher to prompt and schema patches. If unsuccessful, Phase 2 unlocks tool preprocessor editing.](figures/fig_10_escalation.png){#fig:escalation}
+:::
 
 \begin{algorithm}
 \caption{FixFailure: Two-Phase Teacher Escalation}\label{alg:fix-failure}

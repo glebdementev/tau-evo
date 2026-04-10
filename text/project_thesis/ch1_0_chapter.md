@@ -1,1 +1,3 @@
-# Chapter 1. Theoretical Foundations and Problem Analysis
+\newpage
+
+# 1. Theoretical Foundations and Problem Analysis

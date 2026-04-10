@@ -3,6 +3,7 @@ to: pdf
 pdf-engine: xelatex
 filters:
   - pandoc-crossref
+  - side_by_side_figures.lua
   - citeproc
 include-in-header: preamble.tex
 # Search for figures both in this directory and in the parent text/ directory

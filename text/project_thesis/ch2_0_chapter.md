@@ -1,1 +1,3 @@
-# Chapter 2. Implementation Methodology
+\newpage
+
+# 2. Implementation Methodology
