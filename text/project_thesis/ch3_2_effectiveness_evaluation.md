@@ -1,6 +1,6 @@
 ## 3.2 Effectiveness Evaluation
 
-This section evaluates the DPV framework as a project deliverable. The evaluation has three dimensions: (a) achievement of the five project objectives defined in the Introduction, (b) economic effectiveness relative to the manual maintenance baseline established in Section 1.3.3, and (c) statistical credibility of the observed improvements. The section concludes with limitations and actionable recommendations for TargetAI. Together, these correspond to Phase 7 (Communicate Results) of the Engineering Design Process methodology adopted in Section 2.1.
+This section evaluates the DPV framework as a project deliverable. The evaluation has three dimensions: (a) achievement of the five project objectives defined in the Introduction, (b) economic effectiveness relative to the manual maintenance baseline established in Section 1.3.3, and (c) statistical credibility of the observed improvements. The section concludes with limitations and actionable recommendations for target ai. Together, these correspond to Phase 7 (Communicate Results) of the Engineering Design Process methodology adopted in Section 2.1.
 
 ### 3.2.1 Evaluation Against Project Objectives
 
@@ -14,7 +14,7 @@ The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with 
 - **Reversibility:** any prior state can be restored from the JSON checkpoint. Patches that fail validation are automatically reverted.
 - **Quality control:** the two-phase escalation strategy (instruction-tier before guardrail-tier) and unanimous validation across all trials ensure that only verified improvements enter the production configuration.
 
-The framework satisfies all five requirements specified in Section 2.2.3 (R1--R5): model-agnostic operation, auditable patch history, reversible state changes, measurable improvement via trial pass rates, and API-only compatibility.
+The framework satisfies all seven requirements specified in Section 2.2.3: API-only compatibility, auditable and reversible patch history, measurable improvement via trial pass rates, multi-surface patching across prompt, tool schema, and preprocessor surfaces, scalability characterization across three task-pool sizes, model-agnostic operation across three student model families, and per-deployment cost well below the manual baseline (quantified in Section 3.2.2).
 
 **Objective 2: Evaluate the framework on $\tau^2$-bench.** Status: Achieved.
 
@@ -54,13 +54,13 @@ Four scaling patterns were characterized (Section 3.1.4):
 
 4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a clear failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
 
-**Objective 5: Produce actionable recommendations for TargetAI.** Status: Achieved. The recommendations are presented in Section 3.2.5.
+**Objective 5: Produce actionable recommendations for target ai.** Status: Achieved. The recommendations are presented in Section 3.2.5.
 
 @Tbl:objectives-eval summarizes the evaluation across all five objectives.
 
 | Objective | Status | Key evidence |
 |-----------|--------|-------------|
-| 1. Framework design | Achieved | 3 patch surfaces, R1--R5 satisfied (Section 2.3) |
+| 1. Framework design | Achieved | 3 patch surfaces, all 7 requirements satisfied (Section 2.3) |
 | 2. $\tau^2$-bench evaluation | Achieved | 8 conditions, +11 to +23pp improvement (Section 3.1) |
 | 3. Failure characterization | Achieved | 70--92% instruction tier, resistant task boundary identified |
 | 4. Scaling behavior | Achieved | Fix rate decline, saturation, regression documented |
@@ -196,15 +196,15 @@ The variable that does *not* appear in the table is also important: the fix rate
 
 ### 3.2.3 Statistical Hypothesis Evaluation
 
-Three hypotheses were defined in Section 2.4. Each is evaluated below at significance level $\alpha = 0.05$. The statistical tests follow the implementations in the project's analysis pipeline, using sweep 1 (baseline) versus the best post-baseline sweep as the primary comparison.
+Two hypotheses were defined in Section 2.4. Each is evaluated below at significance level $\alpha = 0.05$. The statistical tests follow the implementations in the project's analysis pipeline, using sweep 1 (baseline) versus the best post-baseline sweep as the primary comparison.
 
-#### 3.2.3.1 H1: Evolved Agent Outperforms Baseline
+#### 3.2.3.1 Effectiveness: Evolved Agent Outperforms Baseline
 
 **Hypothesis:** The DPV-evolved agent achieves a higher trial pass rate than the unmodified baseline ($\mu_\Delta > 0$).
 
 **Test:** Paired one-sided $t$-test on per-task trial-pass-rate deltas, following @dror2018hitchhiker and @bowyer2025. Each task contributes one paired observation: the difference between evolved and baseline trial pass rates (each in $\{0, 1/3, 2/3, 1\}$). A Wilcoxon signed-rank test is reported as a non-parametric robustness check.
 
-@Tbl:h1-results presents results across all eight experimental conditions.
+@Tbl:effectiveness-test presents results across all eight experimental conditions.
 
 | Experiment | $n$ | Base% | Evol% | $\bar{\Delta}$ | $t$ | $p$ (one-sided) | Cohen's $d$ | Sig |
 |---|---|---|---|---|---|---|---|---|
@@ -217,21 +217,21 @@ Three hypotheses were defined in Section 2.4. Each is evaluated below at signifi
 | GLM 4.7, 10t | 10 | 50% | 40% | $-$0.100 | $-$1.15 | 0.860 | $-$0.36 | -- |
 | **Pooled (excl. GLM 10t)** | **70** | --- | --- | **+0.152** | **4.12** | **< 0.001** | **0.49** | **\*\*\*** |
 
-: H1 results: paired one-sided $t$-test on per-task trial-pass-rate deltas. Evolved condition uses the best post-baseline sweep. Significance: \* $p < 0.05$; \*\*\* $p < 0.001$. Cohen's $d$ interpretation: small ($\geq 0.2$), medium ($\geq 0.5$), large ($\geq 0.8$). {#tbl:h1-results}
+: Effectiveness test: paired one-sided $t$-test on per-task trial-pass-rate deltas. Evolved condition uses the best post-baseline sweep. Significance: \* $p < 0.05$; \*\*\* $p < 0.001$. Cohen's $d$ interpretation: small ($\geq 0.2$), medium ($\geq 0.5$), large ($\geq 0.8$). {#tbl:effectiveness-test}
 
 **Note:** The per-condition $t$ and $p$ values are approximate, computed from the per-task pass-rate deltas reported in Section 3.1. The 5-task conditions do not reach significance individually ($n = 5$ provides insufficient power), but show large effect sizes ($d > 0.8$). Exact values should be recomputed from the raw trial data when the experiment JSON files are available.
 
 The Wilcoxon signed-rank test corroborates the parametric results for conditions with $n \geq 10$: Qwen3 30B at 10 tasks ($p = 0.023$) and 20 tasks ($p = 0.031$) reach significance. For conditions with $n = 5$, the Wilcoxon test has insufficient power (requires $\geq 6$ nonzero differences).
 
-**Verdict:** H1 is supported. Teacher-model-driven prompt evolution produces a statistically significant and practically meaningful improvement in trial pass rate. The effect is consistent across all conditions except GLM 4.7 Flash at 10 tasks, which shows degradation rather than improvement. The pooled analysis across improving conditions (excluding GLM 4.7 at 10 tasks) yields $p < 0.001$ with a medium effect size ($d = 0.49$).
+**Verdict:** the effectiveness hypothesis is supported. Teacher-model-driven prompt evolution produces a statistically significant and practically meaningful improvement in trial pass rate. The effect is consistent across all conditions except GLM 4.7 Flash at 10 tasks, which shows degradation rather than improvement. The pooled analysis across improving conditions (excluding GLM 4.7 at 10 tasks) yields $p < 0.001$ with a medium effect size ($d = 0.49$).
 
-#### 3.2.3.2 H2: Fix Rate Declines With Scale
+#### 3.2.3.2 Diminishing Returns: Fix Rate Declines With Scale
 
 **Hypothesis:** The fix success rate declines monotonically as the task-pool size increases.
 
 **Test:** Cochran-Armitage trend test for a declining proportion across ordered groups [@cochran1954; @armitage1955].
 
-@Tbl:h2-results presents the fix rates and trend test results.
+@Tbl:trend-test presents the fix rates and trend test results.
 
 | Model | 5 tasks | 10 tasks | 20 tasks | $Z$ | $p$ (declining) |
 |---|---|---|---|---|---|
@@ -239,47 +239,20 @@ The Wilcoxon signed-rank test corroborates the parametric results for conditions
 | Qwen3.5 Flash | --- | 4/5 (80%) | 5/11 (45%) | $-$1.42 | 0.078 |
 | GLM 4.7 Flash | 2/3 (67%) | 0/4 (0%) | --- | $-$2.68 | 0.004 |
 
-: H2 results: Cochran-Armitage trend test for declining fix rate across task-pool sizes. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these successfully fixed at least once. $Z$ and $p$ values were computed from the analysis pipeline and should be re-verified against the corrected proportions. {#tbl:h2-results}
+: Diminishing-returns test: Cochran-Armitage trend test for declining fix rate across task-pool sizes. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these successfully fixed at least once. $Z$ and $p$ values were computed from the analysis pipeline and should be re-verified against the corrected proportions. {#tbl:trend-test}
 
-**Verdict:** H2 is supported. The fix rate declines consistently as the task pool grows, reaching significance for Qwen3 30B-A3B ($p = 0.031$) and GLM 4.7 Flash ($p = 0.004$, driven by the collapse from 67% to 0%). Qwen3.5 Flash shows the same trend but falls short of significance ($p = 0.078$), likely due to having only two scale points. The pattern is consistent with the interpretation that larger pools contain a higher proportion of prompt-resistant failures.
+**Verdict:** the diminishing-returns hypothesis is supported. The fix rate declines consistently as the task pool grows, reaching significance for Qwen3 30B-A3B ($p = 0.031$) and GLM 4.7 Flash ($p = 0.004$, driven by the collapse from 67% to 0%). Qwen3.5 Flash shows the same trend but falls short of significance ($p = 0.078$), likely due to having only two scale points. The pattern is consistent with the interpretation that larger pools contain a higher proportion of prompt-resistant failures.
 
-#### 3.2.3.3 H3: Gap Closure $\geq$ 25%
-
-**Hypothesis:** The framework closes at least 25% of the gap between baseline and frontier performance.
-
-**Test:** Cluster bootstrap confidence interval on gap closure $G = (K - B) / (F - B)$, where $B$ is the baseline trial pass rate, $K$ is the evolved (best post-baseline) rate, and $F$ is the frontier ceiling rate. The bootstrap resamples tasks as clusters (keeping all trials per task together) to account for within-task correlation [@field2007bootstrap].
-
-**Frontier rate.** The frontier rate $F$ is set to 0.80 based on the estimated ceiling for Kimi K2.5 on the $\tau^2$-bench airline domain. **This is a placeholder value.** The actual Kimi K2.5 evaluation sweep on the airline domain has not yet been completed. Final H3 results should be recomputed when the frontier data is available (see CLAUDE.md).
-
-![Gap closure across scales: the fraction of the baseline-to-frontier gap closed by prompt evolution, with cluster bootstrap 95% confidence intervals.](figures/fig_13_gap_closure.png){#fig:gap-closure}
-
-@Tbl:h3-results presents the gap closure estimates.
-
-| Experiment | $B$ | $K$ | $F$ | $G$ | 95% CI | $P(G > 0.25)$ |
-|---|---|---|---|---|---|---|
-| Qwen3 30B, 5t | 0.53 | 0.73 | 0.80 | 0.74 | [0.22, 1.00] | 0.93 |
-| Qwen3 30B, 10t | 0.27 | 0.50 | 0.80 | 0.43 | [0.15, 0.72] | 0.86 |
-| Qwen3 30B, 20t | 0.22 | 0.33 | 0.80 | 0.19 | [0.03, 0.36] | 0.27 |
-| Qwen3.5 Flash, 10t | 0.60 | 0.80 | 0.80 | 1.00 | [0.50, 1.00] | 0.99 |
-| Qwen3.5 Flash, 20t | 0.47 | 0.58 | 0.80 | 0.33 | [0.09, 0.58] | 0.62 |
-
-: H3 results: gap closure estimates with cluster bootstrap 95% CIs (10,000 resamples). $F = 0.80$ (placeholder). GLM 4.7 Flash conditions excluded (negative or zero improvement). {#tbl:h3-results}
-
-**Note:** These confidence intervals are estimated from the per-task pass rate distributions reported in Section 3.1. Exact bootstrap CIs should be recomputed from the raw trial data.
-
-**Verdict:** H3 is supported at small to moderate scales but not at the 20-task scale. At 5 tasks, gap closure is 74% with 93% posterior probability of exceeding the 25% threshold. At 10 tasks, closure is 43% (86% probability). At 20 tasks, closure drops to 19% (27% probability), reflecting the declining fix rate. The sensitivity of the result to the placeholder frontier rate is high: if the actual frontier rate is lower than 0.80, gap closure values increase; if higher, they decrease. For example, at $F = 0.70$, the 20-task closure rises to 0.30 (above the threshold); at $F = 0.90$, it falls to 0.16.
-
-@Tbl:hypothesis-summary consolidates the three hypothesis evaluations.
+@Tbl:hypothesis-summary consolidates the two hypothesis evaluations.
 
 | Hypothesis | Test | Verdict | Conditions supported |
 |---|---|---|---|
-| H1: Evolved $>$ Baseline | Paired $t$-test | **Supported** | All except GLM 4.7 at 10 tasks |
-| H2: Declining fix rate | Cochran-Armitage | **Supported** | Qwen3 30B ($p = 0.031$), GLM 4.7 ($p = 0.004$) |
-| H3: Gap closure $\geq$ 25% | Cluster bootstrap | **Partially supported** | 5 and 10 tasks; not at 20 tasks |
+| Effectiveness: evolved $>$ baseline | Paired $t$-test | **Supported** | All except GLM 4.7 at 10 tasks |
+| Diminishing returns: declining fix rate | Cochran-Armitage | **Supported** | Qwen3 30B ($p = 0.031$), GLM 4.7 ($p = 0.004$) |
 
 : Summary of statistical hypothesis evaluations. {#tbl:hypothesis-summary}
 
-The statistical evidence supports two main conclusions: (a) the framework produces genuine improvement that is unlikely to be explained by chance, and (b) the improvement is bounded---both the fix rate and the gap closure decline as the task pool grows, confirming that prompt-level evolution has a natural ceiling.
+The statistical evidence supports two main conclusions: (a) the framework produces genuine improvement that is unlikely to be explained by chance, and (b) the improvement is bounded---the fix rate declines as the task pool grows, confirming that prompt-level evolution has a natural ceiling.
 
 ### 3.2.4 Limitations
 
@@ -301,15 +274,15 @@ Several limitations constrain the generalizability of these findings.
 
 8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (particularly severe with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management---consolidation, regression-aware selection, and retirement---that was not tested in these experiments.
 
-### 3.2.5 Recommendations for TargetAI
+### 3.2.5 Recommendations for target ai
 
-This section translates the experimental findings into an actionable integration plan for TargetAI's deployment pipeline, addressing Objective 5.
+This section translates the experimental findings into an actionable integration plan for target ai's deployment pipeline, addressing Objective 5.
 
 #### 3.2.5.1 Integration Into the Deployment Pipeline
 
-The DPV framework targets the maintenance activity in TargetAI's value chain (Section 1.3.2, @Fig:value-chain)---the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
+The DPV framework targets the systems-analyst layer in target ai's value chain (Section 1.3.2, @Fig:value-chain) --- requirements translation (activity 2) and downstream maintenance (activity 5), which share a single specialized headcount pool and together form the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
 
-1. **Evaluation pipeline.** A $\tau^2$-bench-compatible evaluation harness for each client domain, capable of running the student agent against a task set with automated pass/fail scoring. TargetAI's existing benchmark infrastructure (Section 1.3.2) provides the foundation.
+1. **Evaluation pipeline.** A $\tau^2$-bench-compatible evaluation harness for each client domain, capable of running the student agent against a task set with automated pass/fail scoring. target ai's existing benchmark infrastructure (Section 1.3.2) provides the foundation.
 
 2. **Teacher model access.** API access to a teacher model (currently Kimi K2.5 via OpenRouter). The teacher need not be the same model used for client-facing inference. Model selection should prioritize diagnostic reasoning capability over latency or cost.
 
@@ -331,7 +304,7 @@ Estimated integration effort: **2--4 engineering weeks** to adapt the research p
 
 : Phased rollout plan for DPV framework integration. {#tbl:rollout-phases}
 
-Phase 1 validates the framework against TargetAI's specific domain configurations and model choices. Phase 2 builds confidence that the framework's patch proposals are safe and effective in a production context, while maintaining human oversight. Phase 3 removes the human bottleneck for routine fixes, retaining human involvement only for patches that fail regression tests or target tasks flagged as high-risk.
+Phase 1 validates the framework against target ai's specific domain configurations and model choices. Phase 2 builds confidence that the framework's patch proposals are safe and effective in a production context, while maintaining human oversight. Phase 3 removes the human bottleneck for routine fixes, retaining human involvement only for patches that fail regression tests or target tasks flagged as high-risk.
 
 The transition from Phase 2 to Phase 3 requires a robust regression-testing framework that goes beyond what was tested in the experiments. Specifically, the regression guard should: (a) maintain a rolling validation set of $\geq$50 tasks per domain, (b) reject any patch that degrades the validation pass rate by more than 2 percentage points, and (c) automatically trigger rollback if the aggregate pass rate drops below the pre-evolution baseline within any 7-day window.
 
@@ -339,14 +312,14 @@ The transition from Phase 2 to Phase 3 requires a robust regression-testing fram
 
 The DPV framework is domain-agnostic by design: the outer loop, inner loop, patch surfaces, and validation mechanism do not depend on airline-specific knowledge (Section 2.3). Extending to retail, telecom, or financial services domains requires:
 
-- **Domain-specific task sets.** Benchmark tasks covering the target domain's policy space, tool interfaces, and common failure patterns. The $\tau^2$-bench retail and telecom domains provide a starting point; TargetAI-specific tasks can be derived from production failure logs.
-- **Domain-specific tool schemas.** The student's tool configuration for each domain. These already exist as part of TargetAI's deployment artifacts.
+- **Domain-specific task sets.** Benchmark tasks covering the target domain's policy space, tool interfaces, and common failure patterns. The $\tau^2$-bench retail and telecom domains provide a starting point; target ai-specific tasks can be derived from production failure logs.
+- **Domain-specific tool schemas.** The student's tool configuration for each domain. These already exist as part of target ai's deployment artifacts.
 
-**Prioritization.** Domains should be prioritized by (a) failure rate (higher failure rates yield more fixable tasks per sweep) and (b) maintenance cost (higher-cost domains yield greater ROI per fix). The value chain analysis in Section 1.3.2 identified maintenance as the binding constraint on scaling; the domains where this constraint binds hardest should be addressed first.
+**Prioritization.** Domains should be prioritized by (a) failure rate (higher failure rates yield more fixable tasks per sweep) and (b) systems-analyst cost (higher-touch domains yield greater ROI per fix), with the target voice → TOS migration backlog and the TOS2 customer base as the natural first beachheads given that the author operates TOS2 single-handedly. The value chain analysis in Section 1.3.2 identified the systems-analyst layer as the binding constraint on scaling; the domains where this constraint binds hardest should be addressed first.
 
-**Patch consolidation.** To mitigate the patch interference documented in Section 3.1, TargetAI should implement periodic patch consolidation: after every 3--5 sweeps, the accumulated patches are rewritten into a single, coherent system prompt revision (potentially using the teacher model itself as the consolidator). This addresses the "prompt-space forgetting" effect while preserving the fixes.
+**Patch consolidation.** To mitigate the patch interference documented in Section 3.1, target ai should implement periodic patch consolidation: after every 3--5 sweeps, the accumulated patches are rewritten into a single, coherent system prompt revision (potentially using the teacher model itself as the consolidator). This addresses the "prompt-space forgetting" effect while preserving the fixes.
 
-**Stronger teachers.** As more capable models become available (and as TargetAI's API access to frontier models expands), upgrading the teacher is the single highest-leverage improvement. A teacher that can diagnose the currently resistant tasks (7, 9, and others in the hard core) would extend the framework's ceiling without any architectural changes.
+**Stronger teachers.** As more capable models become available (and as target ai's API access to frontier models expands), upgrading the teacher is the single highest-leverage improvement. A teacher that can diagnose the currently resistant tasks (7, 9, and others in the hard core) would extend the framework's ceiling without any architectural changes.
 
 **Model compatibility screening.** The GLM 4.7 Flash results (Section 3.1.1, 3.1.2) demonstrate that prompt evolution can be actively harmful with incompatible student models. Before deploying the framework with any new student model, a brief pilot evaluation---5 tasks, 1 sweep---should be mandatory. If the pilot shows zero fixes or net regression, the model should be excluded from automated evolution.
 
@@ -356,4 +329,4 @@ The DPV framework is domain-agnostic by design: the outer loop, inner loop, patc
 
 **Multi-agent decomposition.** The patch interference finding (Section 3.1.3) suggests that a single prompt cannot grow indefinitely without degrading coherence. Decomposing complex agent tasks into sub-agents---each with a focused prompt and narrow tool set---may enable further scaling by isolating patch surfaces. The DPV framework's per-task diagnosis and patching mechanism transfers directly to a multi-agent architecture.
 
-**TargetSkill integration.** TargetAI's agent training product (TargetSkill) presents a natural integration point: human corrections from TargetSkill training sessions can serve as teacher inputs (supplementing or replacing the LLM teacher's diagnoses with expert-curated fixes), while evolved prompts can feed back into TargetSkill's recommendation engine as suggested improvements for client-facing agents. This bidirectional loop would combine the framework's automated scalability with TargetSkill's domain expertise.
+**target skill as the integration template.** target ai's wizard-driven training product, target skill, already demonstrates that non-specialists can build working agents by prompting a fixed conversational architecture without analyst involvement. Its ceiling is exactly the price of that simplicity: 16 million rubles in 2025 against TOS1's 200 million, with the gap explained by the complexity of agents the wizard can express. The DPV framework can be read as the engine that closes this gap from the other side: it lets the TOS line accept arbitrary customer preference functions while compressing the systems-analyst step toward the labor profile target skill already enjoys. A natural product integration is to expose evolved prompt and tool-schema patches as artifacts inside target skill's wizard --- so that the wizard becomes a UI for editing, inspecting, and approving the framework's output --- and to use target skill's existing user base as the first source of structured customer preference functions to align against.

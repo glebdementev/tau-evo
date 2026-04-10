@@ -48,15 +48,11 @@ The user simulator uses Qwen3 30B-A3B. $\tau^2$-bench's user simulator follows s
 
 ## 2.4.4 Experimental Conditions
 
-Three conditions are evaluated, differing only in the agent's model and prompt configuration:
+Two conditions are evaluated, differing only in the agent's prompt and tool configuration:
 
-- **Condition B (Baseline):** The student model runs with $\tau^2$-bench's default system prompt and original tool schemas. This establishes the performance floor.
+- **Baseline.** The student model runs with $\tau^2$-bench's default system prompt and original tool schemas. This establishes the performance floor.
 
-- **Condition K (Evolved):** The student model runs with the evolved prompt and tool configuration produced by the DPV framework: modified system prompt, modified tool schemas, and tool preprocessors.
-
-- **Condition F (Frontier Ceiling):** The teacher model (Kimi K2.5) runs as the agent directly with default, unmodified prompts and tools. This provides the upper bound for the gap-closure metric.
-
-![Experimental conditions: baseline (B), evolved (K), and frontier (F) with gap closure metric.](figures/fig_05_three_conditions.png){#fig:three-conditions}
+- **Evolved.** The student model runs with the evolved prompt and tool configuration produced by the DPV framework: modified system prompt, modified tool schemas, and tool preprocessors.
 
 ## 2.4.5 Experimental Design: Three Scales $\times$ Three Models
 
@@ -84,21 +80,16 @@ This is the standard metric in $\tau$-bench publications. Any reward below 1.0 c
 
 ![Reward breakdown for a sample task: the binary pass$^1$ metric aggregates sub-criteria scores into a single pass/fail outcome.](figures/fig_09_reward_breakdown.png){#fig:reward-breakdown}
 
-To normalize for domain difficulty:
-
-$$G = \frac{K - B}{F - B} \times 100\%$$
-
-where $K$ is the evolved pass rate, $B$ the baseline, and $F$ the frontier ceiling. A gap closure of 50% means the evolved prompt captured half the teacher's advantage through prompt patching alone.
-
 The fix success rate is defined as:
 
 $$\text{FSR} = \frac{|\{i : \text{fix}_i \text{ succeeds}\}|}{M}$$
 
 where $M$ is the number of attempted fixes. A fix succeeds when the patched student passes the task unanimously across all trials.
 
-The statistical analysis plan comprises three hypothesis tests. **H1 (Effectiveness):** Paired t-test on per-task trial-pass-rate deltas (evolved minus baseline), one-sided at $\alpha = 0.05$. Sensitivity checks via McNemar's exact test and Wilcoxon signed-rank test.
-- **H2 (Diminishing returns):** Cochran-Armitage trend test [@cochran1954; @armitage1955] on fix success rate across ordered pool sizes (5, 10, 20 tasks).
-- **H3 (Gap closure $\geq$ 25%):** Cluster bootstrap confidence interval [@field2007] with 10,000 resamples, preserving the nested structure (all trials within a task kept together).
+The statistical analysis plan comprises two hypothesis tests plus interval reporting:
+
+- **Effectiveness.** Paired one-sided $t$-test on per-task trial-pass-rate deltas (evolved minus baseline) at $\alpha = 0.05$. Sensitivity checks via McNemar's exact test and Wilcoxon signed-rank test.
+- **Diminishing returns.** Cochran-Armitage trend test [@cochran1954; @armitage1955] on fix success rate across ordered pool sizes (5, 10, 20 tasks).
 - **Confidence intervals:** Exact Clopper-Pearson intervals for pass rates, following @bowyer2025 for evaluations with fewer than 300 data points.
 
 ## 2.4.7 Reproducibility
