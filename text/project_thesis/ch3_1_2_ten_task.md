@@ -1,6 +1,6 @@
 ### 3.1.2 Ten-Task Experiments
 
-#### 3.1.2.1 Qwen3 30B-A3B
+#### Qwen3 30B-A3B
 
 Experiment 2 doubles the task set from five to ten, introducing five additional tasks (7, 9, 10, 11, 12). @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
 
@@ -69,7 +69,7 @@ The cost distribution shifts substantially. In the five-task run, the teacher en
 
 In summary, the trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-percentage-point gain comparable to the five-task run's +20pp. The instruction-guardrail ratio (71%/29%) is identical. However, four of seven majority-vote failures (Tasks 7, 9, 11, 12) resist all fix attempts, and improvement is delayed by one sweep due to patch fragility.
 
-#### 3.1.2.2 Qwen3.5 Flash
+#### Qwen3.5 Flash
 
 The same ten tasks were evaluated with Qwen3.5 Flash as the student model. @Tbl:exp2-flash-passrate summarises pass rates across sweeps.
 
@@ -123,7 +123,7 @@ The most striking result is the regression in sweep 3. The majority pass rate dr
 
 The likely explanation is patch interference compounded by the stronger model's sensitivity to instruction changes. A model that follows instructions more precisely may also be more disrupted when accumulated patches create conflicting directives. Task 11's complete regression (3/3 → 0/3) is particularly concerning---this task was successfully fixed in sweep 1 with a simple instruction patch (42 seconds, 6 messages), yet the patches accumulated during sweep 2 appear to have undone this fix entirely.
 
-#### 3.1.2.3 GLM 4.7 Flash
+#### GLM 4.7 Flash
 
 @Tbl:glm10-passrate summarises pass rates across sweeps. @Fig:glm47-10-heatmap visualises the per-task, per-trial results.
 
@@ -181,7 +181,7 @@ The sweep 3 result is especially revealing: the evolution loop sees all ten task
 
 In summary, GLM 4.7 Flash at ten tasks represents the framework's clearest failure mode. Despite a strong baseline (60% majority), the evolution loop cannot fix any genuinely failing task and actively degrades performance on passing tasks. The trial rate declines monotonically from 50% to 40% across three sweeps. This result motivated dropping GLM 4.7 Flash from the 20-task experiment.
 
-#### 3.1.2.4 Comparative Analysis at Ten Tasks
+#### Comparative Analysis at Ten Tasks
 
 @Tbl:10task-comparison summarises the key metrics for all three models at ten tasks.
 

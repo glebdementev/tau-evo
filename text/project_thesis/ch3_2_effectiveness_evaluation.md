@@ -36,7 +36,7 @@ Additionally, Qwen3.5 Flash was evaluated at 10 tasks (60% $\to$ 80%, +20pp) and
 
 Objective 3: Characterize which failure types respond to prompt-level intervention. Status: Achieved.
 
-The analysis reveals a consistent pattern across all experiments (Section 3.1.4.5):
+The analysis reveals a consistent pattern across all experiments (Section 3.1.4, subsection "Instruction vs Guardrail Ratio Across All Experiments"):
 
 - **Instruction-tier patches** account for 70--92% of successful fixes across all eight conditions. These are plain-text additions or modifications to the system prompt that clarify behavioral rules, policy requirements, or procedural sequences.
 - **Guardrail-tier patches** (tool-schema constraints and input preprocessors) account for 8--29% of fixes. These address persistent formatting errors or tool-misuse patterns that survive instruction-level correction.
@@ -76,7 +76,7 @@ Objective 5: Produce actionable recommendations for *target ai*. Status: Achieve
 
 Section 1.3.3 established the cost structure of manual agent maintenance and argued that the DPV framework shifts the cost driver from human labor (linear in deployments) to API compute (near-fixed). This section quantifies that shift using the experimental data from Section 3.1.
 
-#### 3.2.2.1 Manual Maintenance Baseline
+#### Manual Maintenance Baseline
 
 The manual maintenance cost for $N$ active deployments is:
 
@@ -94,11 +94,11 @@ where $f$ is the FTE allocation per deployment and $w$ is the annual FTE cost. @
 
 To ground the per-incident cost: an agent handling 1,000 interactions per day at a 5% failure rate generates 50 failures per day, or approximately 18,250 per year. Under the mid-range scenario, 1.5 FTEs at \$45,000 spend \$67,500 handling these failures, yielding a per-incident cost of \$3.70 for the manual diagnosis-fix-test cycle. This figure is used as the manual baseline in the break-even analysis below.
 
-#### 3.2.2.2 DPV Framework Cost Model
+#### DPV Framework Cost Model
 
 The framework's cost has three components: teacher model inference, student model re-evaluation, and one-time integration. The analysis uses Kimi K2.5 pricing (\$0.60 per million input tokens, \$2.50 per million output tokens) as the teacher and Qwen3 30B-A3B (approximately \$0.10 per million tokens via OpenRouter) as the student.
 
-Token estimation methodology. Exact token counts were not logged during experiments. The estimates below are derived from teacher message counts (@Tbl:exp1-fixes, @Tbl:exp2-fixes, @Tbl:exp3-fixes) using the following assumptions: (a) each teacher message involves approximately 3,000 input tokens on average (system prompt context, accumulated conversation history, and the failed conversation trace) and approximately 800 output tokens (diagnosis, patch proposal, or validation reasoning); (b) tool calls add approximately 200 input tokens per call (tool results). These estimates carry uncertainty of approximately $\pm$50%, which the sensitivity analysis in Section 3.2.2.5 addresses.
+Token estimation methodology. Exact token counts were not logged during experiments. The estimates below are derived from teacher message counts (@Tbl:exp1-fixes, @Tbl:exp2-fixes, @Tbl:exp3-fixes) using the following assumptions: (a) each teacher message involves approximately 3,000 input tokens on average (system prompt context, accumulated conversation history, and the failed conversation trace) and approximately 800 output tokens (diagnosis, patch proposal, or validation reasoning); (b) tool calls add approximately 200 input tokens per call (tool results). These estimates carry uncertainty of approximately $\pm$50%, which the sensitivity analysis in Section 3.2.2, subsection "Sensitivity Analysis", addresses.
 
 A. Per-fix compute cost. @Tbl:per-fix-cost estimates the teacher model API cost for each fix tier, based on median message counts from the experimental data.
 
@@ -122,7 +122,7 @@ B. Per-sweep compute cost. @Tbl:sweep-cost aggregates across all fix attempts (s
 
 : Estimated compute cost per complete evolution run (two productive sweeps). Student evaluation cost assumes 3 trials per task at ~5K tokens per episode. {#tbl:sweep-cost}
 
-The cost is dominated by failed attempts on resistant tasks. In the 20-task experiment, approximately 75% of teacher messages were spent on tasks that were never fixed (Section 3.1.3.1). An early-stopping heuristic that abandons a task after the first failed sweep would reduce teacher costs by approximately 40--50% with no loss in fix rate (since no task was first fixed in sweep 2 that had not been attempted in sweep 1, for Qwen3 30B-A3B).
+The cost is dominated by failed attempts on resistant tasks. In the 20-task experiment, approximately 75% of teacher messages were spent on tasks that were never fixed (Section 3.1.3, subsection "Qwen3 30B-A3B"). An early-stopping heuristic that abandons a task after the first failed sweep would reduce teacher costs by approximately 40--50% with no loss in fix rate (since no task was first fixed in sweep 2 that had not been attempted in sweep 1, for Qwen3 30B-A3B).
 
 C. Per-deployment annual cost. Assuming monthly evolution sweeps (12 per year) on a 20-task domain:
 
@@ -145,7 +145,7 @@ This yields an annual per-deployment compute cost of approximately \$48 (12 swee
 
 : Annualized cost of automated maintenance per deployment. Pipeline maintenance covers benchmark updates, monitoring, and infrastructure. Human review assumes a prompt engineer spends approximately 4 hours per month reviewing proposed patches before approval. {#tbl:auto-cost-summary}
 
-#### 3.2.2.3 Break-Even Analysis
+#### Break-Even Analysis
 
 The break-even question is: at what point does the DPV framework's cost fall below the manual alternative?
 
@@ -157,7 +157,7 @@ $$t_\text{break-even} = \frac{C_\text{fixed}}{C_\text{manual} - C_\text{auto}} =
 
 Even under the conservative scenario ($C_\text{manual}$ = \$15,000/year), break-even occurs within 10 months for a single deployment.
 
-#### 3.2.2.4 ROI Under Deployment Scenarios
+#### ROI Under Deployment Scenarios
 
 @Tbl:roi-scenarios presents the first-year return on investment across three deployment scales, using mid-range assumptions.
 
@@ -177,7 +177,7 @@ Two additional factors favor the automated approach over time:
 
 2. **Cross-deployment patch transfer.** Patches addressing common failure patterns (e.g., identity verification procedures, refund eligibility rules) can transfer across deployments in the same domain, reducing the per-deployment sweep cost for the second and subsequent clients.
 
-#### 3.2.2.5 Sensitivity Analysis
+#### Sensitivity Analysis
 
 The economic model depends on several estimated parameters. @Tbl:sensitivity tests the five variables with the greatest potential impact on the net annual saving (computed for the medium scenario, $N = 10$).
 
@@ -215,7 +215,7 @@ The variable that does *not* appear in the table is also important: the fix rate
 
 Two hypotheses were defined in Section 2.4. Each is evaluated below at significance level $\alpha = 0.05$. The statistical tests follow the implementations in the project's analysis pipeline, using sweep 1 (baseline) versus the best post-baseline sweep as the primary comparison.
 
-#### 3.2.3.1 Effectiveness: Evolved Agent Outperforms Baseline
+#### Effectiveness: Evolved Agent Outperforms Baseline
 
 Hypothesis: The DPV-evolved agent achieves a higher trial pass rate than the unmodified baseline ($\mu_\Delta > 0$).
 
@@ -242,7 +242,7 @@ The Wilcoxon signed-rank test corroborates the parametric results for conditions
 
 Verdict: the effectiveness hypothesis is supported. Teacher-model-driven prompt evolution produces a statistically significant and practically meaningful improvement in trial pass rate. The effect is consistent across all conditions except GLM 4.7 Flash at 10 tasks, which shows degradation rather than improvement. The pooled analysis across improving conditions (excluding GLM 4.7 at 10 tasks) yields $p < 0.001$ with a medium effect size ($d = 0.49$).
 
-#### 3.2.3.2 Diminishing Returns: Fix Rate Declines With Scale
+#### Diminishing Returns: Fix Rate Declines With Scale
 
 Hypothesis: The fix success rate declines monotonically as the task-pool size increases.
 
@@ -287,7 +287,7 @@ Several limitations constrain the generalizability of these findings.
 
 6. **No comparison with alternative improvement methods.** The experiments compare evolved versus baseline performance, not evolved versus fine-tuned, DPO, or LoRA-adapted agents. The relative efficiency claim rests on the economic analysis (Section 3.2.2), not on head-to-head experimental comparison with weight-modification methods.
 
-7. **Token consumption estimated, not measured.** The economic model in Section 3.2.2 uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual costs may differ by a factor of 2--3$\times$ in either direction. The sensitivity analysis (Section 3.2.2.5) shows that even a 3$\times$ overestimate does not materially affect the economic conclusion, but precise measurement in a production deployment would be valuable.
+7. **Token consumption estimated, not measured.** The economic model in Section 3.2.2 uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual costs may differ by a factor of 2--3$\times$ in either direction. The sensitivity analysis (Section 3.2.2, subsection "Sensitivity Analysis") shows that even a 3$\times$ overestimate does not materially affect the economic conclusion, but precise measurement in a production deployment would be valuable.
 
 8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (particularly severe with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management---consolidation, regression-aware selection, and retirement---that was not tested in these experiments.
 
@@ -295,7 +295,7 @@ Several limitations constrain the generalizability of these findings.
 
 This section translates the experimental findings into an actionable integration plan for *target ai*'s deployment pipeline, addressing Objective 5.
 
-#### 3.2.5.1 Integration Into the Deployment Pipeline
+#### Integration Into the Deployment Pipeline
 
 The DPV framework targets the systems-analyst layer in *target ai*'s value chain (Section 1.3.2, @Fig:value-chain) --- requirements translation (activity 2) and downstream maintenance (activity 5), which share a single specialized headcount pool and together form the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
 
@@ -309,7 +309,7 @@ The DPV framework targets the systems-analyst layer in *target ai*'s value chain
 
 Estimated integration effort: 2--4 engineering weeks to adapt the research prototype to a production-grade service, assuming the evaluation pipeline and benchmark tasks already exist for the target domain.
 
-#### 3.2.5.2 Phased Rollout Roadmap
+#### Phased Rollout Roadmap
 
 @Tbl:rollout-phases presents a three-phase rollout plan, progressing from internal validation to fully automated operation.
 
@@ -325,7 +325,7 @@ Phase 1 validates the framework against *target ai*'s specific domain configurat
 
 The transition from Phase 2 to Phase 3 requires a robust regression-testing framework that goes beyond what was tested in the experiments. Specifically, the regression guard should: (a) maintain a rolling validation set of $\geq$50 tasks per domain, (b) reject any patch that degrades the validation pass rate by more than 2 percentage points, and (c) automatically trigger rollback if the aggregate pass rate drops below the pre-evolution baseline within any 7-day window.
 
-#### 3.2.5.3 Extending Beyond the Airline Domain
+#### Extending Beyond the Airline Domain
 
 The DPV framework is domain-agnostic by design: the outer loop, inner loop, patch surfaces, and validation mechanism do not depend on airline-specific knowledge (Section 2.3). Extending to retail, telecom, or financial services domains requires:
 

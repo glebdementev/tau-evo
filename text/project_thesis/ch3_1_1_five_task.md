@@ -8,7 +8,7 @@ This chapter presents the results of testing the DPV framework (EDP Phase 6: Tes
 
 ### 3.1.1 Five-Task Evaluation
 
-#### 3.1.1.1 Qwen3 30B-A3B
+#### Qwen3 30B-A3B
 
 The baseline evaluates the unmodified student on five airline tasks with three trials each. @Fig:exp1-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp1-passrate summarises pass rates.
 
@@ -68,13 +68,13 @@ The most notable negative result is the regression of Task 5 between sweeps 2 an
 
 In summary, the aggregate trial pass rate rises from 53% (baseline) to 73% (after two sweeps of evolution). Instruction-level patches account for the majority of successful fixes. However, the five-task setting saturates quickly: by sweep 3, no further fixes are possible, and patch interference introduces mild regression.
 
-#### 3.1.1.2 Qwen3.5 Flash
+#### Qwen3.5 Flash
 
 The same five tasks (0, 1, 3, 4, 5) were evaluated with Qwen3.5 Flash as the student model. At baseline, Qwen3.5 Flash achieves a perfect 5/5 majority-vote pass rate (15/15 trials), requiring no evolution intervention. Every task that Qwen3 30B-A3B struggled with---including Task 0 (which never reliably passed even after evolution) and Task 3 (which required multi-sweep patching)---is solved by Qwen3.5 Flash out of the box.
 
 This result establishes a ceiling reference: the five-task airline configuration is within the unassisted capability of a stronger non-thinking model. The evolution framework's contribution on these tasks is to bridge the gap between a weaker model's capability and this ceiling---a gap that a stronger student does not have.
 
-#### 3.1.1.3 GLM 4.7 Flash
+#### GLM 4.7 Flash
 
 @Tbl:glm5-passrate summarises pass rates across sweeps for GLM 4.7 Flash on five tasks. @Fig:glm47-5-heatmap visualises the per-task, per-trial results.
 
@@ -126,7 +126,7 @@ This regression is far more severe than anything observed with Qwen3 30B-A3B (wh
 
 In summary, GLM 4.7 Flash achieves a strong peak improvement (+40pp majority, +26pp trial at sweep 2), demonstrating that the evolution framework can work with this model. However, the gains are entirely erased by sweep 3, indicating that the model lacks the robustness to maintain improvements under patch accumulation. Task 3 is never fixed across either sweep, remaining the sole resistant task.
 
-#### 3.1.1.4 Comparative Analysis at Five Tasks
+#### Comparative Analysis at Five Tasks
 
 | Metric | Qwen3 30B-A3B | Qwen3.5 Flash | GLM 4.7 Flash |
 |--------|---------------|---------------|---------------|
