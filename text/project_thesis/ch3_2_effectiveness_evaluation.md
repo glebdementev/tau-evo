@@ -122,6 +122,8 @@ B. Per-sweep compute cost. @Tbl:sweep-cost aggregates across all fix attempts (s
 
 : Estimated compute cost per complete evolution run (two productive sweeps). Student evaluation cost assumes 3 trials per task at ~5K tokens per episode. {#tbl:sweep-cost}
 
+As an empirical cross-check, the actual aggregate API spend across all eight experimental runs in this study (three student models $\times$ three task-pool sizes, minus the GLM 4.7 Flash 20-task configuration, which was skipped due to the model's regression under evolution) was approximately \$40. This figure sits at the upper end of the $\pm$50% uncertainty band around the bottom-up estimates in @Tbl:sweep-cost and confirms the order-of-magnitude cost claim.
+
 The cost is dominated by failed attempts on resistant tasks. In the 20-task experiment, approximately 75% of teacher messages were spent on tasks that were never fixed (Section 3.1.3, subsection "Qwen3 30B-A3B"). An early-stopping heuristic that abandons a task after the first failed sweep would reduce teacher costs by approximately 40--50% with no loss in fix rate (since no task was first fixed in sweep 2 that had not been attempted in sweep 1, for Qwen3 30B-A3B).
 
 C. Per-deployment annual cost. Assuming monthly evolution sweeps (12 per year) on a 20-task domain:
@@ -287,7 +289,7 @@ Several limitations constrain the generalizability of these findings.
 
 6. **No comparison with alternative improvement methods.** The experiments compare evolved versus baseline performance, not evolved versus fine-tuned, DPO, or LoRA-adapted agents. The relative efficiency claim rests on the economic analysis (Section 3.2.2), not on head-to-head experimental comparison with weight-modification methods.
 
-7. **Token consumption estimated, not measured.** The economic model in Section 3.2.2 uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual costs may differ by a factor of 2--3$\times$ in either direction. The sensitivity analysis (Section 3.2.2, subsection "Sensitivity Analysis") shows that even a 3$\times$ overestimate does not materially affect the economic conclusion, but precise measurement in a production deployment would be valuable.
+7. **Per-message token consumption estimated, not measured.** The economic model in Section 3.2.2 uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual per-message costs may differ from the estimates by a factor of 2--3$\times$ in either direction. The aggregate API spend across all eight experimental runs was observed retrospectively to be approximately \$40, consistent with the upper end of this range, and the sensitivity analysis (Section 3.2.2, subsection "Sensitivity Analysis") shows that even a 3$\times$ overestimate does not materially affect the economic conclusion. Precise per-message measurement in a production deployment would nevertheless be valuable.
 
 8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (particularly severe with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management---consolidation, regression-aware selection, and retirement---that was not tested in these experiments.
 
