@@ -2,7 +2,7 @@
 
 This section describes the technology stack, benchmark configuration, model choices, experimental conditions, evaluation metrics, and reproducibility provisions.
 
-### 2.4.1 Technology Stack
+### Technology Stack
 
 The framework is implemented in Python 3.12 with the following key dependencies:
 
@@ -14,7 +14,7 @@ The framework is implemented in Python 3.12 with the following key dependencies:
 
 The source code is publicly available at github.com/glebdementev/tau-evo.
 
-### 2.4.2 Benchmark: $\tau^2$-bench Airline Domain
+### Benchmark: $\tau^2$-bench Airline Domain
 
 $\tau^2$-bench was selected over four alternative benchmarks (AgentBench, SWE-bench, GAIA, ToolBench) because it is the only benchmark that combines: (1) multi-turn conversations with an LLM-simulated user providing partial information, (2) domain-specific policies, (3) tool-calling APIs that modify database state, and (4) the pass$^k$ reliability metric. Customer service is the natural evaluation domain because it represents the largest addressable market for AI agent automation: approximately 17 million contact center agents globally, with labor constituting up to 95% of operating costs [@gartner2022labor].
 
@@ -24,7 +24,7 @@ A simulated orchestrator manages turn-by-turn conversation between the agent and
 
 ![Conversation mechanics in $\tau^2$-bench: turn-by-turn interaction between agent and user simulator.](figures/fig_07_conversation_mechanics.png){#fig:conversation-mechanics}
 
-### 2.4.3 Model Selection
+### Model Selection
 
 All models are accessed through OpenRouter using a single API key.
 
@@ -46,7 +46,7 @@ The teacher model is Kimi K2.5 [@kimi2026], a MoE Transformer with approximately
 
 The user simulator uses Qwen3 30B-A3B. $\tau^2$-bench's user simulator follows scripted scenarios and does not require frontier-level capabilities.
 
-### 2.4.4 Experimental Conditions
+### Experimental Conditions
 
 Two conditions are evaluated, differing only in the agent's prompt and tool configuration:
 
@@ -54,7 +54,7 @@ Two conditions are evaluated, differing only in the agent's prompt and tool conf
 
 - **Evolved.** The student model runs with the evolved prompt and tool configuration produced by the DPV framework: modified system prompt, modified tool schemas, and tool preprocessors.
 
-### 2.4.5 Experimental Design: Three Scales $\times$ Three Models
+### Experimental Design: Three Scales $\times$ Three Models
 
 The experiments span three task-pool sizes and three student models:
 
@@ -70,7 +70,7 @@ Each experiment runs the evolution loop for up to three sweeps with up to two re
 
 The scaling sequence is deliberate: if gains are task-specific, they should be largest at small scale and diminish as the denominator grows. The multi-model comparison tests whether a stronger student benefits differently from evolution.
 
-### 2.4.6 Evaluation Metrics
+### Evaluation Metrics
 
 The primary metric is pass$^1$---the fraction of tasks achieving a perfect reward of 1.0:
 
@@ -92,7 +92,7 @@ The statistical analysis plan comprises two hypothesis tests plus interval repor
 - **Diminishing returns.** Cochran-Armitage trend test [@cochran1954; @armitage1955] on fix success rate across ordered pool sizes (5, 10, 20 tasks).
 - **Confidence intervals:** Exact Clopper-Pearson intervals for pass rates, following @bowyer2025 for evaluations with fewer than 300 data points.
 
-### 2.4.7 Reproducibility
+### Reproducibility
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
@@ -106,7 +106,7 @@ The statistical analysis plan comprises two hypothesis tests plus interval repor
 
 The complete evolution state is serialized to JSON after each iteration: the current system prompt, all tool schemas, all preprocessor source, iteration history, and metadata. Task IDs are locked after the first evaluation.
 
-### 2.4.8 Threats to Validity
+### Threats to Validity
 
 Regarding *internal validity*, three trials per task with a unanimous-pass criterion reduces the probability of accepting fragile patches, though more trials would tighten estimates at higher cost. The teacher's patches reflect Kimi K2.5's capabilities; only patches that demonstrably improve performance enter the global state, mitigating teacher model bias. The string-matching failure taxonomy is heuristic and may misclassify some failures, but this affects per-category analysis rather than primary pass-rate results.
 

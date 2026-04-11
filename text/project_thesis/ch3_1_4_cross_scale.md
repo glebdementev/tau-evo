@@ -1,4 +1,4 @@
-### 3.1.4 Cross-Scale and Cross-Model Comparison
+## 3.4 Cross-Scale and Cross-Model Comparison
 
 #### Scaling Curve: Qwen3 30B-A3B
 
@@ -10,7 +10,7 @@
 | 10 | 27% (8/30) | 50% (15/30) | +23 | 7 | 3 | 43% |
 | 20 | 22% (13/60) | 33% (20/60) | +11 | 15 | 3 | 20% |
 
-: Cross-scale summary for Qwen3 30B-A3B. Improvement is measured in percentage points of trial pass rate. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these failing tasks successfully fixed at least once across sweeps 1--2. The teacher also produced verified fixes for additional tasks that passed by majority but failed individual trials (see Section 3.1 per-experiment details). {#tbl:cross-experiment-qwen3}
+: Cross-scale summary for Qwen3 30B-A3B. Improvement is measured in percentage points of trial pass rate. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these failing tasks successfully fixed at least once across sweeps 1--2. The teacher also produced verified fixes for additional tasks that passed by majority but failed individual trials (see Sections 3.1--3.4 per-experiment details). {#tbl:cross-experiment-qwen3}
 
 The scaling curve reveals a consistent pattern: the absolute improvement is stable at small scales (+20pp to +23pp from 5 to 10 tasks) but halves at 20 tasks (+11pp), while the fix rate declines monotonically---from 100% (5 tasks) to 43% (10 tasks) to 20% (20 tasks). Each doubling of the task pool brings a larger proportion of majority-vote failures that resist prompt-level repair, and additional tasks primarily contribute unfixable failures that consume teacher effort.
 

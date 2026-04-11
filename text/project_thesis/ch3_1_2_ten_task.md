@@ -1,4 +1,4 @@
-### 3.1.2 Ten-Task Experiments
+## 3.2 Ten-Task Experiments
 
 #### Qwen3 30B-A3B
 

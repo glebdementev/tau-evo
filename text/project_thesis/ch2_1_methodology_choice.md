@@ -1,8 +1,8 @@
 ## 2.1 Methodology Choice and Rationale
 
-This section selects and justifies the methodologies used in this project. Two distinct methodological choices are required: (1) a project design methodology that structures the overall work of building and evaluating the framework (Section 2.1.1), and (2) a diagnostic methodology for analyzing the organization's internal and external environment (Section 2.1.2). Section 2.1.3 describes the selected project design methodology in detail.
+This section selects and justifies the methodologies used in this project. Two distinct methodological choices are required: (1) a project design methodology that structures the overall work of building and evaluating the framework (subsection "Project Design Methodology" below), and (2) a diagnostic methodology for analyzing the organization's internal and external environment (subsection "Diagnostic Methodology" below). The subsection "The Engineering Design Process" then describes the selected project design methodology in detail.
 
-### 2.1.1 Project Design Methodology
+### Project Design Methodology
 
 Five methodologies were considered for structuring the project. Each is suited to a different class of technical work; the question is which best fits a project whose deliverable is a software framework evaluated empirically against a benchmark.
 
@@ -51,7 +51,7 @@ The selection is justified on three grounds:
 
 The design science perspective is not discarded; it informs the evaluation design (paired baseline-versus-intervention comparison per @hevner2004's evaluation guideline). But the project follows EDP as its primary methodology, with design science as a complementary theoretical lens.
 
-### 2.1.2 Diagnostic Methodology
+### Diagnostic Methodology
 
 Section 7.5.3 of the thesis requirements calls for a diagnostic study of the organization's internal and external environment. Three analytical frameworks were considered for this purpose.
 
@@ -95,7 +95,7 @@ The selection is justified on two grounds:
 
 The diagnostic frameworks are applied in Chapter 1, Section 1.3.
 
-### 2.1.3 The Engineering Design Process
+### The Engineering Design Process
 
 The Engineering Design Process is a systematic, iterative methodology for developing engineering solutions to defined problems [@dym2005]. It is widely used in engineering education and practice, recognized by ABET accreditation criteria, and provides a structured yet flexible framework for projects where the deliverable is a functional artifact evaluated against measurable requirements.
 

@@ -1,8 +1,8 @@
 ## 2.3 Solution Architecture
 
-This section describes the architecture of the Diagnose-Patch-Validate (DPV) framework. Section 2.3.1 provides an overview. Section 2.3.2 describes the outer loop. Section 2.3.3 details the inner loop for per-failure repair. Section 2.3.4 documents the three patch surfaces. Section 2.3.5 presents the failure taxonomy.
+This section describes the architecture of the Diagnose-Patch-Validate (DPV) framework. The subsection "Architecture Overview" provides an overview; "The Outer Loop" describes the outer loop; "The Inner Loop: Per-Failure Fix Attempts" details the inner loop for per-failure repair; "Patch Surfaces and Mechanisms" documents the three patch surfaces; and "Failure Taxonomy" presents the failure taxonomy.
 
-### 2.3.1 Architecture Overview
+### Architecture Overview
 
 The DPV framework implements a diagnose-patch-validate loop that automates the most labor-intensive component of post-deployment agent maintenance: failure diagnosis and prompt remediation. In current enterprise practice, this cycle requires a human expert to review failed conversation traces, identify the root cause, write a corrective prompt or schema edit, and regression-test the change---a process that industry estimates place at 0.5 to 3 FTEs per deployment [@gartner2025complexity]. The framework replaces this human loop with a model-driven one.
 
@@ -12,7 +12,7 @@ A weaker student model runs on benchmark tasks and fails on some. A stronger tea
 
 In the automated prompt optimization literature, this is a teacher-driven variant of reflective prompt evolution. The closest precedent is GEPA [@agrawal2025], which uses natural language reflection from a stronger model to diagnose failures and propose targeted mutations, outperforming reinforcement learning baselines by up to 20% while using 35$\times$ fewer rollouts. The present framework departs from GEPA in three respects: (1) patches target three distinct surfaces (prompt, schemas, preprocessors); (2) every patch is validated by re-running the student before merging; (3) the evaluation target is a structured tool-agent-user benchmark ($\tau^2$-bench).
 
-### 2.3.2 The Outer Loop
+### The Outer Loop
 
 The outer loop proceeds as follows for each sweep:
 
@@ -63,11 +63,11 @@ Algorithm 1 formalizes the outer loop. Let $\sigma = (\pi, \mathcal{S}, \mathcal
 \end{algorithmic}
 \end{algorithm}
 
-### 2.3.3 The Inner Loop: Per-Failure Fix Attempts
+### The Inner Loop: Per-Failure Fix Attempts
 
 For each failed task, a teacher session is created with deep copies of the current global state. The total attempt budget $A = 1 + \textit{max\_retries}$ is split between two phases: Phase 1 (teaching) receives $\lceil A/2 \rceil$ attempts, and Phase 2 (guardrails) receives the remainder. The session enters a reflect-validate loop.
 
-In the **reflection step**, the teacher receives a comprehensive prompt containing: the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (Section 2.3.5), and calls patch tools to propose modifications.
+In the **reflection step**, the teacher receives a comprehensive prompt containing: the agent's current system prompt, all tool schemas, the full failed conversation trace, the task requirements, and the reward breakdown. It diagnoses the root cause, classifies it (see subsection "Failure Taxonomy" below), and calls patch tools to propose modifications.
 
 ![Example teacher session: the teacher receives the failed trace and reward breakdown, diagnoses the root cause, and proposes a structured patch via tool calls.](figures/fig_04_teacher_session.png){#fig:teacher-session}
 
@@ -129,7 +129,7 @@ The two-phase escalation strategy ensures lighter-weight interventions are attem
 \end{algorithmic}
 \end{algorithm}
 
-### 2.3.4 Patch Surfaces and Mechanisms
+### Patch Surfaces and Mechanisms
 
 The framework operates on three distinct patch surfaces, each targeting a different class of agent failure. All patches use a find-and-replace mechanism: the teacher specifies an `old_text` to locate and a `new_text` to substitute, keeping modifications precise, minimal, and reversible.
 
@@ -145,7 +145,7 @@ Patches are applied sequentially using first-occurrence-only string replacement.
 
 ![Patch application pipeline: prompt patches are applied directly, while tool schema patches must produce valid JSON and tool preprocessor patches must pass static analysis.](figures/fig_12_patch_pipeline.png){#fig:patch-pipeline}
 
-### 2.3.5 Failure Taxonomy
+### Failure Taxonomy
 
 The teacher classifies each failure into one of four categories as part of its diagnostic output:
 
@@ -162,7 +162,7 @@ The teacher classifies each failure into one of four categories as part of its d
 
 Classification is automated: the teacher includes the failure type in its diagnostic text, and the category is extracted by string matching. This is a heuristic---the implementation takes the first match, defaulting to REASONING_ERROR when none is found. The taxonomy enables per-category analysis of which failure types are most responsive to each patch surface.
 
-### 2.3.6 Quality Assurance
+### Quality Assurance
 
 Several mechanisms ensure patch quality:
 

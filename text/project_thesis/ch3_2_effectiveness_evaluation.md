@@ -2,23 +2,23 @@
 \addtocontents{toc}{\protect\setcounter{tocdepth}{2}}
 ```
 
-## 3.2 Effectiveness Evaluation
+## 3.5 Effectiveness Evaluation
 
-This section evaluates the DPV framework as a project deliverable. The evaluation has three dimensions: (a) achievement of the five project objectives defined in the Introduction, (b) economic effectiveness relative to the manual maintenance baseline established in Section 1.3.3, and (c) statistical credibility of the observed improvements. The section concludes with limitations and actionable recommendations for *target ai*. Together, these correspond to Phase 7 (Communicate Results) of the Engineering Design Process methodology adopted in Section 2.1.
+This section evaluates the DPV framework as a project deliverable. The evaluation has three dimensions: (a) achievement of the five project objectives defined in the Introduction, (b) economic effectiveness relative to the manual maintenance baseline established in Section 1.3, subsection "Cost Structure Analysis", and (c) statistical credibility of the observed improvements. The section concludes with limitations and actionable recommendations for *target ai*. Together, these correspond to Phase 7 (Communicate Results) of the Engineering Design Process methodology adopted in Section 2.1.
 
-### 3.2.1 Evaluation Against Project Objectives
+### Evaluation Against Project Objectives
 
 Objective 1: Design an automated framework for teacher-driven prompt evolution. Status: Achieved.
 
 The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with the following characteristics:
 
-- **Three patch surfaces:** system prompt insertions, tool-schema annotations, and sandboxed tool preprocessors, addressing distinct failure types (Section 2.3.4).
+- **Three patch surfaces:** system prompt insertions, tool-schema annotations, and sandboxed tool preprocessors, addressing distinct failure types (Section 2.3, subsection "Patch Surfaces and Mechanisms").
 - **API-only compatibility:** the framework operates entirely in the input space of a frozen student model. No model weights are modified at any point.
 - **Auditability:** every patch is logged with the teacher's diagnostic rationale, the patch type, the find-and-replace content, and the validation result. The complete evolved state is serialized to JSON after each iteration.
 - **Reversibility:** any prior state can be restored from the JSON checkpoint. Patches that fail validation are automatically reverted.
 - **Quality control:** the two-phase escalation strategy (instruction-tier before guardrail-tier) and unanimous validation across all trials ensure that only verified improvements enter the production configuration.
 
-The framework satisfies all seven requirements specified in Section 2.2.3: API-only compatibility, auditable and reversible patch history, measurable improvement via trial pass rates, multi-surface patching across prompt, tool schema, and preprocessor surfaces, scalability characterization across three task-pool sizes, model-agnostic operation across three student model families, and per-deployment cost well below the manual baseline (quantified in Section 3.2.2).
+The framework satisfies all seven requirements specified in Section 2.2, subsection "Phase 3: Specify Requirements": API-only compatibility, auditable and reversible patch history, measurable improvement via trial pass rates, multi-surface patching across prompt, tool schema, and preprocessor surfaces, scalability characterization across three task-pool sizes, model-agnostic operation across three student model families, and per-deployment cost well below the manual baseline (quantified in subsection "Economic Effectiveness" below).
 
 Objective 2: Evaluate the framework on $\tau^2$-bench. Status: Achieved.
 
@@ -36,7 +36,7 @@ Additionally, Qwen3.5 Flash was evaluated at 10 tasks (60% $\to$ 80%, +20pp) and
 
 Objective 3: Characterize which failure types respond to prompt-level intervention. Status: Achieved.
 
-The analysis reveals a consistent pattern across all experiments (Section 3.1.4, subsection "Instruction vs Guardrail Ratio Across All Experiments"):
+The analysis reveals a consistent pattern across all experiments (Section 3.4, subsection "Instruction vs Guardrail Ratio Across All Experiments"):
 
 - **Instruction-tier patches** account for 70--92% of successful fixes across all eight conditions. These are plain-text additions or modifications to the system prompt that clarify behavioral rules, policy requirements, or procedural sequences.
 - **Guardrail-tier patches** (tool-schema constraints and input preprocessors) account for 8--29% of fixes. These address persistent formatting errors or tool-misuse patterns that survive instruction-level correction.
@@ -48,7 +48,7 @@ A hard core of resistant tasks was identified: Tasks 7, 9, 11, and 12 resist all
 
 Objective 4: Assess scaling behavior and practical boundaries. Status: Achieved.
 
-Four scaling patterns were characterized (Section 3.1.4):
+Four scaling patterns were characterized (Section 3.4):
 
 1. **Stable absolute gain, declining fix rate.** The framework produces roughly constant absolute improvement ($\sim$20pp at small scales, $\sim$11pp at 20 tasks), but the fix rate on majority-vote failures declines monotonically from 100% (5 tasks) to 43% (10 tasks) to 20% (20 tasks) as harder tasks dilute the fixable fraction.
 
@@ -58,23 +58,23 @@ Four scaling patterns were characterized (Section 3.1.4):
 
 4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a clear failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
 
-Objective 5: Produce actionable recommendations for *target ai*. Status: Achieved. The recommendations are presented in Section 3.2.5.
+Objective 5: Produce actionable recommendations for *target ai*. Status: Achieved. The recommendations are presented in the "Recommendations for *target ai*" subsection below.
 
 @Tbl:objectives-eval summarizes the evaluation across all five objectives.
 
 | Objective | Status | Key evidence |
 |-----------|--------|-------------|
 | 1. Framework design | Achieved | 3 patch surfaces, all 7 requirements satisfied (Section 2.3) |
-| 2. $\tau^2$-bench evaluation | Achieved | 8 conditions, +11 to +23pp improvement (Section 3.1) |
+| 2. $\tau^2$-bench evaluation | Achieved | 8 conditions, +11 to +23pp improvement (Sections 3.1--3.4) |
 | 3. Failure characterization | Achieved | 70--92% instruction tier, resistant task boundary identified |
 | 4. Scaling behavior | Achieved | Fix rate decline, saturation, regression documented |
-| 5. Recommendations | Achieved | Section 3.2.5 |
+| 5. Recommendations | Achieved | Subsection "Recommendations for *target ai*" below |
 
 : Evaluation of project objectives against experimental evidence. {#tbl:objectives-eval}
 
-### 3.2.2 Economic Effectiveness
+### Economic Effectiveness
 
-Section 1.3.3 established the cost structure of manual agent maintenance and argued that the DPV framework shifts the cost driver from human labor (linear in deployments) to API compute (near-fixed). This section quantifies that shift using the experimental data from Section 3.1.
+Section 1.3, subsection "Cost Structure Analysis" established the cost structure of manual agent maintenance and argued that the DPV framework shifts the cost driver from human labor (linear in deployments) to API compute (near-fixed). This section quantifies that shift using the experimental data from Sections 3.1--3.4.
 
 #### Manual Maintenance Baseline
 
@@ -82,7 +82,7 @@ The manual maintenance cost for $N$ active deployments is:
 
 $$C_\text{manual}(N) = N \times f \times w$$
 
-where $f$ is the FTE allocation per deployment and $w$ is the annual FTE cost. @Tbl:manual-cost-params presents three scenarios using industry data from Section 1.1 and Section 1.3.3.
+where $f$ is the FTE allocation per deployment and $w$ is the annual FTE cost. @Tbl:manual-cost-params presents three scenarios using industry data from Section 1.1 and Section 1.3, subsection "Cost Structure Analysis".
 
 | Scenario | FTE/deployment ($f$) | Annual FTE cost ($w$) | Cost per deployment | 10 deployments |
 |----------|---------------------|----------------------|--------------------:|---------------:|
@@ -98,7 +98,7 @@ To ground the per-incident cost: an agent handling 1,000 interactions per day at
 
 The framework's cost has three components: teacher model inference, student model re-evaluation, and one-time integration. The analysis uses Kimi K2.5 pricing (\$0.60 per million input tokens, \$2.50 per million output tokens) as the teacher and Qwen3 30B-A3B (approximately \$0.10 per million tokens via OpenRouter) as the student.
 
-Token estimation methodology. Exact token counts were not logged during experiments. The estimates below are derived from teacher message counts (@Tbl:exp1-fixes, @Tbl:exp2-fixes, @Tbl:exp3-fixes) using the following assumptions: (a) each teacher message involves approximately 3,000 input tokens on average (system prompt context, accumulated conversation history, and the failed conversation trace) and approximately 800 output tokens (diagnosis, patch proposal, or validation reasoning); (b) tool calls add approximately 200 input tokens per call (tool results). These estimates carry uncertainty of approximately $\pm$50%, which the sensitivity analysis in Section 3.2.2, subsection "Sensitivity Analysis", addresses.
+Token estimation methodology. Exact token counts were not logged during experiments. The estimates below are derived from teacher message counts (@Tbl:exp1-fixes, @Tbl:exp2-fixes, @Tbl:exp3-fixes) using the following assumptions: (a) each teacher message involves approximately 3,000 input tokens on average (system prompt context, accumulated conversation history, and the failed conversation trace) and approximately 800 output tokens (diagnosis, patch proposal, or validation reasoning); (b) tool calls add approximately 200 input tokens per call (tool results). These estimates carry uncertainty of approximately $\pm$50%, which the sensitivity analysis below addresses.
 
 A. Per-fix compute cost. @Tbl:per-fix-cost estimates the teacher model API cost for each fix tier, based on median message counts from the experimental data.
 
@@ -124,7 +124,7 @@ B. Per-sweep compute cost. @Tbl:sweep-cost aggregates across all fix attempts (s
 
 As an empirical cross-check, the actual aggregate API spend across all eight experimental runs in this study (three student models $\times$ three task-pool sizes, minus the GLM 4.7 Flash 20-task configuration, which was skipped due to the model's regression under evolution) was approximately \$40. This figure sits at the upper end of the $\pm$50% uncertainty band around the bottom-up estimates in @Tbl:sweep-cost and confirms the order-of-magnitude cost claim.
 
-The cost is dominated by failed attempts on resistant tasks. In the 20-task experiment, approximately 75% of teacher messages were spent on tasks that were never fixed (Section 3.1.3, subsection "Qwen3 30B-A3B"). An early-stopping heuristic that abandons a task after the first failed sweep would reduce teacher costs by approximately 40--50% with no loss in fix rate (since no task was first fixed in sweep 2 that had not been attempted in sweep 1, for Qwen3 30B-A3B).
+The cost is dominated by failed attempts on resistant tasks. In the 20-task experiment, approximately 75% of teacher messages were spent on tasks that were never fixed (Section 3.3, subsection "Qwen3 30B-A3B"). An early-stopping heuristic that abandons a task after the first failed sweep would reduce teacher costs by approximately 40--50% with no loss in fix rate (since no task was first fixed in sweep 2 that had not been attempted in sweep 1, for Qwen3 30B-A3B).
 
 C. Per-deployment annual cost. Assuming monthly evolution sweeps (12 per year) on a 20-task domain:
 
@@ -213,7 +213,7 @@ The dominant cost component under all variations is human patch review, not API 
 
 The variable that does *not* appear in the table is also important: the fix rate has zero impact on framework cost because the teacher spends roughly equal compute on successful and failed attempts. A lower fix rate means fewer failures are automated, but the compute cost is the same. The economic case depends on the *existence* of some fixes, not on fixing all failures.
 
-### 3.2.3 Statistical Hypothesis Evaluation
+### Statistical Hypothesis Evaluation
 
 Two hypotheses were defined in Section 2.4. Each is evaluated below at significance level $\alpha = 0.05$. The statistical tests follow the implementations in the project's analysis pipeline, using sweep 1 (baseline) versus the best post-baseline sweep as the primary comparison.
 
@@ -238,7 +238,7 @@ Test: Paired one-sided $t$-test on per-task trial-pass-rate deltas, following @d
 
 : Effectiveness test: paired one-sided $t$-test on per-task trial-pass-rate deltas. Evolved condition uses the best post-baseline sweep. Significance: \* $p < 0.05$; \*\*\* $p < 0.001$. Cohen's $d$ interpretation: small ($\geq 0.2$), medium ($\geq 0.5$), large ($\geq 0.8$). {#tbl:effectiveness-test}
 
-Note: The per-condition $t$ and $p$ values are approximate, computed from the per-task pass-rate deltas reported in Section 3.1. The 5-task conditions do not reach significance individually ($n = 5$ provides insufficient power), but show large effect sizes ($d > 0.8$). Exact values should be recomputed from the raw trial data when the experiment JSON files are available.
+Note: The per-condition $t$ and $p$ values are approximate, computed from the per-task pass-rate deltas reported in Sections 3.1--3.4. The 5-task conditions do not reach significance individually ($n = 5$ provides insufficient power), but show large effect sizes ($d > 0.8$). Exact values should be recomputed from the raw trial data when the experiment JSON files are available.
 
 The Wilcoxon signed-rank test corroborates the parametric results for conditions with $n \geq 10$: Qwen3 30B at 10 tasks ($p = 0.023$) and 20 tasks ($p = 0.031$) reach significance. For conditions with $n = 5$, the Wilcoxon test has insufficient power (requires $\geq 6$ nonzero differences).
 
@@ -273,7 +273,7 @@ Verdict: the diminishing-returns hypothesis is supported. The fix rate declines 
 
 The statistical evidence supports two main conclusions: (a) the framework produces genuine improvement that is unlikely to be explained by chance, and (b) the improvement is bounded---the fix rate declines as the task pool grows, confirming that prompt-level evolution has a natural ceiling.
 
-### 3.2.4 Limitations
+### Limitations
 
 Several limitations constrain the generalizability of these findings.
 
@@ -287,25 +287,25 @@ Several limitations constrain the generalizability of these findings.
 
 5. **Single teacher model.** All experiments used Kimi K2.5 as teacher. Different teachers may produce qualitatively different diagnoses and patches. The framework's sensitivity to teacher choice is uncharacterized. A stronger teacher might fix tasks currently in the resistant core; a weaker one might reduce the fix rate further.
 
-6. **No comparison with alternative improvement methods.** The experiments compare evolved versus baseline performance, not evolved versus fine-tuned, DPO, or LoRA-adapted agents. The relative efficiency claim rests on the economic analysis (Section 3.2.2), not on head-to-head experimental comparison with weight-modification methods.
+6. **No comparison with alternative improvement methods.** The experiments compare evolved versus baseline performance, not evolved versus fine-tuned, DPO, or LoRA-adapted agents. The relative efficiency claim rests on the economic analysis (subsection "Economic Effectiveness" above), not on head-to-head experimental comparison with weight-modification methods.
 
-7. **Per-message token consumption estimated, not measured.** The economic model in Section 3.2.2 uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual per-message costs may differ from the estimates by a factor of 2--3$\times$ in either direction. The aggregate API spend across all eight experimental runs was observed retrospectively to be approximately \$40, consistent with the upper end of this range, and the sensitivity analysis (Section 3.2.2, subsection "Sensitivity Analysis") shows that even a 3$\times$ overestimate does not materially affect the economic conclusion. Precise per-message measurement in a production deployment would nevertheless be valuable.
+7. **Per-message token consumption estimated, not measured.** The economic model in the subsection "Economic Effectiveness" above uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual per-message costs may differ from the estimates by a factor of 2--3$\times$ in either direction. The aggregate API spend across all eight experimental runs was observed retrospectively to be approximately \$40, consistent with the upper end of this range, and the sensitivity analysis above shows that even a 3$\times$ overestimate does not materially affect the economic conclusion. Precise per-message measurement in a production deployment would nevertheless be valuable.
 
 8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (particularly severe with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management---consolidation, regression-aware selection, and retirement---that was not tested in these experiments.
 
-### 3.2.5 Recommendations for *target ai*
+### Recommendations for *target ai*
 
 This section translates the experimental findings into an actionable integration plan for *target ai*'s deployment pipeline, addressing Objective 5.
 
 #### Integration Into the Deployment Pipeline
 
-The DPV framework targets the systems-analyst layer in *target ai*'s value chain (Section 1.3.2, @Fig:value-chain) --- requirements translation (activity 2) and downstream maintenance (activity 5), which share a single specialized headcount pool and together form the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
+The DPV framework targets the systems-analyst layer in *target ai*'s value chain (Section 1.3, subsection "Value Chain Analysis: *target ai*'s Service Delivery", @Fig:value-chain) --- requirements translation (activity 2) and downstream maintenance (activity 5), which share a single specialized headcount pool and together form the only primary activity that scales linearly with the number of deployments. Integration requires four technical components:
 
-1. **Evaluation pipeline.** A $\tau^2$-bench-compatible evaluation harness for each client domain, capable of running the student agent against a task set with automated pass/fail scoring. *target ai*'s existing benchmark infrastructure (Section 1.3.2) provides the foundation.
+1. **Evaluation pipeline.** A $\tau^2$-bench-compatible evaluation harness for each client domain, capable of running the student agent against a task set with automated pass/fail scoring. *target ai*'s existing benchmark infrastructure (Section 1.3, subsection "Value Chain Analysis: *target ai*'s Service Delivery") provides the foundation.
 
 2. **Teacher model access.** API access to a teacher model (currently Kimi K2.5 via OpenRouter). The teacher need not be the same model used for client-facing inference. Model selection should prioritize diagnostic reasoning capability over latency or cost.
 
-3. **Patch storage and versioning.** A version-controlled repository of evolved states (JSON checkpoints), enabling rollback to any prior configuration. The framework's existing serialization format (Section 2.3.6) is production-ready.
+3. **Patch storage and versioning.** A version-controlled repository of evolved states (JSON checkpoints), enabling rollback to any prior configuration. The framework's existing serialization format (Section 2.3, subsection "Quality Assurance") is production-ready.
 
 4. **Regression test suite.** A held-out set of tasks (distinct from the evolution training set) used to validate that patches do not degrade performance on previously passing cases. This is the most critical component for safe automated deployment.
 
@@ -334,18 +334,18 @@ The DPV framework is domain-agnostic by design: the outer loop, inner loop, patc
 - **Domain-specific task sets.** Benchmark tasks covering the target domain's policy space, tool interfaces, and common failure patterns. The $\tau^2$-bench retail and telecom domains provide a starting point; *target ai*-specific tasks can be derived from production failure logs.
 - **Domain-specific tool schemas.** The student's tool configuration for each domain. These already exist as part of *target ai*'s deployment artifacts.
 
-**Prioritization.** Domains should be prioritized by (a) failure rate (higher failure rates yield more fixable tasks per sweep) and (b) systems-analyst cost (higher-touch domains yield greater ROI per fix), with the target voice → *tos* migration backlog and the *tos2* customer base as the natural first beachheads given that the author operates *tos2* single-handedly. The value chain analysis in Section 1.3.2 identified the systems-analyst layer as the binding constraint on scaling; the domains where this constraint binds hardest should be addressed first.
+**Prioritization.** Domains should be prioritized by (a) failure rate (higher failure rates yield more fixable tasks per sweep) and (b) systems-analyst cost (higher-touch domains yield greater ROI per fix), with the target voice → *tos* migration backlog and the *tos2* customer base as the natural first beachheads given that the author operates *tos2* single-handedly. The value chain analysis in Section 1.3, subsection "Value Chain Analysis: *target ai*'s Service Delivery" identified the systems-analyst layer as the binding constraint on scaling; the domains where this constraint binds hardest should be addressed first.
 
-**Patch consolidation.** To mitigate the patch interference documented in Section 3.1, *target ai* should implement periodic patch consolidation: after every 3--5 sweeps, the accumulated patches are rewritten into a single, coherent system prompt revision (potentially using the teacher model itself as the consolidator). This addresses the "prompt-space forgetting" effect while preserving the fixes.
+**Patch consolidation.** To mitigate the patch interference documented in Sections 3.1--3.4, *target ai* should implement periodic patch consolidation: after every 3--5 sweeps, the accumulated patches are rewritten into a single, coherent system prompt revision (potentially using the teacher model itself as the consolidator). This addresses the "prompt-space forgetting" effect while preserving the fixes.
 
 **Stronger teachers.** As more capable models become available (and as *target ai*'s API access to frontier models expands), upgrading the teacher is the single highest-leverage improvement. A teacher that can diagnose the currently resistant tasks (7, 9, and others in the hard core) would extend the framework's ceiling without any architectural changes.
 
-**Model compatibility screening.** The GLM 4.7 Flash results (Section 3.1.1, 3.1.2) demonstrate that prompt evolution can be actively harmful with incompatible student models. Before deploying the framework with any new student model, a brief pilot evaluation---5 tasks, 1 sweep---should be mandatory. If the pilot shows zero fixes or net regression, the model should be excluded from automated evolution.
+**Model compatibility screening.** The GLM 4.7 Flash results (Sections 3.1 and 3.2) demonstrate that prompt evolution can be actively harmful with incompatible student models. Before deploying the framework with any new student model, a brief pilot evaluation---5 tasks, 1 sweep---should be mandatory. If the pilot shows zero fixes or net regression, the model should be excluded from automated evolution.
 
-**Early termination heuristics.** At 20 tasks, the teacher spent the majority of its compute on tasks that were never fixed (Section 3.1.3). Heuristics based on the teacher's diagnostic confidence, the number of prior failed attempts on the same task, or similarity to known resistant patterns could reduce wasted compute by 40--50% with no loss in fix rate. This is the single most impactful cost optimization after reducing human review overhead.
+**Early termination heuristics.** At 20 tasks, the teacher spent the majority of its compute on tasks that were never fixed (Section 3.3). Heuristics based on the teacher's diagnostic confidence, the number of prior failed attempts on the same task, or similarity to known resistant patterns could reduce wasted compute by 40--50% with no loss in fix rate. This is the single most impactful cost optimization after reducing human review overhead.
 
 **Hybrid prompt-and-weight evolution.** For the hard core of resistant tasks that cannot be fixed through prompt patching, lightweight fine-tuning (LoRA adapters) could address the remaining failures. A two-stage pipeline---prompt patches for accessible failures, then targeted fine-tuning for the rest---would test whether the two approaches are complementary. This is feasible only for open-weight student models (Qwen3, GLM) but not for API-only models, where it would require provider cooperation.
 
-**Multi-agent decomposition.** The patch interference finding (Section 3.1.3) suggests that a single prompt cannot grow indefinitely without degrading coherence. Decomposing complex agent tasks into sub-agents---each with a focused prompt and narrow tool set---may enable further scaling by isolating patch surfaces. The DPV framework's per-task diagnosis and patching mechanism transfers directly to a multi-agent architecture.
+**Multi-agent decomposition.** The patch interference finding (Section 3.3) suggests that a single prompt cannot grow indefinitely without degrading coherence. Decomposing complex agent tasks into sub-agents---each with a focused prompt and narrow tool set---may enable further scaling by isolating patch surfaces. The DPV framework's per-task diagnosis and patching mechanism transfers directly to a multi-agent architecture.
 
 **target skill as the integration template.** *target ai*'s wizard-driven training product, target skill, already demonstrates that non-specialists can build working agents by prompting a fixed conversational architecture without analyst involvement. Its ceiling is exactly the price of that simplicity: 16 million rubles in 2025 against *tos1*'s 200 million, with the gap explained by the complexity of agents the wizard can express. The DPV framework can be read as the engine that closes this gap from the other side: it lets the *tos* line accept arbitrary customer preference functions while compressing the systems-analyst step toward the labor profile target skill already enjoys. A natural product integration is to expose evolved prompt and tool-schema patches as artifacts inside target skill's wizard --- so that the wizard becomes a UI for editing, inspecting, and approving the framework's output --- and to use target skill's existing user base as the first source of structured customer preference functions to align against.
