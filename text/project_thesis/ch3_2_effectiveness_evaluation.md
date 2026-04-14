@@ -285,7 +285,7 @@ Several limitations constrain the generalizability of these findings.
 
 4. **Hard ceiling on prompt-level intervention.** The best trial-level pass rate achieved was 80% (Qwen3.5 Flash at 10 tasks). Autonomous enterprise operation would require three-to-five nines of reliability [@rabanser2025]. Prompt-level evolution alone cannot bridge a gap of 20+ percentage points. The framework is one component of a multi-layered reliability strategy, not a complete solution.
 
-5. **Single teacher model.** All experiments used Kimi K2.5 as teacher. Different teachers may produce qualitatively different diagnoses and patches. The framework's sensitivity to teacher choice is uncharacterized. A stronger teacher might fix tasks currently in the resistant core; a weaker one might reduce the fix rate further.
+5. **Single teacher model.** All experiments used Kimi K2.5 as the teacher across three student models (Qwen3 30B-A3B, Qwen3.5 Flash, GLM 4.7 Flash), yielding three teacher-student pairs. The cross-student comparison provides evidence that the framework generalizes across student architectures, but the teacher side is unvaried: different teachers may produce qualitatively different diagnoses and patches. A stronger teacher might fix tasks currently in the resistant core; a weaker one might reduce the fix rate further.
 
 6. **No comparison with alternative improvement methods.** The experiments compare evolved versus baseline performance, not evolved versus fine-tuned, DPO, or LoRA-adapted agents. The relative efficiency claim rests on the economic analysis (subsection "Economic Effectiveness" above), not on head-to-head experimental comparison with weight-modification methods.
 
