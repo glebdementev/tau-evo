@@ -10,25 +10,35 @@
 
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{indentfirst}
 
-\usepackage[a4paper,top=24mm,bottom=24mm,left=28mm,right=28mm]{geometry}
+\usepackage{geometry}
+\geometry{
+    left=1.5cm,
+    top=1.5cm,
+    right=1.5cm,
+    bottom=1.5cm,
+    headsep=0.5cm,
+    footskip=0.5cm,
+    includehead,
+    includefoot}
+\textwidth 110mm
+\textheight 170mm
 
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[C]{\itshape\small Мультидисциплинарная молодежная конференция Центрального\\[-2pt]университета «Научный телеграф»}
+\fancyhead[C]{Мультидисциплинарная молодежная конференция\\Центрального университета «Научный телеграф»}
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 \setlength{\headheight}{26pt}
-\setlength{\headsep}{12pt}
 
-\usepackage{indentfirst}
-\setlength{\parindent}{1.25em}
-\setlength{\parskip}{1pt}
+\linespread{1.0}
+\setlength{\parskip}{3pt}
 
 \usepackage{caption}
-\captionsetup{labelsep=colon, font=small, labelfont=normal, skip=3pt}
+\captionsetup{labelsep=colon, skip=3pt}
 \AtBeginDocument{%
   \renewcommand{\figurename}{Рис.}%
   \renewcommand{\tablename}{Таблица}%
@@ -37,12 +47,7 @@
 \usepackage{array}
 \usepackage{booktabs}
 \usepackage{float}
-
-\usepackage{titlesec}
-\titleformat{\section}{\normalfont\normalsize\bfseries}{\thesection}{1em}{}
-\titlespacing*{\section}{0pt}{1ex plus 0.3ex}{0.5ex plus 0.2ex}
+\usepackage{graphicx}
 
 \usepackage{enumitem}
 \setlist[enumerate]{leftmargin=*, itemsep=1pt, topsep=1pt, parsep=0pt}
-
-\linespread{1.0}

@@ -3,6 +3,8 @@ to: pdf
 pdf-engine: xelatex
 include-in-header: preamble.tex
 variables:
-  documentclass: extarticle
-  fontsize: 11pt
-  papersize: a4
+  documentclass: article
+  classoption:
+    - oneside
+    - a5paper
+    - 10pt
