@@ -1,0 +1,8 @@
+from: markdown+raw_tex+smart-subscript-superscript
+to: pdf
+pdf-engine: xelatex
+include-in-header: preamble.tex
+variables:
+  documentclass: extarticle
+  fontsize: 11pt
+  papersize: a4
