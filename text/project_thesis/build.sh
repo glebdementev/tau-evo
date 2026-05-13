@@ -2,6 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+TITLE_PDF="../Title Page.pdf"
+BODY_PDF="project_thesis.body.pdf"
+OUTPUT_PDF="project_thesis.pdf"
+
 pandoc \
   --defaults=defaults.yaml \
   metadata.yaml \
@@ -23,6 +27,53 @@ pandoc \
   ch3_2_effectiveness_evaluation.md \
   99_conclusion.md \
   100_appendices.md \
-  -o project_thesis.pdf
+  -o "$BODY_PDF"
 
-echo "Built: project_thesis.pdf"
+if command -v pdfunite >/dev/null 2>&1; then
+  pdfunite "$TITLE_PDF" "$BODY_PDF" "$OUTPUT_PDF"
+elif command -v qpdf >/dev/null 2>&1; then
+  qpdf --empty --pages "$TITLE_PDF" "$BODY_PDF" -- "$OUTPUT_PDF"
+elif command -v uv >/dev/null 2>&1; then
+  uv run --with pypdf python - "$TITLE_PDF" "$BODY_PDF" "$OUTPUT_PDF" <<'PY'
+import sys
+from pathlib import Path
+
+from pypdf import PdfReader, PdfWriter
+
+title_pdf, body_pdf, output_pdf = map(Path, sys.argv[1:])
+writer = PdfWriter()
+
+for pdf_path in (title_pdf, body_pdf):
+    reader = PdfReader(str(pdf_path))
+    for page in reader.pages:
+        writer.add_page(page)
+
+with output_pdf.open("wb") as f:
+    writer.write(f)
+PY
+else
+  python - "$TITLE_PDF" "$BODY_PDF" "$OUTPUT_PDF" <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError as exc:
+    raise SystemExit(
+        "PDF merge requires pdfunite, qpdf, uv, or Python package pypdf."
+    ) from exc
+
+title_pdf, body_pdf, output_pdf = map(Path, sys.argv[1:])
+writer = PdfWriter()
+
+for pdf_path in (title_pdf, body_pdf):
+    reader = PdfReader(str(pdf_path))
+    for page in reader.pages:
+        writer.add_page(page)
+
+with output_pdf.open("wb") as f:
+    writer.write(f)
+PY
+fi
+
+echo "Built: $OUTPUT_PDF"
