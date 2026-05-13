@@ -1,0 +1,53 @@
+% Conference-abstract preamble — «Научный телеграф» template formatting.
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{russian}
+\setotherlanguage{english}
+\setmainfont{Times New Roman}
+\newfontfamily\cyrillicfont{Times New Roman}
+\newfontfamily\cyrillicfontrm{Times New Roman}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{indentfirst}
+
+\usepackage{geometry}
+\geometry{
+    left=1.5cm,
+    top=1.5cm,
+    right=1.5cm,
+    bottom=1.5cm,
+    headsep=0.5cm,
+    footskip=0.5cm,
+    includehead,
+    includefoot}
+\textwidth 110mm
+\textheight 170mm
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{Мультидисциплинарная молодежная конференция\\Центрального университета «Научный телеграф»}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{26pt}
+
+\linespread{1.0}
+\setlength{\parskip}{3pt}
+
+\usepackage{caption}
+\captionsetup{labelsep=colon, skip=3pt}
+\AtBeginDocument{%
+  \renewcommand{\figurename}{Рис.}%
+  \renewcommand{\tablename}{Таблица}%
+}
+
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{graphicx}
+
+\usepackage{enumitem}
+\setlist[enumerate]{leftmargin=*, itemsep=1pt, topsep=1pt, parsep=0pt}
