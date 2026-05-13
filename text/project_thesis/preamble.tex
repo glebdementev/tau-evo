@@ -75,6 +75,8 @@
 % Redefine pandocbounded to leave room for caption + spacing
 % Default uses \textheight which doesn't account for caption/floatsep
 \makeatletter
+\@ifundefined{pandoc@box}{\newsavebox{\pandoc@box}}{}
+\providecommand*\pandocbounded[1]{}
 \renewcommand*\pandocbounded[1]{%
   \sbox\pandoc@box{#1}%
   \Gscale@div\@tempa{0.75\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
