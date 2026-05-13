@@ -1,12 +1,3 @@
-\newpage
-
-# REFERENCES {.unnumbered}
-
-::: {#refs}
-:::
-
-\newpage
-
 # APPENDICES {.unnumbered}
 
 ## Appendix 1. Letter from the Company {.unnumbered .unlisted}

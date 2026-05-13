@@ -1,0 +1,18 @@
+---
+lang: en-US
+
+# --- GOST 7.32-2017 page layout ---
+documentclass: extarticle
+fontsize: 12pt
+papersize: a4
+geometry:
+  - left=30mm
+  - right=15mm
+  - top=20mm
+  - bottom=20mm
+linestretch: 1.5
+mainfont: "Times New Roman"
+
+# LaTeX preamble is loaded via defaults.yaml (include-in-header)
+---
+

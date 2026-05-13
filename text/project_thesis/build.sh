@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 TITLE_PDF="../Title Page.pdf"
 BODY_PDF="project_thesis.body.pdf"
 OUTPUT_PDF="project_thesis.pdf"
+APPENDIX_PDF="project_thesis_appendix.pdf"
 
 pandoc \
   --defaults=defaults.yaml \
@@ -26,8 +27,15 @@ pandoc \
   ch3_1_4_cross_scale.md \
   ch3_2_effectiveness_evaluation.md \
   99_conclusion.md \
-  100_appendices.md \
+  98_references.md \
   -o "$BODY_PDF"
+
+pandoc \
+  --defaults=defaults.yaml \
+  appendix_metadata.yaml \
+  100_appendices.md \
+  --metadata toc=false \
+  -o "$APPENDIX_PDF"
 
 if command -v pdfunite >/dev/null 2>&1; then
   pdfunite "$TITLE_PDF" "$BODY_PDF" "$OUTPUT_PDF"
@@ -77,3 +85,4 @@ PY
 fi
 
 echo "Built: $OUTPUT_PDF"
+echo "Built: $APPENDIX_PDF"
