@@ -18,7 +18,7 @@ The source code is publicly available at github.com/glebdementev/tau-evo.
 
 $\tau^2$-bench was selected over four alternative benchmarks (AgentBench, SWE-bench, GAIA, ToolBench) because it is the only benchmark that combines: (1) multi-turn conversations with an LLM-simulated user providing partial information, (2) domain-specific policies, (3) tool-calling APIs that modify database state, and (4) the pass$^k$ reliability metric. Customer service is the natural evaluation domain because it represents the largest addressable market for AI agent automation: approximately 17 million contact center agents globally, with labor constituting up to 95% of operating costs [@gartner2022labor].
 
-The experiments use the airline domain (50 tasks total). Each task defines a user scenario, expected agent actions, post-conversation database state assertions, and natural-language assertions. A task passes if and only if the agent satisfies all criteria simultaneously---the strict binary pass$^1$ metric standard in $\tau$-bench publications.
+The experiments use the airline domain (50 tasks total). Each task defines a user scenario, expected agent actions, post-conversation database state assertions, and natural-language assertions. A task passes if and only if the agent satisfies all criteria simultaneously; this is the strict binary pass$^1$ metric standard in $\tau$-bench publications.
 
 A simulated orchestrator manages turn-by-turn conversation between the agent and user simulator. On each turn the agent may either send a text message or invoke a tool. Tool calls are executed against a simulated database. The conversation ends when the user simulator signals completion or a maximum step count is reached. The full trace is preserved for analysis by the teacher model.
 
@@ -72,7 +72,7 @@ The scaling sequence is deliberate: if gains are task-specific, they should be l
 
 ### Evaluation Metrics
 
-The primary metric is pass$^1$---the fraction of tasks achieving a perfect reward of 1.0:
+The primary metric is pass$^1$: the fraction of tasks achieving a perfect reward of 1.0:
 
 $$\text{pass}^1 = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[r_i = 1.0]$$
 
@@ -110,6 +110,6 @@ The complete evolution state is serialized to JSON after each iteration: the cur
 
 Regarding *internal validity*, three trials per task with a unanimous-pass criterion reduces the probability of accepting fragile patches, though more trials would tighten estimates at higher cost. The teacher's patches reflect Kimi K2.5's capabilities; only patches that demonstrably improve performance enter the global state, mitigating teacher model bias. The string-matching failure taxonomy is heuristic and may misclassify some failures, but this affects per-category analysis rather than primary pass-rate results.
 
-Regarding *external validity*, $\tau^2$-bench tasks are simulated, while production interactions are more diverse and adversarial. The framework is evaluated with one teacher and three student models; generalization to other pairs is untested. Patches are domain-specific by design, and cross-domain transfer is not claimed. Each $\tau^2$-bench task is a unique scenario, not a draw from a homogeneous distribution---the contribution is the framework, not the specific patches. The teacher prompt prohibits task-specific hardcoding, and unanimous validation guards against brittle patches.
+Regarding *external validity*, $\tau^2$-bench tasks are simulated, while production interactions are more diverse and adversarial. The framework is evaluated with one teacher and three student models; generalization to other pairs is untested. Patches are domain-specific by design, and cross-domain transfer is not claimed. Each $\tau^2$-bench task is a unique scenario, not a draw from a homogeneous distribution; the contribution is the framework, not the specific patches. The teacher prompt prohibits task-specific hardcoding, and unanimous validation guards against brittle patches.
 
 Regarding *construct validity*, the pass$^1$ metric treats all failures equally, whereas @rabanser2025 decompose reliability into four dimensions; pass$^1$ captures only consistency. Patches may encode surface-level heuristics without transferring deep domain understanding, and their durability under distribution shift is untested.

@@ -30,7 +30,7 @@ Re-evaluating all tasks every sweep---rather than dropping attempted tasks---is 
 ![Parallel execution architecture: failed tasks are distributed across threads, each with an independent copy of the evolved state.](figures/fig_11_parallel_architecture.png){#fig:parallel-architecture}
 :::
 
-Algorithm 1 formalizes the outer loop. Let $\sigma = (\pi, \mathcal{S}, \mathcal{C})$ denote the evolved state---the system prompt, the dictionary of tool schemas, and the dictionary of tool preprocessors, respectively. $\text{Pass}(\mathbf{r})$ holds if and only if all $T$ trials achieve a perfect reward: $\forall\, t \in \{1,\dots,T\}: r_t = 1.0$.
+Algorithm 1 formalizes the outer loop. Let $\sigma = (\pi, \mathcal{S}, \mathcal{C})$ denote the evolved state: the system prompt, the dictionary of tool schemas, and the dictionary of tool preprocessors, respectively. $\text{Pass}(\mathbf{r})$ holds if and only if all $T$ trials achieve a perfect reward: $\forall\, t \in \{1,\dots,T\}: r_t = 1.0$.
 
 \begin{algorithm}
 \caption{Diagnose-Patch-Validate Loop}\label{alg:outer-loop}
@@ -71,7 +71,7 @@ In the **reflection step**, the teacher receives a comprehensive prompt containi
 
 ![Example teacher session: the teacher receives the failed trace and reward breakdown, diagnoses the root cause, and proposes a structured patch via tool calls.](figures/fig_04_teacher_session.png){#fig:teacher-session}
 
-In the **validation step**, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted and the teacher receives the new conversation trace and reward breakdown, and is asked to try again. @Fig:inner-loop diagrams this per-failure fix loop.
+In the **validation step**, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously: all trials achieve a perfect reward of 1.0. If not, all patches are reverted and the teacher receives the new conversation trace and reward breakdown, and is asked to try again. @Fig:inner-loop diagrams this per-failure fix loop.
 
 The 2-phase escalation strategy ensures lighter-weight interventions are attempted first (@fig:escalation):
 
@@ -139,7 +139,7 @@ The framework operates on three distinct patch surfaces, each targeting a differ
 
 **Tool schema patches** modify the JSON schemas that define how the agent calls each tool. Common modifications include clarifying parameter descriptions (adding "must start with #" to a reservation_id field), expanding tool descriptions to note when a tool should or should not be used, and adding constraint notes. After each edit, the JSON string is parsed to ensure syntactic validity; patches producing invalid JSON are rejected.
 
-**Tool preprocessors** are sandboxed Python functions that transform tool-call arguments before execution. Every tool starts with an identity preprocessor. The teacher can modify the code to add defensive input coercion---ensuring an ID field has the correct prefix, casting strings to integers, normalizing date formats. Preprocessors are sandboxed: a static analysis pass rejects forbidden constructs (imports, eval, exec, file I/O), the execution namespace restricts available builtins, and runtime exceptions fall back to the original arguments.
+**Tool preprocessors** are sandboxed Python functions that transform tool-call arguments before execution. Every tool starts with an identity preprocessor. The teacher can modify the code to add defensive input coercion: ensuring an ID field has the correct prefix, casting strings to integers, normalizing date formats. Preprocessors are sandboxed: a static analysis pass rejects forbidden constructs (imports, eval, exec, file I/O), the execution namespace restricts available builtins, and runtime exceptions fall back to the original arguments.
 
 Patches are applied sequentially using first-occurrence-only string replacement. Failed patches (old_text not found) are logged and skipped. When multiple tasks are fixed in a single sweep, winning patches are consolidated by a dedicated merger LLM session that resolves conflicts, deduplicates redundant edits, and compacts overlapping changes. The evolved state is serialized to disk as a JSON file containing the full prompt, all tool schemas, and all preprocessor source code.
 
@@ -160,7 +160,7 @@ The teacher classifies each failure into one of four categories as part of its d
 
 ![Failure taxonomy: agent failures are classified into four categories, each with characteristic examples.](figures/fig_08_failure_taxonomy.png){#fig:failure-taxonomy}
 
-Classification is automated: the teacher includes the failure type in its diagnostic text, and the category is extracted by string matching. This is a heuristic---the implementation takes the first match, defaulting to REASONING_ERROR when none is found. The taxonomy enables per-category analysis of which failure types are most responsive to each patch surface.
+Classification is automated: the teacher includes the failure type in its diagnostic text, and the category is extracted by string matching. This is a heuristic; the implementation takes the first match, defaulting to REASONING_ERROR when none is found. The taxonomy enables per-category analysis of which failure types are most responsive to each patch surface.
 
 ### Quality Assurance
 
