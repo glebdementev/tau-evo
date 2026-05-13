@@ -1,8 +1,8 @@
-## 3.2 Ten-Task Experiments
+## 3.2 10-Task Experiments
 
 #### Qwen3 30B-A3B
 
-Experiment 2 doubles the task set from five to ten, introducing five additional tasks (7, 9, 10, 11, 12). @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
+Experiment 2 doubles the task set from five to 10, introducing five additional tasks (7, 9, 10, 11, 12). @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
 
 | Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
 |-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
@@ -12,11 +12,11 @@ Experiment 2 doubles the task set from five to ten, introducing five additional 
 
 : Per-sweep evaluation results for Qwen3 30B-A3B on 10 tasks. {#tbl:exp2-passrate}
 
-@Fig:exp2-heatmap visualises the same data. Compared to the five-task heatmap, the ten-task version makes the bifurcation between fixable and resistant tasks immediately visible: a cluster of tasks (0, 1, 3, 4, 5) greens progressively across sweeps, while a second cluster (7, 9, 11, 12) remains solidly red throughout. Task 10 occupies a middle ground---it was fixed during sweep 1's evolution but never passed more than 1/3 trials in re-evaluation, suggesting a fragile fix.
+@Fig:exp2-heatmap visualises the same data. Compared to the 5-task heatmap, the 10-task version makes the bifurcation between fixable and resistant tasks immediately visible: a cluster of tasks (0, 1, 3, 4, 5) greens progressively across sweeps, while a second cluster (7, 9, 11, 12) remains solidly red throughout. Task 10 occupies a middle ground---it was fixed during sweep 1's evolution but never passed more than 1/3 trials in re-evaluation, suggesting a fragile fix.
 
 ![Per-task, per-trial pass/fail heatmap for Qwen3 30B-A3B across three sweeps (10 tasks).](../../runs/10/sweep_heatmap_print.svg){#fig:exp2-heatmap}
 
-The baseline is substantially weaker than in the five-task setting: only 27% of trials pass (8/30), versus 53% (8/15). By majority vote, 3 of 10 tasks pass (30%), versus 3 of 5 (60%). The five tasks shared with the five-task experiment exhibit identical baseline performance, confirming that the seed and configuration reproduce consistently.
+The baseline is substantially weaker than in the 5-task setting: only 27% of trials pass (8/30), versus 53% (8/15). By majority vote, 3 of 10 tasks pass (30%), versus 3 of 5 (60%). The five tasks shared with the 5-task experiment exhibit identical baseline performance, confirming that the seed and configuration reproduce consistently.
 
 | Sweep | Already passing | Fixed (instruction) | Fixed (guardrail) | Unfixed |
 |-------|----------------|--------------------|--------------------|---------|
@@ -26,11 +26,11 @@ The baseline is substantially weaker than in the five-task setting: only 27% of 
 
 : Per-sweep task outcomes for Qwen3 30B-A3B on 10 tasks. {#tbl:exp2-outcomes}
 
-@Fig:exp2-outcomes visualises the same data. The persistent red "Unfixed" segment, absent in the five-task sweeps 1 and 2, dominates the chart---reflecting a hard core of tasks that resist prompt-level repair.
+@Fig:exp2-outcomes visualises the same data. The persistent red "Unfixed" segment, absent in the 5-task sweeps 1 and 2, dominates the chart---reflecting a hard core of tasks that resist prompt-level repair.
 
 ![Stacked bar chart of per-sweep task outcomes for Qwen3 30B-A3B on 10 tasks.](../../runs/10/sweep_outcomes_print.svg){#fig:exp2-outcomes}
 
-The trajectory differs markedly from the five-task experiment. In the five-task run, sweep 1 fixed all tasks that failed within the evolution loop; here, sweep 1 fixes only 5 of 9 tasks that failed the loop's single-trial check (the 9 includes two tasks---T1 and T5---that pass by majority vote at baseline but failed individual trials). The four unfixed tasks (7, 9, 11, 12) consumed substantial teacher effort---a combined 150 messages, 61 tool calls, and 36 minutes of wall-clock time---without producing a single viable patch.
+The trajectory differs markedly from the 5-task experiment. In the 5-task run, sweep 1 fixed all tasks that failed within the evolution loop; here, sweep 1 fixes only 5 of 9 tasks that failed the loop's single-trial check (the 9 includes two tasks---T1 and T5---that pass by majority vote at baseline but failed individual trials). The four unfixed tasks (7, 9, 11, 12) consumed substantial teacher effort---a combined 150 messages, 61 tool calls, and 36 minutes of wall-clock time---without producing a single viable patch.
 
 A second notable difference is the delayed improvement in evaluation metrics. Sweep 2's re-evaluation shows essentially no change from baseline (9/30 trials, 30% majority), despite sweep 1 having fixed five tasks during the evolution loop. The full improvement materialises only in sweep 3 (15/30 trials, 50% majority), after sweep 2's fixes had a chance to reinforce the earlier patches.
 
@@ -63,15 +63,15 @@ A second notable difference is the delayed improvement in evaluation metrics. Sw
 
 ![Fix attempts by tier and sweep for Qwen3 30B-A3B on 10 tasks.](../../runs/10/fix_attempts_print.svg){#fig:exp2-fix-attempts}
 
-Across sweeps 1 and 2, seven successful fixes were applied: five instruction-tier (71%) and two guardrail-tier (29%). This ratio is identical to the five-task experiment's, suggesting that the instruction-guardrail balance is a stable property of the framework rather than an artefact of the specific task set.
+Across sweeps 1 and 2, seven successful fixes were applied: five instruction-tier (71%) and two guardrail-tier (29%). This ratio is identical to the 5-task experiment's, suggesting that the instruction-guardrail balance is a stable property of the framework rather than an artefact of the specific task set.
 
-The cost distribution shifts substantially. In the five-task run, the teacher encountered no unfixable tasks until sweep 3. In the ten-task run, the teacher exhausted all retries on four tasks in sweep 1 and seven in sweep 2, burning 393 messages, 162 tool calls, and over 107 minutes on failed attempts.
+The cost distribution shifts substantially. In the 5-task run, the teacher encountered no unfixable tasks until sweep 3. In the 10-task run, the teacher exhausted all retries on four tasks in sweep 1 and seven in sweep 2, burning 393 messages, 162 tool calls, and over 107 minutes on failed attempts.
 
-In summary, the trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-percentage-point gain comparable to the five-task run's +20pp. The instruction-guardrail ratio (71%/29%) is identical. However, four of seven majority-vote failures (Tasks 7, 9, 11, 12) resist all fix attempts, and improvement is delayed by one sweep due to patch fragility.
+In summary, the trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-percentage-point gain comparable to the 5-task run's +20pp. The instruction-guardrail ratio (71%/29%) is identical. However, four of seven majority-vote failures (Tasks 7, 9, 11, 12) resist all fix attempts, and improvement is delayed by one sweep due to patch fragility.
 
 #### Qwen3.5 Flash
 
-The same ten tasks were evaluated with Qwen3.5 Flash as the student model. @Tbl:exp2-flash-passrate summarises pass rates across sweeps.
+The same 10 tasks were evaluated with Qwen3.5 Flash as the student model. @Tbl:exp2-flash-passrate summarises pass rates across sweeps.
 
 | Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
 |-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
@@ -137,7 +137,7 @@ The likely explanation is patch interference compounded by the stronger model's 
 
 ![Per-task, per-trial pass/fail heatmap for GLM 4.7 Flash across three sweeps (10 tasks).](../../runs/glm47_10/sweep_heatmap_print.svg){#fig:glm47-10-heatmap}
 
-The baseline is the strongest of any model at this scale: 50% trial rate and 60% majority rate, compared to 27%/30% for Qwen3 30B-A3B and 60%/50% for Qwen3.5 Flash. Six of ten tasks pass at baseline (0, 1, 3, 4, 5, 10). The four genuinely failing tasks are the same hard core seen across other models: Tasks 7, 9, 11, and 12.
+The baseline is the strongest of any model at this scale: 50% trial rate and 60% majority rate, compared to 27%/30% for Qwen3 30B-A3B and 60%/50% for Qwen3.5 Flash. Six of 10 tasks pass at baseline (0, 1, 3, 4, 5, 10). The four genuinely failing tasks are the same hard core seen across other models: Tasks 7, 9, 11, and 12.
 
 | Sweep | Already passing | Fixed (instruction) | Fixed (guardrail) | Unfixed |
 |-------|----------------|--------------------|--------------------|---------|
@@ -177,13 +177,13 @@ The critical finding is that all four successful fixes targeted tasks that were 
 
 The evolution loop produces patches, and the teacher diagnoses failures correctly, but GLM 4.7 Flash cannot translate these patches into reliable execution at this scale. The patches fix one behaviour but introduce new errors elsewhere. This is visible in the progressive degradation of the trial rate across sweeps: 50% → 43% → 40%. Even tasks that were comfortably passing at baseline (e.g., Task 1 at 2/3, Task 5 at 2/3) become more fragile after patches are applied.
 
-The sweep 3 result is especially revealing: the evolution loop sees all ten tasks as failing, even though the 3-trial re-evaluation shows five passing by majority. The model's behaviour is becoming increasingly unstable as patches accumulate.
+The sweep 3 result is especially revealing: the evolution loop sees all 10 tasks as failing, even though the 3-trial re-evaluation shows five passing by majority. The model's behaviour is becoming increasingly unstable as patches accumulate.
 
-In summary, GLM 4.7 Flash at ten tasks represents the framework's clearest failure mode. Despite a strong baseline (60% majority), the evolution loop cannot fix any genuinely failing task and actively degrades performance on passing tasks. The trial rate declines monotonically from 50% to 40% across three sweeps. This result motivated dropping GLM 4.7 Flash from the 20-task experiment.
+In summary, GLM 4.7 Flash at 10 tasks represents the framework's clearest failure mode. Despite a strong baseline (60% majority), the evolution loop cannot fix any genuinely failing task and actively degrades performance on passing tasks. The trial rate declines monotonically from 50% to 40% across three sweeps. This result motivated dropping GLM 4.7 Flash from the 20-task experiment.
 
-#### Comparative Analysis at Ten Tasks
+#### Comparative Analysis at 10 Tasks
 
-@Tbl:10task-comparison summarises the key metrics for all three models at ten tasks.
+@Tbl:10task-comparison summarises the key metrics for all three models at 10 tasks.
 
 | Metric | Qwen3 30B-A3B | Qwen3.5 Flash | GLM 4.7 Flash |
 |--------|---------------|---------------|---------------|
@@ -198,9 +198,9 @@ In summary, GLM 4.7 Flash at ten tasks represents the framework's clearest failu
 | Unfixable tasks | 4 (7, 9, 11, 12) | 1 (7) | 4 (7, 9, 11, 12) |
 | Sweep 3 regression? | Mild | Severe (-17pp trial) | Continuous decline |
 
-: Ten-task comparison across three student models. "Best" refers to the sweep with the highest pass rate. GLM 4.7 Flash's "best" is the baseline itself, since evolution produces no net improvement. Fix rate counts tasks failing by majority vote at baseline that the teacher successfully fixed at least once. {#tbl:10task-comparison}
+: 10-task comparison across three student models. "Best" refers to the sweep with the highest pass rate. GLM 4.7 Flash's "best" is the baseline itself, since evolution produces no net improvement. Fix rate counts tasks failing by majority vote at baseline that the teacher successfully fixed at least once. {#tbl:10task-comparison}
 
-Four patterns emerge from the three-model comparison:
+Four patterns emerge from the 3-model comparison:
 
 The framework is not universally beneficial. GLM 4.7 Flash receives the same teacher patches as the other models but cannot convert them into durable improvements at this scale. The framework's value is contingent on the student model's ability to execute patched instructions reliably.
 

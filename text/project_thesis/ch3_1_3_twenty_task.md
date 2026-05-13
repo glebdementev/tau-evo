@@ -1,8 +1,8 @@
-## 3.3 Twenty-Task Experiments
+## 3.3 20-Task Experiments
 
 #### Qwen3 30B-A3B
 
-Experiment 3 doubles the task set again to twenty, introducing ten additional tasks (14, 15, 17, 20, 21, 23, 27, 28, 33, 34) alongside the original ten. This tests whether the framework's gains continue to scale and how the teacher's strategy adapts to a larger and more diverse failure surface.
+Experiment 3 doubles the task set again to 20, introducing 10 additional tasks (14, 15, 17, 20, 21, 23, 27, 28, 33, 34) alongside the original 10. This tests whether the framework's gains continue to scale and how the teacher's strategy adapts to a larger and more diverse failure surface.
 
 @Tbl:exp3-passrate summarises pass rates across sweeps.
 
@@ -106,7 +106,7 @@ The wasted effort is staggering. Across sweeps 1 and 2, the teacher exhausted al
 
 ![Fix attempts by tier and sweep for Qwen3 30B-A3B on 20 tasks.](../../runs/20/fix_attempts_print.svg){#fig:exp3-fix-attempts}
 
-Across sweeps 1 and 2, ten successful fixes were applied: seven instruction-tier (70%), two tools-tier (20%), and one guardrail-tier (10%). The instruction-tier dominance persists but its share drops slightly compared to the 71% observed in both previous experiments. The emergence of tool-schema fixes as a meaningful category is a new development: at 5 and 10 tasks, no tools-tier fixes were recorded.
+Across sweeps 1 and 2, 10 successful fixes were applied: seven instruction-tier (70%), two tools-tier (20%), and one guardrail-tier (10%). The instruction-tier dominance persists but its share drops slightly compared to the 71% observed in both previous experiments. The emergence of tool-schema fixes as a meaningful category is a new development: at 5 and 10 tasks, no tools-tier fixes were recorded.
 
 The fix success rate continues its decline with scale. Across sweeps 1 and 2, the teacher produced verified fixes for 7 unique tasks (0, 1, 3, 5, 10, 28, 34); of these, 3 (Tasks 0, 3, 28) were among the 15 tasks failing by majority vote at baseline, yielding $\text{FSR}_{20} = 3/15 = 20\%$---down from 43% at 10 tasks and 100% at 5 tasks. The remaining 4 fixes targeted tasks that already passed by majority but failed individual trials (Tasks 1, 5, 10, 34), hardening reliability without changing the majority-vote pass rate. The 12 unfixed majority-vote failures constitute an expanded hard core: 7, 9, 11, 12, 14, 15, 17, 20, 21, 23, 27, 33.
 
@@ -116,7 +116,7 @@ Improvement is real but modest. The trial pass rate rises from 22% (baseline) to
 
 Patch fragility persists. The trial pass rate actually drops between sweeps 2 and 3 (33% → 30%), and the majority rate barely changes (25% → 30%, but this is driven entirely by Task 28's late bloom). Several tasks that showed marginal improvement in sweep 2 (Tasks 3, 11, 12, 15, 33) regress in sweep 3.
 
-In summary, the twenty-task experiment confirms the diminishing returns hypothesis. The evolution framework produces a smaller absolute improvement (+8pp trial rate from baseline to best sweep) compared to 10 tasks (+23pp) and 5 tasks (+20pp). The fix success rate on majority-vote failures drops to 20%. The hard core of resistant tasks expands from 4 (at 10 tasks) to 12 (at 20 tasks). Tool-schema fixes emerge as a new category, but their frequency (2 of 10 fixes) is too low to offset the growing proportion of unfixable failures. The practical implication is clear: at 20 tasks, the teacher spends the vast majority of its time and tokens on tasks it cannot repair.
+In summary, the 20-task experiment confirms the diminishing returns hypothesis. The evolution framework produces a smaller absolute improvement (+8pp trial rate from baseline to best sweep) compared to 10 tasks (+23pp) and 5 tasks (+20pp). The fix success rate on majority-vote failures drops to 20%. The hard core of resistant tasks expands from 4 (at 10 tasks) to 12 (at 20 tasks). Tool-schema fixes emerge as a new category, but their frequency (2 of 10 fixes) is too low to offset the growing proportion of unfixable failures. The practical implication is clear: at 20 tasks, the teacher spends the vast majority of its time and tokens on tasks it cannot repair.
 
 #### Qwen3.5 Flash
 
@@ -159,7 +159,7 @@ The per-task baseline results:
 
 : Per-task trajectories for Qwen3.5 Flash on 20 tasks. {#tbl:flash20-trajectories}
 
-The baseline is dramatically stronger than Qwen3 30B-A3B's at the same scale: 47% trial rate versus 22%, and 45% majority versus 25%. Nine tasks pass at baseline, compared to five for Qwen3 30B-A3B. Critically, Qwen3.5 Flash passes Tasks 17, 20, and 28 at baseline---tasks that Qwen3 30B-A3B scored 0/3 on. The eleven failing tasks include familiar resistant cases (7, 9, 14, 23, 33) as well as tasks that responded to evolution (5, 11, 12, 15, 21, 27, 34).
+The baseline is dramatically stronger than Qwen3 30B-A3B's at the same scale: 47% trial rate versus 22%, and 45% majority versus 25%. Nine tasks pass at baseline, compared to five for Qwen3 30B-A3B. Critically, Qwen3.5 Flash passes Tasks 17, 20, and 28 at baseline---tasks that Qwen3 30B-A3B scored 0/3 on. The 11 failing tasks include familiar resistant cases (7, 9, 14, 23, 33) as well as tasks that responded to evolution (5, 11, 12, 15, 21, 27, 34).
 
 | Sweep | Already passing | Fixed (instruction) | Fixed (guardrail) | Unfixed |
 |-------|----------------|--------------------|--------------------|---------|
@@ -209,9 +209,9 @@ The evolution loop is productive across two sweeps. Sweep 1 fixes six tasks (all
 
 ![Fix attempts by tier and sweep for Qwen3.5 Flash on 20 tasks.](../../runs/qwen35-flash_20/fix_attempts_print.svg){#fig:flash20-fix-attempts}
 
-Across sweeps 1 and 2, twelve successful fixes were applied: eleven instruction-tier (92%) and one guardrail-tier (8%). No tool-schema fixes appeared---a notable contrast with Qwen3 30B-A3B, which required two tool-schema fixes at the same scale. The stronger student's instruction-following capability makes prompt-level corrections sufficient for tasks that required tool-level intervention with the weaker model.
+Across sweeps 1 and 2, 12 successful fixes were applied: 11 instruction-tier (92%) and one guardrail-tier (8%). No tool-schema fixes appeared---a notable contrast with Qwen3 30B-A3B, which required two tool-schema fixes at the same scale. The stronger student's instruction-following capability makes prompt-level corrections sufficient for tasks that required tool-level intervention with the weaker model.
 
-The fix success rate on genuinely failing tasks is 45%: of the eleven tasks failing at baseline, five unique tasks were fixed at least once (11, 12, 21, 27, 34). The five persistently unfixable tasks are 7, 9, 14, 23, and 33.
+The fix success rate on genuinely failing tasks is 45%: of the 11 tasks failing at baseline, five unique tasks were fixed at least once (11, 12, 21, 27, 34). The five persistently unfixable tasks are 7, 9, 14, 23, and 33.
 
 Two tasks show notable indirect effects. Task 15 improves from 1/3 (baseline) to 3/3 (sweep 2) without being directly fixed by the teacher---no successful fix for Task 15 appears in the teachers log. This cross-task benefit likely arises from instruction patches targeting other tasks that incidentally clarify a policy relevant to Task 15. However, Task 15 regresses to 1/3 in sweep 3, suggesting the improvement was fragile.
 
@@ -221,9 +221,9 @@ The most notable regression is Task 34, which is fixed in sweep 1 (1/3 → 2/3 i
 
 In summary, Qwen3.5 Flash at 20 tasks achieves a +20pp majority improvement (45% → 65%) and +10pp trial improvement (47% → 57%), both substantially larger than Qwen3 30B-A3B's gains at the same scale (+5pp majority, +11pp trial). The fix breakdown is overwhelmingly instruction-tier (92%), with no tool-schema fixes needed. Unlike the severe sweep-3 regression observed at 10 tasks (-17pp trial, -10pp majority), the 20-task experiment shows remarkable stability between sweeps 2 and 3, with the majority rate holding at 65% despite individual task-level churn.
 
-#### Comparative Analysis at Twenty Tasks
+#### Comparative Analysis at 20 Tasks
 
-@Tbl:20task-comparison summarises the key metrics for both models at twenty tasks. GLM 4.7 Flash is excluded, having been dropped at this scale due to poor performance at ten tasks.
+@Tbl:20task-comparison summarises the key metrics for both models at 20 tasks. GLM 4.7 Flash is excluded, having been dropped at this scale due to poor performance at 10 tasks.
 
 | Metric | Qwen3 30B-A3B | Qwen3.5 Flash |
 |--------|---------------|---------------|
@@ -238,7 +238,7 @@ In summary, Qwen3.5 Flash at 20 tasks achieves a +20pp majority improvement (45%
 | Unfixable tasks | 12 | 5 (7, 9, 14, 23, 33) |
 | Sweep 3 majority change | +5pp (25→30%) | 0pp (65→65%) |
 
-: Twenty-task comparison between student models. Fix rate counts tasks failing by majority vote at baseline that the teacher successfully fixed at least once. {#tbl:20task-comparison}
+: 20-task comparison between student models. Fix rate counts tasks failing by majority vote at baseline that the teacher successfully fixed at least once. {#tbl:20task-comparison}
 
 Three key findings emerge:
 
@@ -246,4 +246,4 @@ The stronger student achieves a dramatically higher ceiling. Qwen3.5 Flash reach
 
 Tool-schema fixes are model-dependent. Qwen3 30B-A3B required two tool-schema fixes (20% of its total), while Qwen3.5 Flash needed none. The stronger student's instruction-following capability makes prompt-level corrections sufficient for tasks that the weaker student could only address through tool-level intervention.
 
-The unfixable set shrinks but does not disappear. Qwen3 30B-A3B has twelve unfixable tasks at this scale; Qwen3.5 Flash has five (7, 9, 14, 23, 33). Of these five, Tasks 7 and 9 are the same cross-model resistant tasks seen at ten tasks. Tasks 14, 23, and 33 represent genuinely hard problems that neither model can address through prompt evolution alone.
+The unfixable set shrinks but does not disappear. Qwen3 30B-A3B has 12 unfixable tasks at this scale; Qwen3.5 Flash has five (7, 9, 14, 23, 33). Of these five, Tasks 7 and 9 are the same cross-model resistant tasks seen at 10 tasks. Tasks 14, 23, and 33 represent genuinely hard problems that neither model can address through prompt evolution alone.

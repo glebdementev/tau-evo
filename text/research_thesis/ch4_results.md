@@ -24,7 +24,7 @@ The experiments span three scales and eight conditions:
 
 The scaling sequence is deliberate. If the evolution framework captures task-specific fixes that do not generalise, then gains should be largest when the task set is smallest---each fix represents a larger share of the total---and should diminish as the denominator grows. The multi-model comparison tests a complementary question: if a stronger student already passes most tasks at baseline, does the framework still provide value, and does it address qualitatively different failure modes? The inclusion of GLM 4.7 Flash tests whether the framework generalises beyond the Qwen model family.
 
-## 4.2 Five-Task Evaluation
+## 4.2 5-task Evaluation
 
 ### 4.2.1 Qwen3 30B-A3B
 
@@ -94,13 +94,13 @@ The most notable negative result is the regression of Task 5 between sweeps 2 an
 
 #### Summary
 
-The aggregate trial pass rate rises from 53% (baseline) to 73% (after two sweeps of evolution). Instruction-level patches account for the majority of successful fixes. However, the five-task setting saturates quickly: by sweep 3, no further fixes are possible, and patch interference introduces mild regression.
+The aggregate trial pass rate rises from 53% (baseline) to 73% (after two sweeps of evolution). Instruction-level patches account for the majority of successful fixes. However, the 5-task setting saturates quickly: by sweep 3, no further fixes are possible, and patch interference introduces mild regression.
 
 ### 4.2.2 Qwen3.5 Flash
 
 The same five tasks (0, 1, 3, 4, 5) were evaluated with Qwen3.5 Flash as the student model. At baseline, Qwen3.5 Flash achieves a perfect 5/5 majority-vote pass rate (15/15 trials), requiring no evolution intervention. Every task that Qwen3 30B-A3B struggled with---including Task 0 (which never reliably passed even after evolution) and Task 3 (which required multi-sweep patching)---is solved by Qwen3.5 Flash out of the box.
 
-This result establishes a ceiling reference: the five-task airline configuration is within the unassisted capability of a stronger non-thinking model. The evolution framework's contribution on these tasks is to bridge the gap between a weaker model's capability and this ceiling---a gap that a stronger student does not have.
+This result establishes a ceiling reference: the 5-task airline configuration is within the unassisted capability of a stronger non-thinking model. The evolution framework's contribution on these tasks is to bridge the gap between a weaker model's capability and this ceiling---a gap that a stronger student does not have.
 
 ### 4.2.3 GLM 4.7 Flash
 
@@ -156,7 +156,7 @@ Total fixes: 4 (3 instruction, 1 guardrail). Of the three genuinely failing task
 
 The defining result for GLM 4.7 Flash at five tasks is the catastrophic regression between sweeps 2 and 3. The majority pass rate drops from 80% (4/5) to 40% (2/5)---a 40-percentage-point collapse. The trial rate drops from 73% to 47%, returning exactly to the baseline. Tasks 0 and 3, which had improved in sweep 2, revert to their baseline state. Even Task 4, which passed perfectly at baseline (3/3), degrades to 2/3.
 
-This regression is far more severe than anything observed with Qwen3 30B-A3B (which lost only one task between sweeps 2 and 3) or Qwen3.5 Flash at ten tasks (which lost 10 percentage points). It suggests that GLM 4.7 Flash is particularly vulnerable to patch interference: the accumulated patches from sweeps 1 and 2 create conflicting directives that the model cannot reconcile.
+This regression is far more severe than anything observed with Qwen3 30B-A3B (which lost only one task between sweeps 2 and 3) or Qwen3.5 Flash at 10 tasks (which lost 10 percentage points). It suggests that GLM 4.7 Flash is particularly vulnerable to patch interference: the accumulated patches from sweeps 1 and 2 create conflicting directives that the model cannot reconcile.
 
 #### Summary
 
@@ -176,17 +176,17 @@ GLM 4.7 Flash achieves a strong peak improvement (+40pp majority, +26pp trial at
 | Fix rate on failing tasks | 100% | N/A | 67% |
 | Total fixes (instr/guard) | 7 (5/2) | 0 | 4 (3/1) |
 
-: Five-task comparison across three student models. "Best" refers to the sweep with the highest pass rate. {#tbl:5task-comparison}
+: 5-task comparison across three student models. "Best" refers to the sweep with the highest pass rate. {#tbl:5task-comparison}
 
-Three patterns emerge. First, both weaker models reach the same peak performance (80% majority, 73% trial), suggesting a common ceiling for the five-task setting that prompt evolution can approach but not exceed. Second, the models diverge sharply in their ability to retain gains: Qwen3 30B-A3B holds most of its improvement through sweep 3, while GLM 4.7 Flash collapses back to baseline. Third, Qwen3.5 Flash's perfect baseline confirms that these five tasks are within reach of a sufficiently capable model without any evolution intervention.
+Three patterns emerge. First, both weaker models reach the same peak performance (80% majority, 73% trial), suggesting a common ceiling for the 5-task setting that prompt evolution can approach but not exceed. Second, the models diverge sharply in their ability to retain gains: Qwen3 30B-A3B holds most of its improvement through sweep 3, while GLM 4.7 Flash collapses back to baseline. Third, Qwen3.5 Flash's perfect baseline confirms that these five tasks are within reach of a sufficiently capable model without any evolution intervention.
 
-## 4.3 Ten-Task Experiments
+## 4.3 10-Task Experiments
 
 ### 4.3.1 Qwen3 30B-A3B
 
 #### Baseline Performance
 
-Experiment 2 doubles the task set from five to ten, introducing five additional tasks (7, 9, 10, 11, 12). @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
+Experiment 2 doubles the task set from five to 10, introducing five additional tasks (7, 9, 10, 11, 12). @Fig:exp2-heatmap shows the per-task, per-trial results across all three sweeps, and @tbl:exp2-passrate summarises pass rates.
 
 | Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
 |-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
@@ -196,11 +196,11 @@ Experiment 2 doubles the task set from five to ten, introducing five additional 
 
 : Per-sweep evaluation results for Qwen3 30B-A3B on 10 tasks. {#tbl:exp2-passrate}
 
-@Fig:exp2-heatmap visualises the same data. Compared to the five-task heatmap, the ten-task version makes the bifurcation between fixable and resistant tasks immediately visible: a cluster of tasks (0, 1, 3, 4, 5) greens progressively across sweeps, while a second cluster (7, 9, 11, 12) remains solidly red throughout. Task 10 occupies a middle ground---it was fixed during sweep 1's evolution but never passed more than 1/3 trials in re-evaluation, suggesting a fragile fix.
+@Fig:exp2-heatmap visualises the same data. Compared to the 5-task heatmap, the 10-task version makes the bifurcation between fixable and resistant tasks immediately visible: a cluster of tasks (0, 1, 3, 4, 5) greens progressively across sweeps, while a second cluster (7, 9, 11, 12) remains solidly red throughout. Task 10 occupies a middle ground---it was fixed during sweep 1's evolution but never passed more than 1/3 trials in re-evaluation, suggesting a fragile fix.
 
 ![Per-task, per-trial pass/fail heatmap for Qwen3 30B-A3B across three sweeps (10 tasks).](../runs/10/sweep_heatmap_print.svg){#fig:exp2-heatmap}
 
-The baseline is substantially weaker than in the five-task setting: only 27% of trials pass (8/30), versus 53% (8/15). By majority vote, 3 of 10 tasks pass (30%), versus 3 of 5 (60%). The five tasks shared with the five-task experiment exhibit identical baseline performance, confirming that the seed and configuration reproduce consistently.
+The baseline is substantially weaker than in the 5-task setting: only 27% of trials pass (8/30), versus 53% (8/15). By majority vote, 3 of 10 tasks pass (30%), versus 3 of 5 (60%). The five tasks shared with the 5-task experiment exhibit identical baseline performance, confirming that the seed and configuration reproduce consistently.
 
 #### Evolution Trajectory
 
@@ -212,11 +212,11 @@ The baseline is substantially weaker than in the five-task setting: only 27% of 
 
 : Per-sweep task outcomes for Qwen3 30B-A3B on 10 tasks. {#tbl:exp2-outcomes}
 
-@Fig:exp2-outcomes visualises the same data. The persistent red "Unfixed" segment, absent in the five-task sweeps 1 and 2, dominates the chart---reflecting a hard core of tasks that resist prompt-level repair.
+@Fig:exp2-outcomes visualises the same data. The persistent red "Unfixed" segment, absent in the 5-task sweeps 1 and 2, dominates the chart---reflecting a hard core of tasks that resist prompt-level repair.
 
 ![Stacked bar chart of per-sweep task outcomes for Qwen3 30B-A3B on 10 tasks.](../runs/10/sweep_outcomes_print.svg){#fig:exp2-outcomes}
 
-The trajectory differs markedly from the five-task experiment. In the five-task run, sweep 1 achieved a 100% fix rate on failing tasks; here, sweep 1 fixes only 5 of 9 failing tasks (56%). The four unfixed tasks (7, 9, 11, 12) consumed substantial teacher effort---a combined 150 messages, 61 tool calls, and 36 minutes of wall-clock time---without producing a single viable patch.
+The trajectory differs markedly from the 5-task experiment. In the 5-task run, sweep 1 achieved a 100% fix rate on failing tasks; here, sweep 1 fixes only 5 of 9 failing tasks (56%). The four unfixed tasks (7, 9, 11, 12) consumed substantial teacher effort---a combined 150 messages, 61 tool calls, and 36 minutes of wall-clock time---without producing a single viable patch.
 
 A second notable difference is the delayed improvement in evaluation metrics. Sweep 2's re-evaluation shows essentially no change from baseline (9/30 trials, 30% majority), despite sweep 1 having fixed five tasks during the evolution loop. The full improvement materialises only in sweep 3 (15/30 trials, 50% majority), after sweep 2's fixes had a chance to reinforce the earlier patches.
 
@@ -251,17 +251,17 @@ A second notable difference is the delayed improvement in evaluation metrics. Sw
 
 ![Fix attempts by tier and sweep for Qwen3 30B-A3B on 10 tasks.](../runs/10/fix_attempts_print.svg){#fig:exp2-fix-attempts}
 
-Across sweeps 1 and 2, seven successful fixes were applied: five instruction-tier (71%) and two guardrail-tier (29%). This ratio is identical to the five-task experiment's, suggesting that the instruction-guardrail balance is a stable property of the framework rather than an artefact of the specific task set.
+Across sweeps 1 and 2, seven successful fixes were applied: five instruction-tier (71%) and two guardrail-tier (29%). This ratio is identical to the 5-task experiment's, suggesting that the instruction-guardrail balance is a stable property of the framework rather than an artefact of the specific task set.
 
-The cost distribution shifts substantially. In the five-task run, the teacher encountered no unfixable tasks until sweep 3. In the ten-task run, the teacher exhausted all retries on four tasks in sweep 1 and seven in sweep 2, burning 393 messages, 162 tool calls, and over 107 minutes on failed attempts.
+The cost distribution shifts substantially. In the 5-task run, the teacher encountered no unfixable tasks until sweep 3. In the 10-task run, the teacher exhausted all retries on four tasks in sweep 1 and seven in sweep 2, burning 393 messages, 162 tool calls, and over 107 minutes on failed attempts.
 
 #### Summary
 
-The trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-percentage-point gain comparable to the five-task run's +20pp. The instruction-guardrail ratio (71%/29%) is identical. However, four of nine failing tasks resist all fix attempts, and improvement is delayed by one sweep due to patch fragility.
+The trial pass rate rises from 27% (baseline) to 50% (after two sweeps), a 23-percentage-point gain comparable to the 5-task run's +20pp. The instruction-guardrail ratio (71%/29%) is identical. However, four of nine failing tasks resist all fix attempts, and improvement is delayed by one sweep due to patch fragility.
 
 ### 4.3.2 Qwen3.5 Flash
 
-The same ten tasks were evaluated with Qwen3.5 Flash as the student model. @Tbl:exp2-flash-passrate summarises pass rates across sweeps.
+The same 10 tasks were evaluated with Qwen3.5 Flash as the student model. @Tbl:exp2-flash-passrate summarises pass rates across sweeps.
 
 | Sweep | T0 | T1 | T3 | T4 | T5 | T7 | T9 | T10 | T11 | T12 | Trial rate | Maj. rate |
 |-------|-----|-----|-----|-----|-----|-----|-----|------|------|------|------------|-----------|
@@ -335,7 +335,7 @@ The likely explanation is patch interference compounded by the stronger model's 
 
 ![Per-task, per-trial pass/fail heatmap for GLM 4.7 Flash across three sweeps (10 tasks).](../runs/glm47_10/sweep_heatmap_print.svg){#fig:glm47-10-heatmap}
 
-The baseline is the strongest of any model at this scale: 50% trial rate and 60% majority rate, compared to 27%/30% for Qwen3 30B-A3B and 60%/50% for Qwen3.5 Flash. Six of ten tasks pass at baseline (0, 1, 3, 4, 5, 10). The four genuinely failing tasks are the same hard core seen across other models: Tasks 7, 9, 11, and 12.
+The baseline is the strongest of any model at this scale: 50% trial rate and 60% majority rate, compared to 27%/30% for Qwen3 30B-A3B and 60%/50% for Qwen3.5 Flash. Six of 10 tasks pass at baseline (0, 1, 3, 4, 5, 10). The four genuinely failing tasks are the same hard core seen across other models: Tasks 7, 9, 11, and 12.
 
 #### Evolution Trajectory
 
@@ -379,15 +379,15 @@ The critical finding is that **all four successful fixes targeted tasks that wer
 
 The evolution loop produces patches, and the teacher diagnoses failures correctly, but GLM 4.7 Flash cannot translate these patches into reliable execution at this scale. The patches fix one behaviour but introduce new errors elsewhere. This is visible in the progressive degradation of the trial rate across sweeps: 50% → 43% → 40%. Even tasks that were comfortably passing at baseline (e.g., Task 1 at 2/3, Task 5 at 2/3) become more fragile after patches are applied.
 
-The sweep 3 result is especially revealing: the evolution loop sees all ten tasks as failing, even though the 3-trial re-evaluation shows five passing by majority. The model's behaviour is becoming increasingly unstable as patches accumulate.
+The sweep 3 result is especially revealing: the evolution loop sees all 10 tasks as failing, even though the 3-trial re-evaluation shows five passing by majority. The model's behaviour is becoming increasingly unstable as patches accumulate.
 
 #### Summary
 
-GLM 4.7 Flash at ten tasks represents the framework's clearest failure mode. Despite a strong baseline (60% majority), the evolution loop cannot fix any genuinely failing task and actively degrades performance on passing tasks. The trial rate declines monotonically from 50% to 40% across three sweeps. This result motivated dropping GLM 4.7 Flash from the 20-task experiment.
+GLM 4.7 Flash at 10 tasks represents the framework's clearest failure mode. Despite a strong baseline (60% majority), the evolution loop cannot fix any genuinely failing task and actively degrades performance on passing tasks. The trial rate declines monotonically from 50% to 40% across three sweeps. This result motivated dropping GLM 4.7 Flash from the 20-task experiment.
 
-### 4.3.4 Comparative Analysis at Ten Tasks
+### 4.3.4 Comparative Analysis at 10 Tasks
 
-@Tbl:10task-comparison summarises the key metrics for all three models at ten tasks.
+@Tbl:10task-comparison summarises the key metrics for all three models at 10 tasks.
 
 | Metric | Qwen3 30B-A3B | Qwen3.5 Flash | GLM 4.7 Flash |
 |--------|---------------|---------------|---------------|
@@ -402,9 +402,9 @@ GLM 4.7 Flash at ten tasks represents the framework's clearest failure mode. Des
 | Unfixable tasks | 4 (7, 9, 11, 12) | 1 (7) | 4 (7, 9, 11, 12) |
 | Sweep 3 regression? | Mild | Severe (-17pp trial) | Continuous decline |
 
-: Ten-task comparison across three student models. "Best" refers to the sweep with the highest pass rate. GLM 4.7 Flash's "best" is the baseline itself, since evolution produces no net improvement. {#tbl:10task-comparison}
+: 10-task comparison across three student models. "Best" refers to the sweep with the highest pass rate. GLM 4.7 Flash's "best" is the baseline itself, since evolution produces no net improvement. {#tbl:10task-comparison}
 
-Four patterns emerge from the three-model comparison:
+Four patterns emerge from the 3-model comparison:
 
 **The framework is not universally beneficial.** GLM 4.7 Flash receives the same teacher patches as the other models but cannot convert them into durable improvements at this scale. The framework's value is contingent on the student model's ability to execute patched instructions reliably.
 
@@ -414,11 +414,11 @@ Four patterns emerge from the three-model comparison:
 
 **Regression risk varies by model architecture.** Qwen3.5 Flash shows discrete regression in sweep 3 (-17pp trial, -10pp majority). GLM 4.7 Flash shows continuous decline across all sweeps. Qwen3 30B-A3B shows the mildest regression. The relationship between instruction-following quality and regression severity is not monotonic---GLM 4.7 Flash's regression is the worst despite not being the strongest instruction follower.
 
-## 4.4 Twenty-Task Experiments
+## 4.4 20-Task Experiments
 
 ### 4.4.1 Qwen3 30B-A3B
 
-Experiment 3 doubles the task set again to twenty, introducing ten additional tasks (14, 15, 17, 20, 21, 23, 27, 28, 33, 34) alongside the original ten. This tests whether the framework's gains continue to scale and how the teacher's strategy adapts to a larger and more diverse failure surface.
+Experiment 3 doubles the task set again to 20, introducing 10 additional tasks (14, 15, 17, 20, 21, 23, 27, 28, 33, 34) alongside the original 10. This tests whether the framework's gains continue to scale and how the teacher's strategy adapts to a larger and more diverse failure surface.
 
 #### Baseline Performance
 
@@ -528,7 +528,7 @@ The wasted effort is staggering. Across sweeps 1 and 2, the teacher exhausted al
 
 ![Fix attempts by tier and sweep for Qwen3 30B-A3B on 20 tasks.](../runs/20/fix_attempts_print.svg){#fig:exp3-fix-attempts}
 
-Across sweeps 1 and 2, ten successful fixes were applied: seven instruction-tier (70%), two tools-tier (20%), and one guardrail-tier (10%). The instruction-tier dominance persists but its share drops slightly compared to the 71% observed in both previous experiments. The emergence of tool-schema fixes as a meaningful category is a new development: at 5 and 10 tasks, no tools-tier fixes were recorded.
+Across sweeps 1 and 2, 10 successful fixes were applied: seven instruction-tier (70%), two tools-tier (20%), and one guardrail-tier (10%). The instruction-tier dominance persists but its share drops slightly compared to the 71% observed in both previous experiments. The emergence of tool-schema fixes as a meaningful category is a new development: at 5 and 10 tasks, no tools-tier fixes were recorded.
 
 The fix success rate continues its decline with scale: $\text{FSR}_{20} = 8/19 \approx 42\%$ of unique failing tasks were fixed at least once, down from 56% at 10 tasks and 100% at 5 tasks. Of the 15 tasks that failed at baseline, only 8 were ever successfully fixed (0, 1, 3, 5, 10, 28, 33, 34). The remaining 11 tasks constitute an expanded hard core: 7, 9, 11, 12, 14, 15, 17, 20, 21, 23, 27.
 
@@ -542,7 +542,7 @@ The fix success rate continues its decline with scale: $\text{FSR}_{20} = 8/19 \
 
 #### Summary
 
-The twenty-task experiment confirms the diminishing returns hypothesis. The evolution framework produces a smaller absolute improvement (+8pp trial rate from baseline to best sweep) compared to 10 tasks (+23pp) and 5 tasks (+20pp). The fix success rate drops to 42%. The hard core of resistant tasks expands from 4 (at 10 tasks) to 11 (at 20 tasks). Tool-schema fixes emerge as a new category, but their frequency (2 of 10 fixes) is too low to offset the growing proportion of unfixable failures. The practical implication is clear: at 20 tasks, the teacher spends the vast majority of its time and tokens on tasks it cannot repair.
+The 20-task experiment confirms the diminishing returns hypothesis. The evolution framework produces a smaller absolute improvement (+8pp trial rate from baseline to best sweep) compared to 10 tasks (+23pp) and 5 tasks (+20pp). The fix success rate drops to 42%. The hard core of resistant tasks expands from 4 (at 10 tasks) to 11 (at 20 tasks). Tool-schema fixes emerge as a new category, but their frequency (2 of 10 fixes) is too low to offset the growing proportion of unfixable failures. The practical implication is clear: at 20 tasks, the teacher spends the vast majority of its time and tokens on tasks it cannot repair.
 
 ### 4.4.2 Qwen3.5 Flash
 
@@ -587,7 +587,7 @@ The per-task baseline results:
 
 : Per-task trajectories for Qwen3.5 Flash on 20 tasks. {#tbl:flash20-trajectories}
 
-The baseline is dramatically stronger than Qwen3 30B-A3B's at the same scale: 47% trial rate versus 22%, and 45% majority versus 25%. Nine tasks pass at baseline, compared to five for Qwen3 30B-A3B. Critically, Qwen3.5 Flash passes Tasks 17, 20, and 28 at baseline---tasks that Qwen3 30B-A3B scored 0/3 on. The eleven failing tasks include familiar resistant cases (7, 9, 14, 23, 33) as well as tasks that responded to evolution (5, 11, 12, 15, 21, 27, 34).
+The baseline is dramatically stronger than Qwen3 30B-A3B's at the same scale: 47% trial rate versus 22%, and 45% majority versus 25%. Nine tasks pass at baseline, compared to five for Qwen3 30B-A3B. Critically, Qwen3.5 Flash passes Tasks 17, 20, and 28 at baseline---tasks that Qwen3 30B-A3B scored 0/3 on. The 11 failing tasks include familiar resistant cases (7, 9, 14, 23, 33) as well as tasks that responded to evolution (5, 11, 12, 15, 21, 27, 34).
 
 #### Evolution Trajectory
 
@@ -641,9 +641,9 @@ The evolution loop is productive across two sweeps. Sweep 1 fixes six tasks (all
 
 #### Fix Type Analysis
 
-Across sweeps 1 and 2, twelve successful fixes were applied: eleven instruction-tier (92%) and one guardrail-tier (8%). No tool-schema fixes appeared---a notable contrast with Qwen3 30B-A3B, which required two tool-schema fixes at the same scale. The stronger student's instruction-following capability makes prompt-level corrections sufficient for tasks that required tool-level intervention with the weaker model.
+Across sweeps 1 and 2, 12 successful fixes were applied: 11 instruction-tier (92%) and one guardrail-tier (8%). No tool-schema fixes appeared---a notable contrast with Qwen3 30B-A3B, which required two tool-schema fixes at the same scale. The stronger student's instruction-following capability makes prompt-level corrections sufficient for tasks that required tool-level intervention with the weaker model.
 
-The fix success rate on genuinely failing tasks is 45%: of the eleven tasks failing at baseline, five unique tasks were fixed at least once (11, 12, 21, 27, 34). The five persistently unfixable tasks are 7, 9, 14, 23, and 33.
+The fix success rate on genuinely failing tasks is 45%: of the 11 tasks failing at baseline, five unique tasks were fixed at least once (11, 12, 21, 27, 34). The five persistently unfixable tasks are 7, 9, 14, 23, and 33.
 
 #### Cross-Task Benefits and Regression
 
@@ -657,9 +657,9 @@ The most notable regression is **Task 34**, which is fixed in sweep 1 (1/3 → 2
 
 Qwen3.5 Flash at 20 tasks achieves a +20pp majority improvement (45% → 65%) and +10pp trial improvement (47% → 57%), both substantially larger than Qwen3 30B-A3B's gains at the same scale (+5pp majority, +11pp trial). The fix breakdown is overwhelmingly instruction-tier (92%), with no tool-schema fixes needed. Unlike the severe sweep-3 regression observed at 10 tasks (-17pp trial, -10pp majority), the 20-task experiment shows remarkable stability between sweeps 2 and 3, with the majority rate holding at 65% despite individual task-level churn.
 
-### 4.4.3 Comparative Analysis at Twenty Tasks
+### 4.4.3 Comparative Analysis at 20 Tasks
 
-@Tbl:20task-comparison summarises the key metrics for both models at twenty tasks. GLM 4.7 Flash is excluded, having been dropped at this scale due to poor performance at ten tasks.
+@Tbl:20task-comparison summarises the key metrics for both models at 20 tasks. GLM 4.7 Flash is excluded, having been dropped at this scale due to poor performance at 10 tasks.
 
 | Metric | Qwen3 30B-A3B | Qwen3.5 Flash |
 |--------|---------------|---------------|
@@ -674,7 +674,7 @@ Qwen3.5 Flash at 20 tasks achieves a +20pp majority improvement (45% → 65%) an
 | Unfixable tasks | 11 | 5 (7, 9, 14, 23, 33) |
 | Sweep 3 majority change | +5pp (25→30%) | 0pp (65→65%) |
 
-: Twenty-task comparison between student models. {#tbl:20task-comparison}
+: 20-task comparison between student models. {#tbl:20task-comparison}
 
 Three key findings emerge:
 
@@ -682,7 +682,7 @@ Three key findings emerge:
 
 **Tool-schema fixes are model-dependent.** Qwen3 30B-A3B required two tool-schema fixes (20% of its total), while Qwen3.5 Flash needed none. The stronger student's instruction-following capability makes prompt-level corrections sufficient for tasks that the weaker student could only address through tool-level intervention.
 
-**The unfixable set shrinks but does not disappear.** Qwen3 30B-A3B has eleven unfixable tasks at this scale; Qwen3.5 Flash has five (7, 9, 14, 23, 33). Of these five, Tasks 7 and 9 are the same cross-model resistant tasks seen at ten tasks. Tasks 14, 23, and 33 represent genuinely hard problems that neither model can address through prompt evolution alone.
+**The unfixable set shrinks but does not disappear.** Qwen3 30B-A3B has 11 unfixable tasks at this scale; Qwen3.5 Flash has five (7, 9, 14, 23, 33). Of these five, Tasks 7 and 9 are the same cross-model resistant tasks seen at 10 tasks. Tasks 14, 23, and 33 represent genuinely hard problems that neither model can address through prompt evolution alone.
 
 ## 4.5 Cross-Scale and Cross-Model Comparison
 
@@ -814,25 +814,25 @@ The central finding---that prompt-level patching can improve agent task success-
 
 Similarly, the DSPy framework [@khattab2023] and TextGrad [@yuksekgonul2024] have demonstrated that structured optimisation of prompt components can yield substantial performance gains. Our framework occupies a middle ground: it does not require the formal program structure of DSPy, nor does it perform gradient-like back-propagation over textual losses. Instead, it relies on a teacher model to read a failed conversation trace alongside the corresponding human action trace and to propose a targeted patch---an approach that is arguably more transparent and interpretable to practitioners.
 
-The observed improvements are broadly consistent with the magnitude of gains reported in the prompt optimisation literature. The stability of the absolute gain across task-set sizes (for Qwen3 30B-A3B: +20pp, +23pp, +11pp) is notable. The three-model comparison adds a dimension not present in most prior work: the same framework applied to different student models reveals that the *ceiling* of prompt-level improvement is set by the student's intrinsic capability, not by the framework's design. The GLM 4.7 Flash results further demonstrate that prompt evolution can be *harmful* when applied to a model that cannot reliably execute patched instructions---a negative result that, to our knowledge, has not been systematically documented in the prompt optimisation literature.
+The observed improvements are broadly consistent with the magnitude of gains reported in the prompt optimisation literature. The stability of the absolute gain across task-set sizes (for Qwen3 30B-A3B: +20pp, +23pp, +11pp) is notable. The 3-model comparison adds a dimension not present in most prior work: the same framework applied to different student models reveals that the *ceiling* of prompt-level improvement is set by the student's intrinsic capability, not by the framework's design. The GLM 4.7 Flash results further demonstrate that prompt evolution can be *harmful* when applied to a model that cannot reliably execute patched instructions---a negative result that, to our knowledge, has not been systematically documented in the prompt optimisation literature.
 
 #### Teacher--student dynamics without weight transfer
 
 The teacher--student architecture adopted in this work represents a form of knowledge distillation that operates entirely in the input space. Traditional knowledge distillation [@hinton2015] transfers a teacher's knowledge through soft probability targets used during student weight training. Our approach is more minimalist: the teacher's knowledge is distilled not into the student's weights or training data, but into the student's *operating instructions*.
 
-The three-model results enrich this picture. When Kimi K2.5 proposes a patch for Task 11, that patch fails with Qwen3 30B-A3B but succeeds with Qwen3.5 Flash. The knowledge embedded in the patch is identical; what differs is the student's capacity to interpret and execute it. GLM 4.7 Flash adds a further dimension: this model receives patches and appears to follow them, but introduces new errors in the process, suggesting that the "compression" problem is not merely about whether the student can read the patch, but whether it can integrate it without disrupting existing behaviour. This mirrors findings from the knowledge distillation literature, where aggressive compression ratios lead to diminishing returns [@sanh2019; @jiao2020].
+The 3-model results enrich this picture. When Kimi K2.5 proposes a patch for Task 11, that patch fails with Qwen3 30B-A3B but succeeds with Qwen3.5 Flash. The knowledge embedded in the patch is identical; what differs is the student's capacity to interpret and execute it. GLM 4.7 Flash adds a further dimension: this model receives patches and appears to follow them, but introduces new errors in the process, suggesting that the "compression" problem is not merely about whether the student can read the patch, but whether it can integrate it without disrupting existing behaviour. This mirrors findings from the knowledge distillation literature, where aggressive compression ratios lead to diminishing returns [@sanh2019; @jiao2020].
 
 #### Instruction patching as the dominant lever
 
 The finding that instruction-level patches account for the majority of successful fixes resonates with research on prompt sensitivity. @sclar2023 demonstrated that LLM performance is highly sensitive to the specific wording and formatting of instructions. From this perspective, it is unsurprising that targeted instruction amendments yield the most reliable gains. The instruction section is where the model receives its "mental model" of the task, and deficiencies in this mental model are the most directly addressable through text.
 
-The emergence of tool-schema fixes at the 20-task scale (20% of fixes for Qwen3 30B-A3B, but 0% for Qwen3.5 Flash at the same scale) suggests that the need for tool-level intervention is model-dependent: a stronger student's instruction-following capability renders tool-schema patches unnecessary for the same tasks. This is consistent with the three-phase escalation design (Section 3.5.3) and confirms that the escalation tiers are correctly ordered by generality.
+The emergence of tool-schema fixes at the 20-task scale (20% of fixes for Qwen3 30B-A3B, but 0% for Qwen3.5 Flash at the same scale) suggests that the need for tool-level intervention is model-dependent: a stronger student's instruction-following capability renders tool-schema patches unnecessary for the same tasks. This is consistent with the 3-phase escalation design (Section 3.5.3) and confirms that the escalation tiers are correctly ordered by generality.
 
 #### Saturation and the limits of input-space evolution
 
 The rapid saturation observed across all experiments mirrors a well-documented pattern in iterative prompt optimisation. @fernando2023 observed similar plateau effects in PromptBreeder. In our framework, saturation arises from two distinct mechanisms: task-level saturation (once the prompt contains sufficient guidance for a given task, additional patches are redundant) and interference (accumulated patches degrade performance on previously solved tasks).
 
-The three-model comparison reveals that the interference problem is more complex than a simple correlation with instruction-following quality. Qwen3.5 Flash shows severe regression at 10 tasks but stability at 20 tasks, suggesting that task-pool size mediates interference effects. GLM 4.7 Flash shows the worst interference of any model despite not being the strongest instruction follower, indicating that the model's architectural robustness to prompt perturbation---distinct from its instruction-following accuracy---may be the key variable. This creates a practical design constraint: the optimal prompt evolution strategy must account for both the student model's instruction sensitivity and its robustness to prompt length and complexity growth.
+The 3-model comparison reveals that the interference problem is more complex than a simple correlation with instruction-following quality. Qwen3.5 Flash shows severe regression at 10 tasks but stability at 20 tasks, suggesting that task-pool size mediates interference effects. GLM 4.7 Flash shows the worst interference of any model despite not being the strongest instruction follower, indicating that the model's architectural robustness to prompt perturbation---distinct from its instruction-following accuracy---may be the key variable. This creates a practical design constraint: the optimal prompt evolution strategy must account for both the student model's instruction sensitivity and its robustness to prompt length and complexity growth.
 
 ### 4.6.3 Answering the Research Sub-Questions
 
@@ -840,19 +840,19 @@ The three-model comparison reveals that the interference problem is more complex
 
 The data strongly indicate that policy comprehension failures---where the agent misinterprets or overlooks specific business rules---are the most responsive to prompt evolution. The 70--92% instruction-tier fix rate is consistent across all experiments and all three models, confirming that the dominant failure mode is addressable through natural-language instruction.
 
-The three-model comparison adds nuance in two directions. First, tasks that are unfixable for weaker students (Tasks 9, 11, 12 with Qwen3 30B-A3B and GLM 4.7 Flash) can be fixed for a stronger student with the same patches. This means that some failures attributed to "structural resistance" are actually failures of student capability. Second, GLM 4.7 Flash demonstrates that even when the teacher correctly diagnoses a failure mode, the fix can fail if the student model introduces new errors when executing the patched prompt---a failure mode distinct from simply not understanding the patch.
+The 3-model comparison adds nuance in two directions. First, tasks that are unfixable for weaker students (Tasks 9, 11, 12 with Qwen3 30B-A3B and GLM 4.7 Flash) can be fixed for a stronger student with the same patches. This means that some failures attributed to "structural resistance" are actually failures of student capability. Second, GLM 4.7 Flash demonstrates that even when the teacher correctly diagnoses a failure mode, the fix can fail if the student model introduces new errors when executing the patched prompt---a failure mode distinct from simply not understanding the patch.
 
 #### What is the minimal volume of human demonstrations required?
 
-The five-task experiment achieved a 20-percentage-point improvement using one demonstration per failing task. This extreme sample efficiency is consistent with GEPA's finding that even a few rollouts can produce large quality gains when feedback is linguistically rich [@agrawal2025]. The 20-task results show diminishing returns: more tasks provide more diverse failure signals, but the teacher cannot convert most of them into successful fixes.
+The 5-task experiment achieved a 20-percentage-point improvement using one demonstration per failing task. This extreme sample efficiency is consistent with GEPA's finding that even a few rollouts can produce large quality gains when feedback is linguistically rich [@agrawal2025]. The 20-task results show diminishing returns: more tasks provide more diverse failure signals, but the teacher cannot convert most of them into successful fixes.
 
 #### Can such a framework outperform static agents and match RLHF-tuned agents?
 
-The framework outperforms the static baseline for both Qwen models across all conditions. However, GLM 4.7 Flash at 10 tasks demonstrates that the framework can *underperform* the static baseline when the student model cannot absorb patches reliably. Whether the framework can match RLHF-tuned agents remains open. The ceiling of input-space evolution is bounded by what the student model can achieve under ideal prompting. The three-model comparison makes this ceiling visible: Qwen3.5 Flash achieves 80% at 10 tasks and 65% at 20 tasks with evolution, Qwen3 30B-A3B tops out at 50% and 30%, and GLM 4.7 Flash cannot exceed its baseline. The framework's ceiling tracks the student's inherent capability, not the teacher's diagnostic power.
+The framework outperforms the static baseline for both Qwen models across all conditions. However, GLM 4.7 Flash at 10 tasks demonstrates that the framework can *underperform* the static baseline when the student model cannot absorb patches reliably. Whether the framework can match RLHF-tuned agents remains open. The ceiling of input-space evolution is bounded by what the student model can achieve under ideal prompting. The 3-model comparison makes this ceiling visible: Qwen3.5 Flash achieves 80% at 10 tasks and 65% at 20 tasks with evolution, Qwen3 30B-A3B tops out at 50% and 30%, and GLM 4.7 Flash cannot exceed its baseline. The framework's ceiling tracks the student's inherent capability, not the teacher's diagnostic power.
 
 ### 4.6.4 Implications for Enterprise Deployment
 
-The three-model results have direct practical implications. First, enterprises should invest in the strongest feasible base model before applying prompt evolution. The framework amplifies capability differences: Qwen3.5 Flash reaches 65% majority at 20 tasks versus Qwen3 30B-A3B's 30%.
+The 3-model results have direct practical implications. First, enterprises should invest in the strongest feasible base model before applying prompt evolution. The framework amplifies capability differences: Qwen3.5 Flash reaches 65% majority at 20 tasks versus Qwen3 30B-A3B's 30%.
 
 Second, **model compatibility testing is essential before deploying the framework**. The GLM 4.7 Flash results demonstrate that prompt evolution can be actively harmful with an incompatible student model. A brief pilot evaluation (e.g., at 5 tasks) can reveal whether a given model can absorb patches without destabilisation.
 
@@ -868,7 +868,7 @@ The SCOPE framework [@pei2025] addresses self-evolving context optimisation. The
 
 ### 4.6.6 Limitations
 
-Several limitations qualify the conclusions drawn above. First, the experiments cover only one domain (airline) with up to twenty tasks, which restricts the generalisability of the findings. Different domains (e.g., retail, finance) may exhibit different failure-mode distributions and different responsiveness to prompt evolution.
+Several limitations qualify the conclusions drawn above. First, the experiments cover only one domain (airline) with up to 20 tasks, which restricts the generalisability of the findings. Different domains (e.g., retail, finance) may exhibit different failure-mode distributions and different responsiveness to prompt evolution.
 
 Second, the human action traces used were generated by the author, not by professional customer service agents. In a real enterprise setting, the quality and diversity of human demonstrations would differ.
 
@@ -898,6 +898,6 @@ Fifth, a comparison with the GEPA framework [@agrawal2025] on the same τ²-benc
 
 ### 4.6.8 Concluding Remarks
 
-This discussion has situated the experimental results within the broader landscape of prompt optimisation, knowledge distillation, and agent reliability research. The core contribution---a supervised prompt evolution framework that converts human action traces into durable agent improvements---addresses a genuine gap in the literature. The three-model comparison reveals that the framework's effectiveness depends critically on the student model: Qwen3.5 Flash achieves the highest ceilings (65% majority at 20 tasks), Qwen3 30B-A3B shows moderate but consistent improvement, and GLM 4.7 Flash demonstrates that the framework can be counterproductive with an incompatible student.
+This discussion has situated the experimental results within the broader landscape of prompt optimisation, knowledge distillation, and agent reliability research. The core contribution---a supervised prompt evolution framework that converts human action traces into durable agent improvements---addresses a genuine gap in the literature. The 3-model comparison reveals that the framework's effectiveness depends critically on the student model: Qwen3.5 Flash achieves the highest ceilings (65% majority at 20 tasks), Qwen3 30B-A3B shows moderate but consistent improvement, and GLM 4.7 Flash demonstrates that the framework can be counterproductive with an incompatible student.
 
 For enterprises, the practical takeaway is fourfold. First, meaningful performance gains can be achieved without fine-tuning, weight access, or large-scale data collection. Second, the framework's value scales with model capability---investing in a stronger base model amplifies the returns from prompt evolution. Third, model compatibility must be verified before deployment: a brief pilot evaluation can prevent the kind of regression observed with GLM 4.7 Flash. Fourth, patch management is not optional: accumulated patches will eventually degrade performance, with the severity and timeline varying by model. The path toward enterprise-grade AI agent reliability requires this kind of supervised evolution as one component within a larger system that also includes model selection, patch lifecycle management, and continuous evaluation.

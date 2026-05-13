@@ -166,7 +166,7 @@ Patches are merged into the global state only if validation succeeds. Failed pat
 Algorithm 2 details the per-failure fix procedure. Let $\mathcal{T}_1$ and $\mathcal{T}_2$ denote the Phase 1 and Phase 2 tool sets, respectively.
 
 \begin{algorithm}
-\caption{FixFailure: Two-Phase Teacher Escalation}\label{alg:fix-failure}
+\caption{FixFailure: 2-phase Teacher Escalation}\label{alg:fix-failure}
 \begin{algorithmic}[1]
 \Require failed task $\tau$, state copy $\sigma = (\pi, \mathcal{S}, \mathcal{C})$, teacher $M_t$, attempt budget $A$, trials $T$
 \Ensure \textsc{FixResult}
@@ -216,9 +216,9 @@ The teacher session maintains a stateful conversation with the teacher model usi
 
 ![Teacher session tool-calling sequence: the teacher receives a context package, diagnoses the failure, calls patch tools across multiple rounds, and returns the patched state. The patch_tool_code tool is only available in Phase 2 (escalation).](figures/fig_04_teacher_session.png){#fig:teacher-session}
 
-The teacher session employs a two-phase escalation strategy, depicted in @fig:escalation. In Phase 1 (teaching), the teacher can only modify the prompt and tool schemas. If Phase 1 exhausts its attempts without fixing the task, Phase 2 (guardrails) unlocks the patch_tool_code tool, allowing the teacher to add defensive preprocessors. This staged approach ensures that lighter-weight interventions are attempted first.
+The teacher session employs a 2-phase escalation strategy, depicted in @fig:escalation. In Phase 1 (teaching), the teacher can only modify the prompt and tool schemas. If Phase 1 exhausts its attempts without fixing the task, Phase 2 (guardrails) unlocks the patch_tool_code tool, allowing the teacher to add defensive preprocessors. This staged approach ensures that lighter-weight interventions are attempted first.
 
-![Two-phase teacher escalation: Phase 1 restricts the teacher to prompt and schema patches. If unsuccessful, Phase 2 unlocks tool preprocessor editing for defensive guardrails.](figures/fig_10_escalation.png){#fig:escalation}
+![2-phase teacher escalation: Phase 1 restricts the teacher to prompt and schema patches. If unsuccessful, Phase 2 unlocks tool preprocessor editing for defensive guardrails.](figures/fig_10_escalation.png){#fig:escalation}
 
 ## 3.6 Patch Surfaces and Mechanisms
 
@@ -275,7 +275,7 @@ The primary metric is pass^1^---the fraction of tasks achieving a perfect reward
 
 $$\text{pass}^1 = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[r_i = 1.0]$$
 
-This is the standard metric in τ-bench publications [@yao2024; @barres2025]. Any reward below 1.0 constitutes failure. The strictness is intentional: @rabanser2025 argue that enterprise autonomous operation requires three to five nines of reliability (99.9--99.999 percent) and that current LLM agents are not on track to reach this threshold through scaling alone, with accuracy improving faster than reliability across 14 models spanning 18 months of releases. Under such a standard, partial credit is meaningless.
+This is the standard metric in τ-bench publications [@yao2024; @barres2025]. Any reward below 1.0 constitutes failure. The strictness is intentional: @rabanser2025 argue that enterprise autonomous operation requires 3 to 5 nines of reliability (99.9--99.999 percent) and that current LLM agents are not on track to reach this threshold through scaling alone, with accuracy improving faster than reliability across 14 models spanning 18 months of releases. Under such a standard, partial credit is meaningless.
 
 ### 3.8.2 Reward Breakdown
 
@@ -365,7 +365,7 @@ The contribution of the present work is the *framework*---the diagnose-patch-val
 
 ### 3.10.3 Construct Validity
 
-**pass^1^ as reliability proxy.** The metric treats all failures equally---a catastrophic wrong action and a minor communication lapse both count. @rabanser2025 decompose reliability into four dimensions (consistency, robustness, predictability, safety) with twelve metrics, of which pass^1^ captures only the consistency dimension. The reward breakdown provides more granular information, but the primary metric does not weight by severity or dimension.
+**pass^1^ as reliability proxy.** The metric treats all failures equally---a catastrophic wrong action and a minor communication lapse both count. @rabanser2025 decompose reliability into four dimensions (consistency, robustness, predictability, safety) with 12 metrics, of which pass^1^ captures only the consistency dimension. The reward breakdown provides more granular information, but the primary metric does not weight by severity or dimension.
 
 **Prompt evolution as distillation.** The thesis frames prompt patching as a form of knowledge transfer from teacher to student. There is precedent: weight-level distillation [@hinton2015], output-level distillation (Alpaca, Vicuna), and prompt-level transfer [SPoT, @vu2022; GEPA, @agrawal2025] form a progression toward lighter-weight knowledge transfer, as depicted in @fig:knowledge-transfer. However, the patches may encode surface-level heuristics (add a "#" prefix) without transferring deep domain understanding, and their durability under distribution shift is untested.
 

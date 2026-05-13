@@ -16,7 +16,7 @@ The DPV framework was designed (Section 2.3) and implemented (Section 2.4) with 
 - **API-only compatibility:** the framework operates entirely in the input space of a frozen student model. No model weights are modified at any point.
 - **Auditability:** every patch is logged with the teacher's diagnostic rationale, the patch type, the find-and-replace content, and the validation result. The complete evolved state is serialized to JSON after each iteration.
 - **Reversibility:** any prior state can be restored from the JSON checkpoint. Patches that fail validation are automatically reverted.
-- **Quality control:** the two-phase escalation strategy (instruction-tier before guardrail-tier) and unanimous validation across all trials ensure that only verified improvements enter the production configuration.
+- **Quality control:** the 2-phase escalation strategy (instruction-tier before guardrail-tier) and unanimous validation across all trials ensure that only verified improvements enter the production configuration.
 
 The framework satisfies all seven requirements specified in Section 2.2, subsection "Phase 3: Specify Requirements": API-only compatibility, auditable and reversible patch history, measurable improvement via trial pass rates, multi-surface patching across prompt, tool schema, and preprocessor surfaces, scalability characterization across three task-pool sizes, model-agnostic operation across three student model families, and per-deployment cost well below the manual baseline (quantified in subsection "Economic Effectiveness" below).
 
@@ -283,7 +283,7 @@ Several limitations constrain the generalizability of these findings.
 
 3. **Benchmark versus production gap.** The $\tau^2$-bench user simulator is itself an LLM. If the simulator shares biases with the student model (both draw from the open-source ecosystem), benchmark results may overestimate or underestimate real-world improvement. The framework's performance on production customer interaction traces is untested.
 
-4. **Hard ceiling on prompt-level intervention.** The best trial-level pass rate achieved was 80% (Qwen3.5 Flash at 10 tasks). Autonomous enterprise operation would require three-to-five nines of reliability [@rabanser2025]. Prompt-level evolution alone cannot bridge a gap of 20+ percentage points. The framework is one component of a multi-layered reliability strategy, not a complete solution.
+4. **Hard ceiling on prompt-level intervention.** The best trial-level pass rate achieved was 80% (Qwen3.5 Flash at 10 tasks). Autonomous enterprise operation would require 3-to-5 nines of reliability [@rabanser2025]. Prompt-level evolution alone cannot bridge a gap of 20+ percentage points. The framework is one component of a multi-layered reliability strategy, not a complete solution.
 
 5. **Single teacher model.** All experiments used Kimi K2.5 as the teacher across three student models (Qwen3 30B-A3B, Qwen3.5 Flash, GLM 4.7 Flash), yielding three teacher-student pairs. The cross-student comparison provides evidence that the framework generalizes across student architectures, but the teacher side is unvaried: different teachers may produce qualitatively different diagnoses and patches. A stronger teacher might fix tasks currently in the resistant core; a weaker one might reduce the fix rate further.
 
@@ -313,7 +313,7 @@ Estimated integration effort: 2--4 engineering weeks to adapt the research proto
 
 #### Phased Rollout Roadmap
 
-@Tbl:rollout-phases presents a three-phase rollout plan, progressing from internal validation to fully automated operation.
+@Tbl:rollout-phases presents a 3-phase rollout plan, progressing from internal validation to fully automated operation.
 
 | Phase | Mode | Human role | Success criterion | Duration |
 |---|---|---|---|---|

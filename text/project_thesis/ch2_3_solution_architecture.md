@@ -73,7 +73,7 @@ In the **reflection step**, the teacher receives a comprehensive prompt containi
 
 In the **validation step**, the student is re-run on the same task with the patches applied for multiple trials. A fix is accepted only if the task passes unanimously---all trials achieve a perfect reward of 1.0. If not, all patches are reverted and the teacher receives the new conversation trace and reward breakdown, and is asked to try again. @Fig:inner-loop diagrams this per-failure fix loop.
 
-The two-phase escalation strategy ensures lighter-weight interventions are attempted first (@fig:escalation):
+The 2-phase escalation strategy ensures lighter-weight interventions are attempted first (@fig:escalation):
 
 - **Phase 1 (Teaching):** The teacher can only modify the prompt and tool schemas via `patch_prompt` and `patch_tool`. This addresses failures where the student needs clearer instructions or better tool descriptions.
 - **Phase 2 (Guardrails):** If Phase 1 exhausts its attempts, `patch_tool_code` is unlocked, allowing the teacher to add defensive preprocessors that transform tool-call arguments before execution. This addresses persistent formatting errors that survive instruction-level correction.
@@ -81,11 +81,11 @@ The two-phase escalation strategy ensures lighter-weight interventions are attem
 ::: sidebyside
 ![Per-failure fix loop: the teacher analyzes the failure, proposes patches, and the student is re-run for validation. If the task does not pass all trials, patches are reverted and the teacher retries.](figures/fig_02_inner_loop.png){#fig:inner-loop}
 
-![Two-phase teacher escalation: Phase 1 restricts the teacher to prompt and schema patches. If unsuccessful, Phase 2 unlocks tool preprocessor editing.](figures/fig_10_escalation.png){#fig:escalation}
+![2-phase teacher escalation: Phase 1 restricts the teacher to prompt and schema patches. If unsuccessful, Phase 2 unlocks tool preprocessor editing.](figures/fig_10_escalation.png){#fig:escalation}
 :::
 
 \begin{algorithm}
-\caption{FixFailure: Two-Phase Teacher Escalation}\label{alg:fix-failure}
+\caption{FixFailure: 2-phase Teacher Escalation}\label{alg:fix-failure}
 \begin{algorithmic}[1]
 \Require failed task $\tau$, state copy $\sigma = (\pi, \mathcal{S}, \mathcal{C})$, teacher $M_t$, attempt budget $A$, trials $T$
 \Ensure \textsc{FixResult}
