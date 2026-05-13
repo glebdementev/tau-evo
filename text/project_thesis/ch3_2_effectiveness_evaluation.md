@@ -54,9 +54,9 @@ Four scaling patterns were characterized (Section 3.4):
 
 2. **Rapid saturation.** All experiments saturate by sweep 3 (zero new fixes). The framework's value is concentrated in the first one or two passes.
 
-3. **Patch interference.** Accumulated patches can degrade previously passing tasks. The severity varies by model: mild for Qwen3 30B-A3B, severe for Qwen3.5 Flash at 10 tasks ($-$17pp trial rate in sweep 3), catastrophic for GLM 4.7 Flash ($-$26pp collapse at 5 tasks).
+3. **Patch interference.** Accumulated patches can degrade previously passing tasks. The regression varies by model: mild for Qwen3 30B-A3B, $-$17pp trial rate in sweep 3 for Qwen3.5 Flash at 10 tasks, and $-$26pp at 5 tasks for GLM 4.7 Flash.
 
-4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a clear failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
+4. **Model-dependent effectiveness.** GLM 4.7 Flash at 10 tasks demonstrates a failure mode: zero fixes on genuinely failing tasks and active degradation. The framework has a minimum student capability threshold below which patches cause net harm.
 
 Objective 5: Produce actionable recommendations for *target ai*. Status: Achieved. The recommendations are presented in the "Recommendations for *target ai*" subsection below.
 
@@ -171,7 +171,7 @@ Even under the conservative scenario ($C_\text{manual}$ = \$15,000/year), break-
 
 : First-year ROI under three deployment scenarios. Manual cost uses $f = 1.5$ FTE, $w = \$45{,}000$. Automated cost includes \$10,000 integration (one-time), \$3,102/deployment/year (recurring). ROI = (net saving $-$ integration cost) / integration cost. {#tbl:roi-scenarios}
 
-The ROI is high because the cost differential spans three orders of magnitude: API compute for teacher inference costs dollars per domain, while manual maintenance costs tens of thousands. This gap is robust: even if the token estimates are off by a factor of 10$\times$, the automated cost per deployment rises to approximately \$3,500/year, still an order of magnitude below manual maintenance under all scenarios.
+The ROI is high because the cost differential spans three orders of magnitude: API compute for teacher inference costs dollars per domain, while manual maintenance costs tens of thousands. This gap remains under the sensitivity assumptions: even if the token estimates are off by a factor of 10$\times$, the automated cost per deployment rises to approximately \$3,500/year, still an order of magnitude below manual maintenance under all scenarios.
 
 Two additional factors favor the automated approach over time:
 
@@ -291,7 +291,7 @@ Several limitations constrain the generalizability of these findings.
 
 7. **Per-message token consumption estimated, not measured.** The economic model in the subsection "Economic Effectiveness" above uses message-count proxies for token consumption because exact per-message token counts were not logged during experiments. The actual per-message costs may differ from the estimates by a factor of 2--3$\times$ in either direction. The aggregate API spend across all eight experimental runs was observed retrospectively to be approximately \$40, consistent with the upper end of this range, and the sensitivity analysis above shows that even a 3$\times$ overestimate does not materially affect the economic conclusion. Precise per-message measurement in a production deployment would nevertheless be valuable.
 
-8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (particularly severe with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management: consolidation, regression-aware selection, and retirement. This was not tested in these experiments.
+8. **No patch retirement mechanism.** The implementation accumulates all accepted patches without consolidation or pruning. The observed patch interference (especially with Qwen3.5 Flash and GLM 4.7 Flash) suggests that unbounded accumulation will eventually degrade net performance. A production system would need patch management: consolidation, regression-aware selection, and retirement. This was not tested in these experiments.
 
 ### Recommendations for *target ai*
 
@@ -307,7 +307,7 @@ The DPV framework targets the systems-analyst layer in *target ai*'s value chain
 
 3. **Patch storage and versioning.** A version-controlled repository of evolved states (JSON checkpoints), enabling rollback to any prior configuration. The framework's existing serialization format (Section 2.3, subsection "Quality Assurance") is production-ready.
 
-4. **Regression test suite.** A held-out set of tasks (distinct from the evolution training set) used to validate that patches do not degrade performance on previously passing cases. This is the most critical component for safe automated deployment.
+4. **Regression test suite.** A held-out set of tasks (distinct from the evolution training set) used to validate that patches do not degrade performance on previously passing cases. This is the central component for safe automated deployment.
 
 Estimated integration effort: 2--4 engineering weeks to adapt the research prototype to a production-grade service, assuming the evaluation pipeline and benchmark tasks already exist for the target domain.
 
@@ -325,7 +325,7 @@ Estimated integration effort: 2--4 engineering weeks to adapt the research proto
 
 Phase 1 validates the framework against *target ai*'s specific domain configurations and model choices. Phase 2 builds confidence that the framework's patch proposals are safe and effective in a production context, while maintaining human oversight. Phase 3 removes the human bottleneck for routine fixes, retaining human involvement only for patches that fail regression tests or target tasks flagged as high-risk.
 
-The transition from Phase 2 to Phase 3 requires a robust regression-testing framework that goes beyond what was tested in the experiments. Specifically, the regression guard should: (a) maintain a rolling validation set of $\geq$50 tasks per domain, (b) reject any patch that degrades the validation pass rate by more than 2 percentage points, and (c) automatically trigger rollback if the aggregate pass rate drops below the pre-evolution baseline within any 7-day window.
+The transition from Phase 2 to Phase 3 requires a regression-testing framework that goes beyond what was tested in the experiments. Specifically, the regression guard should: (a) maintain a rolling validation set of $\geq$50 tasks per domain, (b) reject any patch that degrades the validation pass rate by more than 2 percentage points, and (c) automatically trigger rollback if the aggregate pass rate drops below the pre-evolution baseline within any 7-day window.
 
 #### Extending Beyond the Airline Domain
 

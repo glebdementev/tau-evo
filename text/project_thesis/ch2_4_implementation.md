@@ -42,7 +42,7 @@ The selection reflects a trade-off that mirrors the real enterprise deployment d
 
 Alternative student models---Qwen3.5 Flash and GLM 4.7 Flash---are evaluated for cross-student comparison.
 
-The teacher model is Kimi K2.5 [@kimi2026], a MoE Transformer with approximately one trillion total parameters and 32 billion active per token. Its 256K-token context window accommodates full conversation traces, the system prompt, all tool schemas, and task requirements in a single prompt. The teacher was chosen for significantly stronger performance than the student, strong tool-calling comprehension, a long context window, architectural independence from the student (Moonshot AI, not Alibaba), and cost-effectiveness for hundreds of reflection calls.
+The teacher model is Kimi K2.5 [@kimi2026], a MoE Transformer with approximately one trillion total parameters and 32 billion active per token. Its 256K-token context window accommodates full conversation traces, the system prompt, all tool schemas, and task requirements in a single prompt. The teacher was chosen for higher reported performance than the student, tool-calling comprehension, a long context window, architectural independence from the student (Moonshot AI, not Alibaba), and cost-effectiveness for hundreds of reflection calls.
 
 The user simulator uses Qwen3 30B-A3B. $\tau^2$-bench's user simulator follows scripted scenarios and does not require frontier-level capabilities.
 

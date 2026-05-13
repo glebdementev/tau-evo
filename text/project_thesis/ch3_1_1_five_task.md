@@ -56,7 +56,7 @@ Of seven successful fixes across sweeps 1 and 2, five (71%) were instruction-tie
 
 The dominance of instruction-tier patches supports the Superficial Alignment Hypothesis [@zhou2023lima]: the student model's failures are primarily failures of instruction following, not of capability.
 
-The most notable negative result is the regression of Task 5 between sweeps 2 and 3. In sweep 2, Task 5 passes all three trials (3/3). In sweep 3, it passes only one (1/3). Since no patches targeted Task 5 between sweeps 2 and 3 (it was already passing), the regression is attributable either to stochastic variation or to interference from patches accumulated during sweep 2's fixes of other tasks.
+The negative result is the regression of Task 5 between sweeps 2 and 3. In sweep 2, Task 5 passes all three trials (3/3). In sweep 3, it passes only one (1/3). Since no patches targeted Task 5 between sweeps 2 and 3 (it was already passing), the regression is attributable either to stochastic variation or to interference from patches accumulated during sweep 2's fixes of other tasks.
 
 In summary, the aggregate trial pass rate rises from 53% (baseline) to 73% (after two sweeps of evolution). Instruction-level patches account for the majority of successful fixes. However, the 5-task setting saturates quickly: by sweep 3, no further fixes are possible, and patch interference introduces mild regression.
 
@@ -92,7 +92,7 @@ The baseline is comparable to Qwen3 30B-A3B's: 47% trial rate and 40% majority r
 
 ![Stacked bar chart of per-sweep task outcomes for GLM 4.7 Flash on 5 tasks.](../../runs/glm47_5/sweep_outcomes_print.svg){#fig:glm47-5-outcomes}
 
-Sweep 1 fixes three tasks (all instruction-tier): Tasks 1, 5, and 0. Task 3 resists repair. Sweep 2 adds one guardrail fix for Task 4 (which was already passing by majority but had failed during the evolution loop's single-trial check). Sweep 3 produces no new fixes; the evolution loop sees all five tasks as failing, reflecting severe regression.
+Sweep 1 fixes three tasks (all instruction-tier): Tasks 1, 5, and 0. Task 3 resists repair. Sweep 2 adds one guardrail fix for Task 4 (which was already passing by majority but had failed during the evolution loop's single-trial check). Sweep 3 produces no new fixes; the evolution loop sees all five tasks as failing, reflecting regression.
 
 @Tbl:glm5-fixes details the individual fix attempts.
 
@@ -112,9 +112,9 @@ Sweep 1 fixes three tasks (all instruction-tier): Tasks 1, 5, and 0. Task 3 resi
 
 Total fixes: 4 (3 instruction, 1 guardrail). Of the three genuinely failing tasks at baseline (1, 3, 5), two were fixed: a 67% fix rate, comparable to Qwen3 30B-A3B's performance.
 
-The defining result for GLM 4.7 Flash at five tasks is the catastrophic regression between sweeps 2 and 3. The majority pass rate drops from 80% (4/5) to 40% (2/5): a 40-percentage-point collapse. The trial rate drops from 73% to 47%, returning exactly to the baseline. Tasks 0 and 3, which had improved in sweep 2, revert to their baseline state. Even Task 4, which passed perfectly at baseline (3/3), degrades to 2/3.
+The defining result for GLM 4.7 Flash at five tasks is the regression between sweeps 2 and 3. The majority pass rate drops from 80% (4/5) to 40% (2/5), a 40-percentage-point decline. The trial rate drops from 73% to 47%, returning exactly to the baseline. Tasks 0 and 3, which had improved in sweep 2, revert to their baseline state. Even Task 4, which passed perfectly at baseline (3/3), degrades to 2/3.
 
-This regression is far more severe than anything observed with Qwen3 30B-A3B (which lost only one task between sweeps 2 and 3) or Qwen3.5 Flash at 10 tasks (which lost 10 percentage points). It suggests that GLM 4.7 Flash is particularly vulnerable to patch interference: the accumulated patches from sweeps 1 and 2 create conflicting directives that the model cannot reconcile.
+This regression is larger than the regressions observed with Qwen3 30B-A3B (which lost only one task between sweeps 2 and 3) or Qwen3.5 Flash at 10 tasks (which lost 10 percentage points). It suggests that GLM 4.7 Flash is particularly vulnerable to patch interference: the accumulated patches from sweeps 1 and 2 create conflicting directives that the model cannot reconcile.
 
 In summary, GLM 4.7 Flash achieves a strong peak improvement (+40pp majority, +26pp trial at sweep 2), demonstrating that the evolution framework can work with this model. However, the gains are entirely erased by sweep 3, indicating that the model lacks the robustness to maintain improvements under patch accumulation. Task 3 is never fixed across either sweep, remaining the sole resistant task.
 

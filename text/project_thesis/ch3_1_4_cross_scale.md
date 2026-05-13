@@ -26,9 +26,9 @@ The number of successful fixes is also instructive: 7 at 5 tasks, 7 at 10 tasks,
 
 : Cross-scale summary for Qwen3.5 Flash. {#tbl:cross-experiment-flash}
 
-The scaling curve for Qwen3.5 Flash shows a pattern distinct from Qwen3 30B-A3B. At 5 tasks, no evolution is needed. At 10 tasks, the improvement is large (+20pp) with a high fix rate (80%). At 20 tasks, the improvement halves (+11pp trial) and the fix rate drops to 45%, mirroring the diminishing-returns pattern seen with Qwen3 30B-A3B. However, the majority-vote improvement at 20 tasks is more substantial (+20pp, from 45% to 65%) because the stronger student converts more fixes into reliable majority-vote passes.
+The scaling curve for Qwen3.5 Flash shows a pattern distinct from Qwen3 30B-A3B. At 5 tasks, no evolution is needed. At 10 tasks, the improvement is +20pp with an 80% fix rate. At 20 tasks, the improvement halves (+11pp trial) and the fix rate drops to 45%, mirroring the diminishing-returns pattern seen with Qwen3 30B-A3B. However, the majority-vote improvement at 20 tasks is +20pp, from 45% to 65%, because the stronger student converts more fixes into reliable majority-vote passes.
 
-A notable difference is the regression profile. At 10 tasks, Qwen3.5 Flash shows severe sweep-3 regression (-17pp trial, -10pp majority). At 20 tasks, this regression disappears: the majority rate holds steady at 65% across sweeps 2 and 3, with only marginal trial-rate improvement (+1pp). The larger task pool may have a stabilising effect, diluting the impact of any single conflicting patch across more tasks.
+The regression profile also differs. At 10 tasks, Qwen3.5 Flash shows sweep-3 regression (-17pp trial, -10pp majority). At 20 tasks, this regression disappears: the majority rate holds steady at 65% across sweeps 2 and 3, with only marginal trial-rate improvement (+1pp). The larger task pool may have a stabilising effect, diluting the impact of any single conflicting patch across more tasks.
 
 #### Scaling Curve: GLM 4.7 Flash
 
@@ -39,9 +39,9 @@ A notable difference is the regression profile. At 10 tasks, Qwen3.5 Flash shows
 
 : Cross-scale summary for GLM 4.7 Flash. The model is dropped at 20 tasks. {#tbl:cross-experiment-glm}
 
-GLM 4.7 Flash presents a cautionary tale. At 5 tasks, the framework produces a substantial peak improvement (+26pp trial, +40pp majority at sweep 2), comparable to the other models. At 10 tasks, the framework produces zero net improvement; worse, it actively degrades performance from the baseline. The fix rate on genuinely failing tasks drops from 67% to 0%.
+GLM 4.7 Flash presents a negative case. At 5 tasks, the framework produces a peak improvement of +26pp trial and +40pp majority at sweep 2, comparable to the other models. At 10 tasks, the framework produces zero net improvement; worse, it actively degrades performance from the baseline. The fix rate on genuinely failing tasks drops from 67% to 0%.
 
-The contrast between scales is stark. At 5 tasks, the model can absorb three instruction patches and one guardrail patch without destabilisation. At 10 tasks, the larger patch surface creates enough interference to prevent any gains. This scale-dependent collapse motivated the decision to drop GLM 4.7 Flash from the 20-task experiment.
+The contrast between scales is visible in the pass rates. At 5 tasks, the model can absorb three instruction patches and one guardrail patch without destabilisation. At 10 tasks, the larger patch surface creates enough interference to prevent any gains. This scale-dependent collapse motivated the decision to drop GLM 4.7 Flash from the 20-task experiment.
 
 #### Cross-Model Comparison at Matched Scales
 
@@ -70,7 +70,7 @@ At 20 tasks, only two models are compared:
 
 ![Knowledge transfer effectiveness: fix rates and improvement by model and scale, illustrating model-dependent framework utility.](figures/fig_14_knowledge_transfer.png){#fig:knowledge-transfer}
 
-The most important finding is that the set of unfixable tasks is model-dependent, not task-intrinsic. At 10 tasks, Qwen3 30B-A3B and GLM 4.7 Flash share the same four unfixable tasks (7, 9, 11, 12). With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models. At 20 tasks, the unfixable set shrinks further for Qwen3.5 Flash (5 tasks vs 12), with Tasks 7, 9, 14, 23, and 33 forming the persistent hard core.
+The unfixable set is model-dependent, not task-intrinsic. At 10 tasks, Qwen3 30B-A3B and GLM 4.7 Flash share the same four unfixable tasks (7, 9, 11, 12). With Qwen3.5 Flash, three of these (9, 11, 12) become fixable, leaving only Task 7 as genuinely resistant across all three models. At 20 tasks, the unfixable set shrinks further for Qwen3.5 Flash (5 tasks vs 12), with Tasks 7, 9, 14, 23, and 33 forming the persistent hard core.
 
 #### Instruction vs Guardrail Ratio Across All Experiments
 
@@ -95,7 +95,7 @@ All experiments saturate by sweep 3 (zero new fixes). However, the improvement t
 - **Qwen3 30B, 5 tasks**: improvement materialises immediately (sweep 1 → 2: +20pp trial). Sweep 3 shows no further gain and mild regression (-20pp majority).
 - **Qwen3 30B, 10 tasks**: improvement is delayed (sweep 1 → 2: +3pp; sweep 2 → 3: +20pp). The delay reflects patch fragility at larger scale.
 - **Qwen3 30B, 20 tasks**: improvement is immediate but modest (sweep 1 → 2: +11pp). Sweep 3 shows slight regression (-3pp trial rate).
-- **Qwen3.5 Flash, 10 tasks**: improvement is immediate and large (sweep 1 → 2: +20pp). Sweep 3 shows significant regression (-17pp trial rate, -10pp majority).
+- **Qwen3.5 Flash, 10 tasks**: improvement is immediate (sweep 1 → 2: +20pp). Sweep 3 shows regression (-17pp trial rate, -10pp majority).
 - **Qwen3.5 Flash, 20 tasks**: improvement is immediate (sweep 1 → 2: +10pp trial, +20pp majority). Sweep 3 shows stability (+1pp trial, 0pp majority).
 - **GLM 4.7, 5 tasks**: improvement peaks at sweep 2 (+26pp trial, +40pp majority). Sweep 3 collapses to baseline (-26pp trial, -40pp majority).
 - **GLM 4.7, 10 tasks**: continuous decline across all sweeps (-10pp trial from baseline to sweep 3, -10pp majority).
