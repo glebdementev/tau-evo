@@ -16,7 +16,7 @@ The baseline evaluates the unmodified student on five airline tasks with three t
 
 ![Per-task, per-trial pass/fail heatmap for Qwen3 30B-A3B across three sweeps (5 tasks). Green cells indicate passing trials, red cells indicate failures.](../../runs/5/sweep_heatmap_print.svg){#fig:exp1-heatmap}
 
-The baseline is non-trivial: the student already passes 60% of tasks by majority vote without any intervention. This confirms that the student is not helplessly incapable---the teacher is refining, not teaching from scratch. The headroom for improvement is 40 percentage points (two tasks: 0 and 3).
+The baseline is non-trivial: the student already passes 60% of tasks by majority vote without any intervention. This confirms that the student is not helplessly incapable; the teacher is refining, not teaching from scratch. The headroom for improvement is 40 percentage points (two tasks: 0 and 3).
 
 The evolution loop ran three sweeps. @Tbl:exp1-outcomes shows the per-sweep breakdown of task outcomes during the evolution process.
 
@@ -62,9 +62,9 @@ In summary, the aggregate trial pass rate rises from 53% (baseline) to 73% (afte
 
 #### Qwen3.5 Flash
 
-The same five tasks (0, 1, 3, 4, 5) were evaluated with Qwen3.5 Flash as the student model. At baseline, Qwen3.5 Flash achieves a perfect 5/5 majority-vote pass rate (15/15 trials), requiring no evolution intervention. Every task that Qwen3 30B-A3B struggled with---including Task 0 (which never reliably passed even after evolution) and Task 3 (which required multi-sweep patching)---is solved by Qwen3.5 Flash out of the box.
+The same five tasks (0, 1, 3, 4, 5) were evaluated with Qwen3.5 Flash as the student model. At baseline, Qwen3.5 Flash achieves a perfect 5/5 majority-vote pass rate (15/15 trials), requiring no evolution intervention. Every task that Qwen3 30B-A3B struggled with, including Task 0 (which never reliably passed even after evolution) and Task 3 (which required multi-sweep patching), is solved by Qwen3.5 Flash out of the box.
 
-This result establishes a ceiling reference: the 5-task airline configuration is within the unassisted capability of a stronger non-thinking model. The evolution framework's contribution on these tasks is to bridge the gap between a weaker model's capability and this ceiling---a gap that a stronger student does not have.
+This result establishes a ceiling reference: the 5-task airline configuration is within the unassisted capability of a stronger non-thinking model. The evolution framework's contribution on these tasks is to bridge the gap between a weaker model's capability and this ceiling, a gap that a stronger student does not have.
 
 #### GLM 4.7 Flash
 
@@ -110,9 +110,9 @@ Sweep 1 fixes three tasks (all instruction-tier): Tasks 1, 5, and 0. Task 3 resi
 
 ![Fix attempts by tier and sweep for GLM 4.7 Flash on 5 tasks.](../../runs/glm47_5/fix_attempts_print.svg){#fig:glm47-5-fix-attempts}
 
-Total fixes: 4 (3 instruction, 1 guardrail). Of the three genuinely failing tasks at baseline (1, 3, 5), two were fixed---a 67% fix rate, comparable to Qwen3 30B-A3B's performance.
+Total fixes: 4 (3 instruction, 1 guardrail). Of the three genuinely failing tasks at baseline (1, 3, 5), two were fixed: a 67% fix rate, comparable to Qwen3 30B-A3B's performance.
 
-The defining result for GLM 4.7 Flash at five tasks is the catastrophic regression between sweeps 2 and 3. The majority pass rate drops from 80% (4/5) to 40% (2/5)---a 40-percentage-point collapse. The trial rate drops from 73% to 47%, returning exactly to the baseline. Tasks 0 and 3, which had improved in sweep 2, revert to their baseline state. Even Task 4, which passed perfectly at baseline (3/3), degrades to 2/3.
+The defining result for GLM 4.7 Flash at five tasks is the catastrophic regression between sweeps 2 and 3. The majority pass rate drops from 80% (4/5) to 40% (2/5): a 40-percentage-point collapse. The trial rate drops from 73% to 47%, returning exactly to the baseline. Tasks 0 and 3, which had improved in sweep 2, revert to their baseline state. Even Task 4, which passed perfectly at baseline (3/3), degrades to 2/3.
 
 This regression is far more severe than anything observed with Qwen3 30B-A3B (which lost only one task between sweeps 2 and 3) or Qwen3.5 Flash at 10 tasks (which lost 10 percentage points). It suggests that GLM 4.7 Flash is particularly vulnerable to patch interference: the accumulated patches from sweeps 1 and 2 create conflicting directives that the model cannot reconcile.
 

@@ -12,9 +12,9 @@
 
 : Cross-scale summary for Qwen3 30B-A3B. Improvement is measured in percentage points of trial pass rate. Failing = tasks not passing by majority vote at baseline. Fix rate = fraction of these failing tasks successfully fixed at least once across sweeps 1--2. The teacher also produced verified fixes for additional tasks that passed by majority but failed individual trials (see Sections 3.1--3.4 per-experiment details). {#tbl:cross-experiment-qwen3}
 
-The scaling curve reveals a consistent pattern: the absolute improvement is stable at small scales (+20pp to +23pp from 5 to 10 tasks) but halves at 20 tasks (+11pp), while the fix rate declines monotonically---from 100% (5 tasks) to 43% (10 tasks) to 20% (20 tasks). Each doubling of the task pool brings a larger proportion of majority-vote failures that resist prompt-level repair, and additional tasks primarily contribute unfixable failures that consume teacher effort.
+The scaling curve reveals a consistent pattern: the absolute improvement is stable at small scales (+20pp to +23pp from 5 to 10 tasks) but halves at 20 tasks (+11pp), while the fix rate declines monotonically: from 100% (5 tasks) to 43% (10 tasks) to 20% (20 tasks). Each doubling of the task pool brings a larger proportion of majority-vote failures that resist prompt-level repair, and additional tasks primarily contribute unfixable failures that consume teacher effort.
 
-The number of successful fixes is also instructive: 7 at 5 tasks, 7 at 10 tasks, and 10 at 20 tasks. While the absolute count grows slightly with scale, the growth is sub-linear---doubling the task set from 10 to 20 yields only 3 additional fixes. The framework does not discover fundamentally more failure modes at larger scales; it mostly encounters more instances of the same resistant patterns.
+The number of successful fixes is also instructive: 7 at 5 tasks, 7 at 10 tasks, and 10 at 20 tasks. While the absolute count grows slightly with scale, the growth is sub-linear; doubling the task set from 10 to 20 yields only 3 additional fixes. The framework does not discover fundamentally more failure modes at larger scales; it mostly encounters more instances of the same resistant patterns.
 
 #### Scaling Curve: Qwen3.5 Flash
 
@@ -39,7 +39,7 @@ A notable difference is the regression profile. At 10 tasks, Qwen3.5 Flash shows
 
 : Cross-scale summary for GLM 4.7 Flash. The model is dropped at 20 tasks. {#tbl:cross-experiment-glm}
 
-GLM 4.7 Flash presents a cautionary tale. At 5 tasks, the framework produces a substantial peak improvement (+26pp trial, +40pp majority at sweep 2), comparable to the other models. At 10 tasks, the framework produces zero net improvement---worse, it actively degrades performance from the baseline. The fix rate on genuinely failing tasks drops from 67% to 0%.
+GLM 4.7 Flash presents a cautionary tale. At 5 tasks, the framework produces a substantial peak improvement (+26pp trial, +40pp majority at sweep 2), comparable to the other models. At 10 tasks, the framework produces zero net improvement; worse, it actively degrades performance from the baseline. The fix rate on genuinely failing tasks drops from 67% to 0%.
 
 The contrast between scales is stark. At 5 tasks, the model can absorb three instruction patches and one guardrail patch without destabilisation. At 10 tasks, the larger patch surface creates enough interference to prevent any gains. This scale-dependent collapse motivated the decision to drop GLM 4.7 Flash from the 20-task experiment.
 
@@ -86,7 +86,7 @@ The most important finding is that the set of unfixable tasks is model-dependent
 
 : Fix tier breakdown across all eight experiments. {#tbl:cross-tier-all}
 
-Instruction-level patching dominates across all experiments (70--92% of fixes), confirming it as the primary mechanism of improvement. Two trends stand out. First, the stronger student (Qwen3.5 Flash) shows a progressively higher instruction-tier share as scale increases (80% at 10 tasks, 92% at 20 tasks), suggesting that stronger instruction-following capability reduces the need for guardrail or tool-level interventions. Second, tool-schema patches appear only for Qwen3 30B-A3B at 20 tasks (2 of 10 fixes)---neither Qwen3.5 Flash nor GLM 4.7 Flash required tool-level intervention at any scale.
+Instruction-level patching dominates across all experiments (70--92% of fixes), confirming it as the primary mechanism of improvement. Two trends stand out. First, the stronger student (Qwen3.5 Flash) shows a progressively higher instruction-tier share as scale increases (80% at 10 tasks, 92% at 20 tasks), suggesting that stronger instruction-following capability reduces the need for guardrail or tool-level interventions. Second, tool-schema patches appear only for Qwen3 30B-A3B at 20 tasks (2 of 10 fixes); neither Qwen3.5 Flash nor GLM 4.7 Flash required tool-level intervention at any scale.
 
 #### Saturation Analysis
 
