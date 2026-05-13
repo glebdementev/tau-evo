@@ -1,0 +1,28 @@
+\newpage
+
+# REFERENCES {.unnumbered}
+
+::: {#refs}
+:::
+
+\newpage
+
+# APPENDIX 1. Letter Confirming Project Implementation {.unnumbered}
+
+Appendix 1 contains a letter from the company confirming that the project was implemented.
+
+\begin{center}
+\includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{appendix1.jpg}
+\end{center}
+
+\newpage
+
+# APPENDIX 2. Statement on AI Use {.unnumbered}
+
+This work was produced with the aid of several AI-powered tools, and the author considers transparency about their role both appropriate and, given the subject matter, internally consistent.
+
+The research methodology, experimental design, and all evaluative judgments are the author's own. The project objectives, the choice of $\tau^2$-bench as an evaluation substrate and framework built on top of the benchmark, the diagnostic study of *target ai*'s competitive position, and the interpretation of results represent the author's reasoning.
+
+The implementation of the evaluation loop and experiment orchestration code was produced in collaboration with large language model coding assistants---specifically Anthropic Claude Code (Claude Opus 4.6) and OpenAI Codex CLI (GPT-5.4). The author specified requirements, reviewed generated code, directed iteration, and validated correctness; the assistants translated specifications into working software. Portions of the written text were drafted with LLM assistance under the author's structural and argumentative direction, and were subsequently revised by the author. LLM coding assistants also helped typeset the manuscript, producing and refining the LaTeX and Pandoc markup, figure layouts, and bibliography formatting under the author's supervision. Draft text was partially dictated using WhisprFlow speech-to-text. Additionally, literature discovery and source synthesis were supported by Google NotebookLM to better support claims put forward in the document.
+
+In all cases, the author originated the intellectual content---the questions to ask, the methods to apply, the standards by which to judge results. AI tools accelerated and improved the mechanical level of production. The views, conclusions, and any errors in this thesis are the author's alone.

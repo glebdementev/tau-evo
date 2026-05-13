@@ -22,6 +22,7 @@ pandoc \
   ch3_1_4_cross_scale.md \
   ch3_2_effectiveness_evaluation.md \
   99_conclusion.md \
+  100_appendices.md \
   -o project_thesis.pdf
 
 echo "Built: project_thesis.pdf"

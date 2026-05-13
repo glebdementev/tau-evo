@@ -113,72 +113,68 @@ def fig_lr_01_argument_flow():
 # ===================================================================
 
 def fig_lr_02_benchmark_gap():
-    """Grouped horizontal bar: human score vs best model score."""
-    fig, ax = plt.subplots(figsize=(7.5, 3.8))
+    """Current frontier scores show that agentic benchmarks remain unsaturated.
 
-    benchmarks = [
-        "GAIA",
-        "SWE-bench",
-        "ToolBench (OSS)",
-        "API-Bank",
-        r"$\tau$-bench (retail, pass$^8$)",
-        "AgentBench (avg)",
-    ]
-    human_scores = [92, None, None, None, None, None]
-    model_scores = [15, 1.96, 0, 56, 25, 34]
-    # Labels for the model used
-    model_labels = [
-        "GPT-4 + plugins",
-        "Best model (2024)",
-        "OSS instruction-tuned",
-        "GPT-4",
-        "GPT-4o",
-        "GPT-4 (best)",
+    Rows intentionally mix benchmark families but keep each row's metric explicit.
+    The chart is a literature-review motivation figure, not a single leaderboard.
+    """
+    fig, ax = plt.subplots(figsize=(8.2, 4.1))
+
+    rows = [
+        ("SWE-Bench Pro\n(public)", 64.3, "Claude Opus 4.7"),
+        ("Terminal-Bench 2.0", 82.7, "GPT-5.5"),
+        ("OSWorld-Verified", 78.7, "GPT-5.5"),
+        ("Toolathlon", 55.6, "GPT-5.5"),
+        (r"$\tau^2$-bench Telecom", 98.0, "GPT-5.5"),
+        ("SWE-Bench Verified", 80.8, "Claude Opus 4.6"),
+        ("SWE-Bench Verified", 80.2, "Kimi K2.6"),
+        ("SWE-Bench Verified", 80.6, "DeepSeek V4-Pro-Max"),
     ]
 
-    y = np.arange(len(benchmarks))
-    bar_h = 0.32
+    benchmarks = [r[0] for r in rows]
+    model_scores = [r[1] for r in rows]
+    model_labels = [r[2] for r in rows]
+    gaps = [100 - s for s in model_scores]
+    y = np.arange(len(rows))
 
-    # Model scores
-    bars_model = ax.barh(y + bar_h / 2, model_scores, bar_h,
-                         color=_OI["blue"], edgecolor="white",
-                         linewidth=0.6, label="Best model", zorder=3)
-
-    # Human scores (only where available)
-    human_y = [i for i, h in enumerate(human_scores) if h is not None]
-    human_v = [h for h in human_scores if h is not None]
-    bars_human = ax.barh(
-        [y[i] - bar_h / 2 for i in human_y], human_v, bar_h,
-        color=_OI["grey"], edgecolor="white", linewidth=0.6,
-        label="Human", zorder=3,
+    ax.barh(
+        y, model_scores, 0.58,
+        color=_OI["blue"], edgecolor="white", linewidth=0.6,
+        label="Frontier model score", zorder=3,
+    )
+    ax.barh(
+        y, gaps, 0.58, left=model_scores,
+        color="#D9D9D9", edgecolor="white", linewidth=0.6,
+        label="Remaining gap to 100%", zorder=2,
     )
 
-    # Value labels
-    for i, (val, mlabel) in enumerate(zip(model_scores, model_labels)):
-        x_pos = max(val + 1.2, 4)
-        ax.text(x_pos, y[i] + bar_h / 2, f"{val}%  ({mlabel})",
-                va="center", fontsize=8, color=_OI["blue"])
+    for i, (score, label, gap) in enumerate(zip(model_scores, model_labels, gaps)):
+        ax.text(
+            score - 1.0, y[i],
+            f"{score:.1f}%  ({label})",
+            ha="right", va="center", fontsize=7.6,
+            color="white", fontweight="bold",
+        )
 
-    for i in human_y:
-        ax.text(human_scores[i] + 1.2, y[i] - bar_h / 2,
-                f"{human_scores[i]}%",
-                va="center", fontsize=8, color=_OI["grey"])
-
-    # GAIA gap annotation
-    ax.annotate("", xy=(15, y[0]), xytext=(92, y[0]),
-                arrowprops=dict(arrowstyle="<->", color=_OI["vermillion"],
-                                lw=1.5))
-    ax.text(53.5, y[0] + 0.35, "77-point gap", ha="center",
-            fontsize=8, color=_OI["vermillion"], fontweight="bold")
+    ax.axvline(100, color=_OI["vermillion"], lw=1.2, ls="--")
+    ax.text(
+        100, -0.75, "saturation",
+        ha="right", va="center", fontsize=8,
+        color=_OI["vermillion"], fontweight="bold",
+    )
 
     ax.set_yticks(y)
-    ax.set_yticklabels(benchmarks, fontsize=9)
-    ax.set_xlabel("Score (%)", fontsize=10)
-    ax.set_xlim(0, 108)
+    ax.set_yticklabels(benchmarks, fontsize=8.5)
+    ax.set_xlabel("Task success / accuracy / resolved score (%)", fontsize=10)
+    ax.set_xlim(0, 104)
     ax.invert_yaxis()
-    ax.legend(loc="lower right", fontsize=9, framealpha=0.9)
+    ax.legend(
+        loc="lower center", bbox_to_anchor=(0.62, -0.28),
+        ncol=2, fontsize=8.5, framealpha=0.92,
+    )
     ax.set_axisbelow(True)
     ax.xaxis.grid(True, alpha=0.2)
+    ax.set_title("Recent Frontier Agent Benchmarks Remain Unsaturated", fontsize=13, pad=10)
 
     _save(fig, "fig_lr_02_benchmark_gap")
 
