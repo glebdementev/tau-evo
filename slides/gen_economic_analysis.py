@@ -2,15 +2,16 @@
 """Generate economic analysis visualizations for defense slide 17.
 
 Produces two PNG figures in HSE GSB style:
-  1. slides/fig_economic_cost_comparison.png  — per-fix and per-deployment cost bars
-  2. slides/fig_economic_roi.png             — ROI across deployment scenarios
+  1. slides/fig_economic_cost_comparison[_ru].png  — per-fix and per-deployment cost bars
+  2. slides/fig_economic_roi[_ru].png             — ROI across deployment scenarios
 
 Data sourced from thesis Section 3.5 "Economic Effectiveness".
 
-Usage:  cd slides && python gen_economic_analysis.py
+Usage:  cd slides && python gen_economic_analysis.py [--lang en|ru]
 """
 from __future__ import annotations
 
+import argparse
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -43,40 +44,75 @@ plt.rcParams.update({
 
 OUT_DIR = Path(__file__).resolve().parent
 
+LABELS = {
+    "en": {
+        "manual_xlabel":        "Manual\n(human analyst)",
+        "auto_xlabel":          "DPV Framework\n(automated)",
+        "ylabel_per_fix":       "Cost per fix (USD, log scale)",
+        "title_per_fix":        "Per-fix cost comparison",
+        "cheaper_callout":      "440–1,720x\ncheaper",
+        "scenarios_dep":        ["Conservative\n(0.5 FTE)", "Mid-range\n(1.5 FTE)", "High-complexity\n(3.0 FTE)"],
+        "ylabel_annual_dep":    "Annual cost per deployment (USD, log)",
+        "title_annual_dep":     "Annual per-deployment cost",
+        "legend_manual_short":  "Manual",
+        "legend_auto_short":    "DPV Framework",
+        "scenarios_roi":        ["Small\n(3 deployments)", "Medium\n(10 deployments)", "Large\n(30 deployments)"],
+        "legend_manual_long":   "Manual maintenance",
+        "legend_auto_long":     "DPV Framework",
+        "ylabel_annual":        "Annual cost (USD, log scale)",
+        "title_roi":            "First-year cost and ROI by deployment scale",
+        "roi_label":            "ROI",
+        "saving_label":         "Saving",
+        "breakeven":            "Break-even: ~2 months (mid-range scenario)",
+    },
+    "ru": {
+        "manual_xlabel":        "Ручной\n(аналитик)",
+        "auto_xlabel":          "DPV Framework\n(автомат)",
+        "ylabel_per_fix":       "Стоимость исправления (USD, лог. шкала)",
+        "title_per_fix":        "Стоимость одного исправления",
+        "cheaper_callout":      "в 440–1 720 раз\nдешевле",
+        "scenarios_dep":        ["Консервативно\n(0,5 FTE)", "Средне\n(1,5 FTE)", "Сложно\n(3,0 FTE)"],
+        "ylabel_annual_dep":    "Годовая стоимость на внедрение (USD, лог)",
+        "title_annual_dep":     "Годовая стоимость на одно внедрение",
+        "legend_manual_short":  "Ручной",
+        "legend_auto_short":    "DPV Framework",
+        "scenarios_roi":        ["Малое\n(3 внедрения)", "Среднее\n(10 внедрений)", "Крупное\n(30 внедрений)"],
+        "legend_manual_long":   "Ручное обслуживание",
+        "legend_auto_long":     "DPV Framework",
+        "ylabel_annual":        "Годовая стоимость (USD, лог. шкала)",
+        "title_roi":            "Затраты и ROI за первый год по масштабу внедрения",
+        "roi_label":            "ROI",
+        "saving_label":         "Экономия",
+        "breakeven":            "Окупаемость: ~2 месяца (средний сценарий)",
+    },
+}
 
-# =====================================================================
-# Figure 1: Per-fix cost comparison  (log-scale bar chart)
-# =====================================================================
 
-def fig_cost_per_fix():
+def fig_cost_per_fix(L: dict, suffix: str) -> None:
     """Side-by-side comparison: manual vs automated per-fix cost."""
     fig, axes = plt.subplots(1, 2, figsize=(9.6, 3.6), gridspec_kw={"width_ratios": [1.1, 1]})
 
     # ── LEFT: Per-fix cost ────────────────────────────────────────
     ax = axes[0]
-    labels = ["Manual\n(human analyst)", "DPV Framework\n(automated)"]
-    # Manual: $22–$86 per fix (thesis 3.5); DPV: ~$0.05 per fix
+    labels = [L["manual_xlabel"], L["auto_xlabel"]]
     manual_lo, manual_hi = 22, 86
     auto_val = 0.05
 
     x = np.array([0, 1])
     bar_w = 0.45
 
-    # Manual — show range as a bar from lo to hi
     ax.bar(x[0], manual_hi, bar_w, color=RED, alpha=0.85, zorder=3)
     ax.bar(x[0], manual_lo, bar_w, color=RED, alpha=0.55, zorder=3)
-    # DPV — single value
     ax.bar(x[1], auto_val, bar_w, color=GREEN, alpha=0.85, zorder=3)
 
     ax.set_yscale("log")
     ax.set_ylim(0.01, 200)
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9, color="black")
-    ax.set_ylabel("Cost per fix (USD, log scale)", fontsize=9, color=NAVY)
-    ax.set_title("Per-fix cost comparison", fontsize=11, color=NAVY,
+    ax.set_ylabel(L["ylabel_per_fix"], fontsize=9, color=NAVY)
+    ax.set_title(L["title_per_fix"], fontsize=11, color=NAVY,
                  fontweight="bold", loc="left", pad=8)
 
-    # Annotations
     ax.annotate(f"${manual_lo}–${manual_hi}",
                 xy=(0, manual_hi), xytext=(0.35, manual_hi * 1.3),
                 fontsize=9, color=RED, fontweight="bold",
@@ -86,13 +122,11 @@ def fig_cost_per_fix():
                 fontsize=9, color=GREEN, fontweight="bold",
                 arrowprops=dict(arrowstyle="-", color=GREEN, lw=0.8))
 
-    # Multiplier callout
-    ax.text(0.5, 3.0, "440–1,720x\ncheaper", ha="center", va="center",
+    ax.text(0.5, 3.0, L["cheaper_callout"], ha="center", va="center",
             fontsize=10, fontweight="bold", color=NAVY,
             bbox=dict(boxstyle="round,pad=0.3", facecolor="#E8EAF6",
                       edgecolor=NAVY, linewidth=1.2))
 
-    # Style
     for sp in ["top", "right"]:
         ax.spines[sp].set_visible(False)
     ax.spines["left"].set_color(GRAY_MID)
@@ -103,27 +137,26 @@ def fig_cost_per_fix():
 
     # ── RIGHT: Annual per-deployment cost ─────────────────────────
     ax = axes[1]
-    scenarios = ["Conservative\n(0.5 FTE)", "Mid-range\n(1.5 FTE)", "High-complexity\n(3.0 FTE)"]
+    scenarios = L["scenarios_dep"]
     manual_costs = [15_000, 67_500, 180_000]
-    auto_cost = 3_102  # from thesis Table (auto-cost-summary)
+    auto_cost = 3_102
 
     x = np.arange(len(scenarios))
     bar_w = 0.30
 
     bars_m = ax.bar(x - bar_w / 2, manual_costs, bar_w, color=RED, alpha=0.85,
-                    label="Manual", zorder=3)
+                    label=L["legend_manual_short"], zorder=3)
     bars_a = ax.bar(x + bar_w / 2, [auto_cost] * 3, bar_w, color=GREEN, alpha=0.85,
-                    label="DPV Framework", zorder=3)
+                    label=L["legend_auto_short"], zorder=3)
 
     ax.set_yscale("log")
     ax.set_ylim(1_000, 400_000)
     ax.set_xticks(x)
     ax.set_xticklabels(scenarios, fontsize=8, color="black")
-    ax.set_ylabel("Annual cost per deployment (USD, log)", fontsize=9, color=NAVY)
-    ax.set_title("Annual per-deployment cost", fontsize=11, color=NAVY,
+    ax.set_ylabel(L["ylabel_annual_dep"], fontsize=9, color=NAVY)
+    ax.set_title(L["title_annual_dep"], fontsize=11, color=NAVY,
                  fontweight="bold", loc="left", pad=8)
 
-    # Value labels
     for bar, val in zip(bars_m, manual_costs):
         ax.text(bar.get_x() + bar.get_width() / 2, val * 1.15,
                 f"${val:,.0f}", ha="center", va="bottom",
@@ -144,21 +177,17 @@ def fig_cost_per_fix():
         lambda v, _: f"${v/1000:.0f}K"))
 
     plt.tight_layout(w_pad=2.0)
-    out = OUT_DIR / "fig_economic_cost_comparison.png"
+    out = OUT_DIR / f"fig_economic_cost_comparison{suffix}.png"
     fig.savefig(str(out), dpi=200, bbox_inches="tight")
     print(f"Saved -> {out}")
     plt.close(fig)
 
 
-# =====================================================================
-# Figure 2: ROI across deployment scenarios
-# =====================================================================
-
-def fig_roi_scenarios():
+def fig_roi_scenarios(L: dict, suffix: str) -> None:
     """Grouped bar chart showing manual vs automated cost + net saving."""
     fig, ax = plt.subplots(figsize=(7.0, 3.6))
 
-    scenarios = ["Small\n(3 deployments)", "Medium\n(10 deployments)", "Large\n(30 deployments)"]
+    scenarios = L["scenarios_roi"]
     manual  = [202_500, 675_000, 2_025_000]
     auto    = [19_306,  41_020,  103_060]
     savings = [m - a for m, a in zip(manual, auto)]
@@ -168,36 +197,31 @@ def fig_roi_scenarios():
     bar_w = 0.28
 
     bars_m = ax.bar(x - bar_w / 2, manual, bar_w, color=RED, alpha=0.85,
-                    label="Manual maintenance", zorder=3)
+                    label=L["legend_manual_long"], zorder=3)
     bars_a = ax.bar(x + bar_w / 2, auto, bar_w, color=GREEN, alpha=0.85,
-                    label="DPV Framework", zorder=3)
+                    label=L["legend_auto_long"], zorder=3)
 
     ax.set_yscale("log")
     ax.set_ylim(5_000, 5_000_000)
     ax.set_xticks(x)
     ax.set_xticklabels(scenarios, fontsize=9, color="black")
-    ax.set_ylabel("Annual cost (USD, log scale)", fontsize=10, color=NAVY)
-    ax.set_title("First-year cost and ROI by deployment scale", fontsize=11, color=NAVY,
+    ax.set_ylabel(L["ylabel_annual"], fontsize=10, color=NAVY)
+    ax.set_title(L["title_roi"], fontsize=11, color=NAVY,
                  fontweight="bold", loc="left", pad=8)
 
-    # Value labels + ROI annotations
     for i, (bar_m, bar_a) in enumerate(zip(bars_m, bars_a)):
-        # Manual
         ax.text(bar_m.get_x() + bar_m.get_width() / 2, manual[i] * 1.20,
                 f"${manual[i] / 1000:.0f}K", ha="center", va="bottom",
                 fontsize=8, color=RED, fontweight="bold")
-        # Auto
         ax.text(bar_a.get_x() + bar_a.get_width() / 2, auto[i] * 1.20,
                 f"${auto[i] / 1000:.0f}K", ha="center", va="bottom",
                 fontsize=8, color=GREEN, fontweight="bold")
 
-    # ROI callout boxes
     for i in range(len(scenarios)):
         mid_x = x[i]
-        # Position above the manual bar
         callout_y = manual[i] * 2.5
         ax.text(mid_x, callout_y,
-                f"ROI: {roi_pct[i]:,}%\nSaving: ${savings[i] / 1000:.0f}K",
+                f"{L['roi_label']}: {roi_pct[i]:,}%\n{L['saving_label']}: ${savings[i] / 1000:.0f}K",
                 ha="center", va="center", fontsize=8, fontweight="bold", color=NAVY,
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="#E8EAF6",
                           edgecolor=NAVY, linewidth=1.0, alpha=0.9))
@@ -212,26 +236,24 @@ def fig_roi_scenarios():
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(
         lambda v, _: f"${v / 1000:.0f}K" if v < 1_000_000 else f"${v / 1_000_000:.1f}M"))
 
-    # Break-even note
-    ax.text(0.98, 0.02,
-            "Break-even: ~2 months (mid-range scenario)",
+    ax.text(0.98, 0.02, L["breakeven"],
             transform=ax.transAxes, ha="right", va="bottom",
             fontsize=8, color=NAVY, fontstyle="italic",
             bbox=dict(boxstyle="round,pad=0.2", facecolor=WHITE,
                       edgecolor=GRAY_LIGHT))
 
     plt.tight_layout()
-    out = OUT_DIR / "fig_economic_roi.png"
+    out = OUT_DIR / f"fig_economic_roi{suffix}.png"
     fig.savefig(str(out), dpi=200, bbox_inches="tight")
     print(f"Saved -> {out}")
     plt.close(fig)
 
 
-# =====================================================================
-# Main
-# =====================================================================
-
 if __name__ == "__main__":
-    fig_cost_per_fix()
-    fig_roi_scenarios()
+    p = argparse.ArgumentParser()
+    p.add_argument("--lang", choices=["en", "ru"], default="en")
+    args = p.parse_args()
+    suffix = "" if args.lang == "en" else f"_{args.lang}"
+    fig_cost_per_fix(LABELS[args.lang], suffix)
+    fig_roi_scenarios(LABELS[args.lang], suffix)
     print("Done!")
