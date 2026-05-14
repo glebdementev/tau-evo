@@ -13,11 +13,15 @@ Output goes to ../figures/ so they sit alongside the existing figure pool
 that pandoc resolves via `resource-path: [., ..]` from defaults.yaml.
 
 Usage:
-    cd text/project_thesis && uv run python gen_diagrams.py
+    cd text/project_thesis && uv run python gen_diagrams.py [--lang en|ru]
+
+--lang ru localizes value_chain + EDP cycle (used on defense slides 4 and 5)
+and writes them as *_ru.png. five_forces remains English-only.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -48,6 +52,57 @@ from diagram_style import (  # noqa: E402
 
 # Write into the shared figure pool used by both thesis variants.
 diagram_style.OUTPUT_DIR = str(HERE.parent / "figures")
+
+
+# ── i18n ─────────────────────────────────────────────────────────────
+LANG = "en"
+_RU = {
+    # fig_ds_02_value_chain — clusters
+    "  Support Activities  ":   "  Поддерживающие активности  ",
+    "  Primary Activities  ":   "  Основные активности  ",
+    # fig_ds_02_value_chain — node labels
+    "Evaluation infrastructure\n(τ²-bench, regression suites)":
+        "Инфраструктура оценки\n(τ²-bench, регресс-наборы)",
+    "API routing & model management\n(litellm / OpenRouter)":
+        "Маршрутизация API и управление\nмоделями (litellm / OpenRouter)",
+    "1. Model\nselection":      "1. Выбор\nмодели",
+    "2. Requirements\ntranslation &\nagent configuration":
+        "2. Перевод\nтребований и\nнастройка агента",
+    "3. Deployment\n(integration,\nrouting)":
+        "3. Внедрение\n(интеграция,\nмаршрутизация)",
+    "4. Monitoring\n(logs, dashboards,\nalerts)":
+        "4. Мониторинг\n(логи, дашборды,\nалерты)",
+    "5. Maintenance\n(diagnose, patch,\nregression test)":
+        "5. Сопровождение\n(диагностика, патчи,\nрегресс-тесты)",
+    "6. Client\nreporting":     "6. Отчёты\nдля клиента",
+    "Activities 2 and 5 share a single 25-person\nsystems-analyst pool — the binding constraint\non profitable scaling.":
+        "Активности 2 и 5 делят пул из 25 системных\nаналитиков — связывающее ограничение для\nприбыльного масштабирования.",
+    # fig_edp_cycle — phase HTML cell text (headline | annotation)
+    "1. Define\nthe Problem":   "1. Постановка\nпроблемы",
+    "Impl. tax\nat target ai":  "Impl-налог\nв target ai",
+    "2. Background\nResearch":  "2. Исследование\nконтекста",
+    "Lit. review\n& DS (Ch. 1)": "Обзор лит-ры\n+ DS (гл. 1)",
+    "3. Specify\nRequirements": "3. Требования",
+    "Five constraints\nfrom §1.3": "Пять ограничений\nиз §1.3",
+    "4. Choose\nSolution":      "4. Выбор\nрешения",
+    "DPV framework\n(vs. RL/FT/KD)": "DPV framework\n(vs. RL/FT/KD)",
+    "5. Develop &\nPrototype":  "5. Разработка\nи прототип",
+    "Evolution loop\non τ²-bench": "Эво-цикл\nна τ²-bench",
+    "6. Test\nSolution":        "6. Тестирование",
+    "5 / 10 / 20-task\nexperiments": "Эксперименты\n5 / 10 / 20 задач",
+    "7. Communicate\nResults":  "7. Сообщить\nрезультаты",
+    "This thesis\n& recs":      "Эта работа\n+ рекомендации",
+}
+
+
+def T(s: str) -> str:
+    if LANG == "ru":
+        return _RU.get(s, s)
+    return s
+
+
+def _suffix() -> str:
+    return "_ru" if LANG == "ru" else ""
 
 
 # ---------------------------------------------------------------------------
@@ -216,35 +271,35 @@ def fig_ds_01_five_forces():
 def fig_ds_02_value_chain():
     """target ai's value chain. Activities 2 and 5 share a labor pool and
     are highlighted as the binding constraint."""
-    g = new_graph("fig_ds_02_value_chain", rankdir="TB")
+    g = new_graph(f"fig_ds_02_value_chain{_suffix()}", rankdir="TB")
     g.attr(
         nodesep="0.25",
         ranksep="0.6",
     )
 
     # Support activities row (top)
-    support = cluster(g, "support", "  Support Activities  ")
+    support = cluster(g, "support", T("  Support Activities  "))
     support.attr(bgcolor="#F5F5FB")
     vc_support_node(
         support, "support_eval",
-        "Evaluation infrastructure\n(τ²-bench, regression suites)",
+        T("Evaluation infrastructure\n(τ²-bench, regression suites)"),
     )
     vc_support_node(
         support, "support_routing",
-        "API routing & model management\n(litellm / OpenRouter)",
+        T("API routing & model management\n(litellm / OpenRouter)"),
     )
     g.subgraph(support)
 
     # Primary activities row (bottom) — six boxes left to right.
-    primary = cluster(g, "primary", "  Primary Activities  ")
+    primary = cluster(g, "primary", T("  Primary Activities  "))
     primary.attr(bgcolor="#FAFAFA")
     activities = [
-        ("a1", "1. Model\nselection",                False),
-        ("a2", "2. Requirements\ntranslation &\nagent configuration",  True),
-        ("a3", "3. Deployment\n(integration,\nrouting)",  False),
-        ("a4", "4. Monitoring\n(logs, dashboards,\nalerts)",  False),
-        ("a5", "5. Maintenance\n(diagnose, patch,\nregression test)",  True),
-        ("a6", "6. Client\nreporting",  False),
+        ("a1", T("1. Model\nselection"),                False),
+        ("a2", T("2. Requirements\ntranslation &\nagent configuration"),  True),
+        ("a3", T("3. Deployment\n(integration,\nrouting)"),  False),
+        ("a4", T("4. Monitoring\n(logs, dashboards,\nalerts)"),  False),
+        ("a5", T("5. Maintenance\n(diagnose, patch,\nregression test)"),  True),
+        ("a6", T("6. Client\nreporting"),  False),
     ]
     with primary.subgraph() as row:
         row.attr(rank="same")
@@ -271,7 +326,7 @@ def fig_ds_02_value_chain():
     # under the chain without competing with the support cluster above.
     g.node(
         "footnote",
-        label=(
+        label=T(
             "Activities 2 and 5 share a single 25-person\n"
             "systems-analyst pool — the binding constraint\n"
             "on profitable scaling."
@@ -319,7 +374,7 @@ def fig_edp_cycle():
     back to Specify Requirements (3), Choose Solution (4), and Prototype (5)."""
     # LR layout with very tight ranksep so the seven phases pack horizontally
     # without huge gaps. Iteration arcs route under the chain via south ports.
-    g = new_graph("fig_edp_cycle", rankdir="LR")
+    g = new_graph(f"fig_edp_cycle{_suffix()}", rankdir="LR")
     g.attr(
         nodesep="0.15",
         ranksep="0.12",
@@ -331,13 +386,13 @@ def fig_edp_cycle():
     # Headlines wrap to two lines and annotations are kept terse so seven
     # boxes fit horizontally inside the column width without ballooning.
     phases = [
-        ("p1", "1. Define\nthe Problem",     "Impl. tax\nat target ai"),
-        ("p2", "2. Background\nResearch",    "Lit. review\n& DS (Ch. 1)"),
-        ("p3", "3. Specify\nRequirements",   "Five constraints\nfrom §1.3"),
-        ("p4", "4. Choose\nSolution",        "DPV framework\n(vs. RL/FT/KD)"),
-        ("p5", "5. Develop &\nPrototype",    "Evolution loop\non τ²-bench"),
-        ("p6", "6. Test\nSolution",          "5 / 10 / 20-task\nexperiments"),
-        ("p7", "7. Communicate\nResults",    "This thesis\n& recs"),
+        ("p1", T("1. Define\nthe Problem"),     T("Impl. tax\nat target ai")),
+        ("p2", T("2. Background\nResearch"),    T("Lit. review\n& DS (Ch. 1)")),
+        ("p3", T("3. Specify\nRequirements"),   T("Five constraints\nfrom §1.3")),
+        ("p4", T("4. Choose\nSolution"),        T("DPV framework\n(vs. RL/FT/KD)")),
+        ("p5", T("5. Develop &\nPrototype"),    T("Evolution loop\non τ²-bench")),
+        ("p6", T("6. Test\nSolution"),          T("5 / 10 / 20-task\nexperiments")),
+        ("p7", T("7. Communicate\nResults"),    T("This thesis\n& recs")),
     ]
 
     # Two-line labels via HTML-like tables: bold headline, smaller annotation.
@@ -410,20 +465,25 @@ ALL_FIGURES = [
 
 
 if __name__ == "__main__":
-    targets = sys.argv[1:]
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--lang", choices=["en", "ru"], default="en")
+    ap.add_argument("targets", nargs="*")
+    args = ap.parse_args()
+    globals()["LANG"] = args.lang
+
     name_map = {f.__name__: f for f in ALL_FIGURES}
 
-    if targets:
-        for t in targets:
+    if args.targets:
+        for t in args.targets:
             if t in name_map:
-                print(f"Generating {t}...")
+                print(f"Generating {t} (lang={args.lang})...")
                 name_map[t]()
             else:
                 print(f"Unknown figure: {t}")
                 print(f"Available: {', '.join(name_map)}")
                 sys.exit(1)
     else:
-        print(f"Generating {len(ALL_FIGURES)} project_thesis figures...")
+        print(f"Generating {len(ALL_FIGURES)} project_thesis figures (lang={args.lang})...")
         for fn in ALL_FIGURES:
             print(f"  {fn.__name__}...")
             fn()

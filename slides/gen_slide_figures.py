@@ -4,22 +4,100 @@
 Redraws the 10 figures that were portrait or near-square in the thesis
 into horizontal layouts suitable for 16:9 presentation slides.
 
-Usage:  cd slides && uv run python gen_slide_figures.py
+Usage:  cd slides && uv run python gen_slide_figures.py [--lang en|ru]
+
+--lang ru localizes the 4 diagrams used on the defense deck
+(outer_loop, inner_loop, conversation_mechanics, patch_pipeline)
+and writes them as *_ru.png. Other figures remain English-only.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
 # Add parent so we can reuse diagram_style
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "text" / "research_thesis"))
 
 from diagram_style import *  # noqa: E402
 import diagram_style as _ds
 
 # Override output directory
 OUTPUT_DIR = "figures"
+
+# ── i18n ─────────────────────────────────────────────────────────────
+LANG = "en"
+_RU = {
+    # fig_01_outer_loop
+    "Start\n(sweep = 1)":                          "Старт\n(прогон = 1)",
+    "Evaluate student\non all tasks\n(N trials each)": "Оценка ученика\nна всех задачах\n(N попыток)",
+    "Evaluation\nresults":                         "Результаты\nоценки",
+    "Extract\nfailures\n(trial < 1.0)":            "Извлечь сбои\n(trial < 1.0)",
+    "Failures\nremain?":                           "Остались\nсбои?",
+    "Fix failures\nin parallel\n(teacher sessions)": "Исправить сбои\nпараллельно\n(сессии учителя)",
+    "Merge via\nmerger LLM":                       "Слияние через\nLLM-merger",
+    "Max sweeps\nreached?":                        "Достигнут\nлимит прогонов?",
+    "End\n(evolved state)":                        "Конец\n(evolved-состояние)",
+    "No\n(re-evaluate)":                           "Нет\n(переоценить)",
+    # fig_02_inner_loop
+    "Failed task\nreceived":                       "Получена\nпровальная задача",
+    "Deep-copy\ncurrent state":                    "Deep-copy\nтекущего состояния",
+    "Teacher\nanalyzes trace":                     "Учитель\nанализирует трейс",
+    "Teacher calls\npatch tools":                  "Учитель вызывает\npatch-инструменты",
+    "Re-run student\n(N trials)":                  "Перезапуск ученика\n(N попыток)",
+    "All trials\npass?":                           "Все попытки\nпройдены?",
+    "Accept\npatches":                             "Принять\nпатчи",
+    "Retries\nleft?":                              "Остались\nпопытки?",
+    "Revert\npatches":                             "Откатить\nпатчи",
+    "Discard\npatches":                            "Отбросить\nпатчи",
+    "+ feedback":                                  "+ обратная связь",
+    # fig_07_conversation_mechanics
+    "Task begins\n(scenario loaded)":              "Начало задачи\n(сценарий загружен)",
+    "User simulator\nsends message":               "Симулятор\nшлёт сообщение",
+    "Agent\nprocesses msg":                        "Агент\nобрабатывает",
+    "Agent\naction?":                              "Действие\nагента?",
+    "Send text\nto user":                          "Текст\nпользователю",
+    "Invoke tool":                                 "Вызов\nинструмента",
+    "Execute\non sim DB":                          "Выполнить\nна sim DB",
+    "Return\ntool result":                         "Вернуть\nрезультат",
+    "User signals\ncompletion?":                   "Пользователь\nзавершил?",
+    "Evaluate\ntask criteria":                     "Оценить\nкритерии задачи",
+    "text":                                        "текст",
+    "tool call":                                   "вызов инструмента",
+    "another turn":                                "следующий ход",
+    # fig_12_patch_pipeline
+    "Teacher proposes\npatch (old, new)":          "Учитель предлагает\nпатч (old, new)",
+    "Patch\ntype?":                                "Тип\nпатча?",
+    "  Prompt  ":                                  "  Промпт  ",
+    "Find in\nprompt":                             "Найти в\nпромпте",
+    "Replace\ntext":                               "Заменить\nтекст",
+    "  Tool Schema  ":                             "  Схема инструмента  ",
+    "Find in\nschema JSON":                        "Найти в\nschema JSON",
+    "Valid\nJSON?":                                "Валидный\nJSON?",
+    "  Preprocessor  ":                            "  Препроцессор  ",
+    "Find in\nsource":                             "Найти в\nкоде",
+    "Compiles\n& passes\nanalysis?":               "Компилится и\nпроходит\nанализ?",
+    "Patch\napplied":                              "Патч\nприменён",
+    "Patch\nrejected":                             "Патч\nотклонён",
+    "prompt":                                      "промпт",
+    "schema":                                      "схема",
+    "code":                                        "код",
+    # shared
+    "Yes":                                         "Да",
+    "No":                                          "Нет",
+}
+
+
+def T(s: str) -> str:
+    """Translate label string when LANG=ru; pass through otherwise."""
+    if LANG == "ru":
+        return _RU.get(s, s)
+    return s
+
+
+def _suffix() -> str:
+    return "_ru" if LANG == "ru" else ""
 
 # -- Compact overrides for slide figures --
 # Smaller decision diamonds and tighter padding
@@ -48,31 +126,31 @@ def new_graph(name, *, directed=True, rankdir="TB", engine="dot", **extra):
 
 def fig_01_outer_loop():
     """Evolution outer loop — horizontal layout."""
-    g = new_graph("slide_fig_01_outer_loop", rankdir="LR")
+    g = new_graph(f"slide_fig_01_outer_loop{_suffix()}", rankdir="LR")
     g.attr(nodesep="0.2", ranksep="0.35")
 
-    terminal_node(g, "start", "Start\n(sweep = 1)")
-    process_node(g, "eval", "Evaluate student\non all tasks\n(N trials each)")
-    data_node(g, "results", "Evaluation\nresults")
-    process_node(g, "extract", "Extract\nfailures\n(trial < 1.0)")
-    decision_node(g, "any_fail", "Failures\nremain?")
-    process_node(g, "fix", "Fix failures\nin parallel\n(teacher sessions)")
-    process_node(g, "merge", "Merge via\nmerger LLM")
-    decision_node(g, "max_iter", "Max sweeps\nreached?")
-    terminal_node(g, "end", "End\n(evolved state)")
+    terminal_node(g, "start", T("Start\n(sweep = 1)"))
+    process_node(g, "eval", T("Evaluate student\non all tasks\n(N trials each)"))
+    data_node(g, "results", T("Evaluation\nresults"))
+    process_node(g, "extract", T("Extract\nfailures\n(trial < 1.0)"))
+    decision_node(g, "any_fail", T("Failures\nremain?"))
+    process_node(g, "fix", T("Fix failures\nin parallel\n(teacher sessions)"))
+    process_node(g, "merge", T("Merge via\nmerger LLM"))
+    decision_node(g, "max_iter", T("Max sweeps\nreached?"))
+    terminal_node(g, "end", T("End\n(evolved state)"))
 
     g.edge("start", "eval")
     g.edge("eval", "results")
     g.edge("results", "extract")
     g.edge("extract", "any_fail")
-    g.edge("any_fail", "fix", label="Yes")
-    g.edge("any_fail", "end", label="No", style="dashed")
+    g.edge("any_fail", "fix", label=T("Yes"))
+    g.edge("any_fail", "end", label=T("No"), style="dashed")
     g.edge("fix", "merge")
     g.edge("merge", "max_iter")
-    g.edge("max_iter", "end", label="Yes", style="dashed")
+    g.edge("max_iter", "end", label=T("Yes"), style="dashed")
 
     # Loop-back edge — below the main flow
-    g.edge("max_iter", "eval", label="No\n(re-evaluate)",
+    g.edge("max_iter", "eval", label=T("No\n(re-evaluate)"),
            constraint="false", style="dashed",
            color=BLUE, fontcolor=BLUE)
 
@@ -85,32 +163,32 @@ def fig_01_outer_loop():
 
 def fig_02_inner_loop():
     """Per-failure fix loop — horizontal layout."""
-    g = new_graph("slide_fig_02_inner_loop", rankdir="LR")
+    g = new_graph(f"slide_fig_02_inner_loop{_suffix()}", rankdir="LR")
     g.attr(nodesep="0.15", ranksep="0.3")
 
-    terminal_node(g, "start", "Failed task\nreceived")
-    process_node(g, "copy", "Deep-copy\ncurrent state")
-    process_node(g, "reflect", "Teacher\nanalyzes trace")
-    process_node(g, "patch", "Teacher calls\npatch tools")
-    process_node(g, "validate", "Re-run student\n(N trials)")
-    decision_node(g, "improved", "All trials\npass?")
-    highlight_node(g, "accept", "Accept\npatches", color=C["success"])
-    decision_node(g, "retries", "Retries\nleft?")
-    process_node(g, "revert", "Revert\npatches")
-    highlight_node(g, "reject", "Discard\npatches", color=C["failure"])
+    terminal_node(g, "start", T("Failed task\nreceived"))
+    process_node(g, "copy", T("Deep-copy\ncurrent state"))
+    process_node(g, "reflect", T("Teacher\nanalyzes trace"))
+    process_node(g, "patch", T("Teacher calls\npatch tools"))
+    process_node(g, "validate", T("Re-run student\n(N trials)"))
+    decision_node(g, "improved", T("All trials\npass?"))
+    highlight_node(g, "accept", T("Accept\npatches"), color=C["success"])
+    decision_node(g, "retries", T("Retries\nleft?"))
+    process_node(g, "revert", T("Revert\npatches"))
+    highlight_node(g, "reject", T("Discard\npatches"), color=C["failure"])
 
     g.edge("start", "copy")
     g.edge("copy", "reflect")
     g.edge("reflect", "patch")
     g.edge("patch", "validate")
     g.edge("validate", "improved")
-    g.edge("improved", "accept", label="Yes")
-    g.edge("improved", "retries", label="No")
-    g.edge("retries", "reject", label="No", style="dashed")
-    g.edge("retries", "revert", label="Yes")
+    g.edge("improved", "accept", label=T("Yes"))
+    g.edge("improved", "retries", label=T("No"))
+    g.edge("retries", "reject", label=T("No"), style="dashed")
+    g.edge("retries", "revert", label=T("Yes"))
 
     # Loop-back: revert -> reflect
-    g.edge("revert", "reflect", label="+ feedback",
+    g.edge("revert", "reflect", label=T("+ feedback"),
            constraint="false", style="dashed",
            color=BLUE, fontcolor=BLUE)
 
@@ -219,33 +297,33 @@ def fig_06_patch_surfaces():
 
 def fig_07_conversation_mechanics():
     """Conversation mechanics — horizontal layout."""
-    g = new_graph("slide_fig_07_conversation_mechanics", rankdir="LR")
+    g = new_graph(f"slide_fig_07_conversation_mechanics{_suffix()}", rankdir="LR")
     g.attr(nodesep="0.15", ranksep="0.3")
 
-    terminal_node(g, "start", "Task begins\n(scenario loaded)")
-    process_node(g, "user_turn", "User simulator\nsends message")
-    process_node(g, "agent_turn", "Agent\nprocesses msg")
-    decision_node(g, "action", "Agent\naction?")
-    process_node(g, "text", "Send text\nto user")
-    process_node(g, "tool", "Invoke tool")
-    process_node(g, "exec", "Execute\non sim DB")
-    process_node(g, "result", "Return\ntool result")
-    decision_node(g, "done", "User signals\ncompletion?")
-    terminal_node(g, "eval", "Evaluate\ntask criteria")
+    terminal_node(g, "start", T("Task begins\n(scenario loaded)"))
+    process_node(g, "user_turn", T("User simulator\nsends message"))
+    process_node(g, "agent_turn", T("Agent\nprocesses msg"))
+    decision_node(g, "action", T("Agent\naction?"))
+    process_node(g, "text", T("Send text\nto user"))
+    process_node(g, "tool", T("Invoke tool"))
+    process_node(g, "exec", T("Execute\non sim DB"))
+    process_node(g, "result", T("Return\ntool result"))
+    decision_node(g, "done", T("User signals\ncompletion?"))
+    terminal_node(g, "eval", T("Evaluate\ntask criteria"))
 
     g.edge("start", "user_turn")
     g.edge("user_turn", "agent_turn")
     g.edge("agent_turn", "action")
-    g.edge("action", "text", label="text")
-    g.edge("action", "tool", label="tool call")
+    g.edge("action", "text", label=T("text"))
+    g.edge("action", "tool", label=T("tool call"))
     g.edge("tool", "exec")
     g.edge("exec", "result")
-    g.edge("result", "agent_turn", label="another turn",
+    g.edge("result", "agent_turn", label=T("another turn"),
            constraint="false", style="dashed",
            color=BLUE, fontcolor=BLUE)
     g.edge("text", "done")
-    g.edge("done", "eval", label="Yes", style="dashed")
-    g.edge("done", "user_turn", label="No",
+    g.edge("done", "eval", label=T("Yes"), style="dashed")
+    g.edge("done", "user_turn", label=T("No"),
            constraint="false", style="dashed",
            color=BLUE, fontcolor=BLUE)
 
@@ -399,49 +477,49 @@ def fig_11_parallel_architecture():
 
 def fig_12_patch_pipeline():
     """Patch application pipeline — horizontal with three parallel paths."""
-    g = new_graph("slide_fig_12_patch_pipeline", rankdir="LR")
+    g = new_graph(f"slide_fig_12_patch_pipeline{_suffix()}", rankdir="LR")
     g.attr(nodesep="0.15", ranksep="0.3")
 
-    process_node(g, "propose", "Teacher proposes\npatch (old, new)")
-    decision_node(g, "type", "Patch\ntype?")
+    process_node(g, "propose", T("Teacher proposes\npatch (old, new)"))
+    decision_node(g, "type", T("Patch\ntype?"))
 
     g.edge("propose", "type")
 
     # Three paths — stacked vertically via clusters
-    p_path = cluster(g, "prompt_path", "  Prompt  ")
-    process_node(p_path, "p_find", "Find in\nprompt")
-    process_node(p_path, "p_replace", "Replace\ntext")
+    p_path = cluster(g, "prompt_path", T("  Prompt  "))
+    process_node(p_path, "p_find", T("Find in\nprompt"))
+    process_node(p_path, "p_replace", T("Replace\ntext"))
     p_path.edge("p_find", "p_replace")
     g.subgraph(p_path)
 
-    s_path = cluster(g, "schema_path", "  Tool Schema  ")
-    process_node(s_path, "s_find", "Find in\nschema JSON")
-    process_node(s_path, "s_replace", "Replace\ntext")
-    decision_node(s_path, "s_valid", "Valid\nJSON?")
+    s_path = cluster(g, "schema_path", T("  Tool Schema  "))
+    process_node(s_path, "s_find", T("Find in\nschema JSON"))
+    process_node(s_path, "s_replace", T("Replace\ntext"))
+    decision_node(s_path, "s_valid", T("Valid\nJSON?"))
     s_path.edge("s_find", "s_replace")
     s_path.edge("s_replace", "s_valid")
     g.subgraph(s_path)
 
-    c_path = cluster(g, "code_path", "  Preprocessor  ")
-    process_node(c_path, "c_find", "Find in\nsource")
-    process_node(c_path, "c_replace", "Replace\ntext")
-    decision_node(c_path, "c_safe", "Compiles\n& passes\nanalysis?")
+    c_path = cluster(g, "code_path", T("  Preprocessor  "))
+    process_node(c_path, "c_find", T("Find in\nsource"))
+    process_node(c_path, "c_replace", T("Replace\ntext"))
+    decision_node(c_path, "c_safe", T("Compiles\n& passes\nanalysis?"))
     c_path.edge("c_find", "c_replace")
     c_path.edge("c_replace", "c_safe")
     g.subgraph(c_path)
 
-    highlight_node(g, "accept", "Patch\napplied", color=C["success"])
-    highlight_node(g, "reject", "Patch\nrejected", color=C["failure"])
+    highlight_node(g, "accept", T("Patch\napplied"), color=C["success"])
+    highlight_node(g, "reject", T("Patch\nrejected"), color=C["failure"])
 
-    g.edge("type", "p_find", label="prompt")
-    g.edge("type", "s_find", label="schema")
-    g.edge("type", "c_find", label="code")
+    g.edge("type", "p_find", label=T("prompt"))
+    g.edge("type", "s_find", label=T("schema"))
+    g.edge("type", "c_find", label=T("code"))
 
     g.edge("p_replace", "accept")
-    g.edge("s_valid", "accept", label="Yes")
-    g.edge("s_valid", "reject", label="No", style="dashed")
-    g.edge("c_safe", "accept", label="Yes")
-    g.edge("c_safe", "reject", label="No", style="dashed")
+    g.edge("s_valid", "accept", label=T("Yes"))
+    g.edge("s_valid", "reject", label=T("No"), style="dashed")
+    g.edge("c_safe", "accept", label=T("Yes"))
+    g.edge("c_safe", "reject", label=T("No"), style="dashed")
 
     render(g)
 
@@ -502,21 +580,27 @@ ALL_FIGURES = [
 
 
 if __name__ == "__main__":
-    targets = sys.argv[1:] if len(sys.argv) > 1 else []
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--lang", choices=["en", "ru"], default="en")
+    ap.add_argument("targets", nargs="*",
+                    help="figure function name(s); empty = generate all")
+    args = ap.parse_args()
+    globals()["LANG"] = args.lang
+    LANG = args.lang
 
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
-    if targets:
+    if args.targets:
         name_map = {f.__name__: f for f in ALL_FIGURES}
-        for t in targets:
+        for t in args.targets:
             if t in name_map:
-                print(f"Generating {t}...")
+                print(f"Generating {t} (lang={LANG})...")
                 name_map[t]()
             else:
                 print(f"Unknown figure: {t}")
                 print(f"Available: {', '.join(name_map)}")
     else:
-        print(f"Generating {len(ALL_FIGURES)} slide figures...")
+        print(f"Generating {len(ALL_FIGURES)} slide figures (lang={LANG})...")
         for fn in ALL_FIGURES:
             print(f"  {fn.__name__}...")
             fn()
